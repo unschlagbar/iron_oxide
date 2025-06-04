@@ -1,0 +1,288 @@
+use std::{fmt::Debug, rc::Rc};
+
+use crate::{graphics::UiInstance, primitives::Vec2};
+use super::{ui_state::EventResult, AbsoluteLayout, BuildContext, Button, ButtonState, CallContext, Container, ElementType, Text, UiEvent, UiState};
+
+pub trait Element {
+    fn build(&mut self, context: &mut BuildContext);
+    fn instance(&self) -> UiInstance;
+    fn childs(&mut self) -> &mut[UiElement];
+    fn add_child(&mut self, child: UiElement);
+    fn on_interaction(&mut self, _ui: &mut UiState, _event: UiEvent) -> EventResult { EventResult::None }
+}
+
+pub trait ElementBuild {
+    fn wrap(self, ui_state: &UiState) -> UiElement;
+}
+
+pub trait TypeConst {
+    const ELEMENT_TYPE: ElementType;
+}
+
+pub struct UiElement {
+    pub id: u32,
+    pub typ: ElementType,
+    pub dirty: bool,
+    pub visible: bool,
+    pub size: Vec2,
+    pub pos: Vec2,
+    pub parent: *mut UiElement,
+    pub element: Box<dyn Element>
+}
+
+impl UiElement {
+    pub unsafe fn downcast<'a, T: Element>(&'a self) -> &'a T {
+        let raw: *const dyn Element = &*self.element as *const dyn Element;
+        unsafe { &*(raw as *const T) }
+    }
+
+    pub unsafe fn downcast_mut<'a, T: Element>(&'a mut self) -> &'a mut T {
+        let raw: *mut dyn Element = &mut*self.element as *mut dyn Element;
+        unsafe { &mut*(raw as *mut T) }
+    }
+
+    pub fn parent(&mut self) -> &mut UiElement {
+        unsafe { &mut *self.parent }
+    }
+
+    pub fn build(&mut self, context: &mut BuildContext) {
+        match &self.typ {
+            ElementType::Block => {
+                let div: &mut Container = unsafe { self.downcast_mut() };
+                div.build(context);
+                self.dirty = false;
+            },
+            ElementType::AbsoluteLayout => {
+                let div: &mut AbsoluteLayout = unsafe { self.downcast_mut() };
+                div.build(context);
+                self.dirty = false;
+            },
+            ElementType::Button => {
+                let div: &mut Button = unsafe { self.downcast_mut() };
+                div.build(context);
+                self.dirty = false;
+            },
+            ElementType::Text => {
+                let div: &mut Text = unsafe { self.downcast_mut() };
+                div.build(context);
+                self.dirty = false;
+            },
+            _ => unimplemented!()
+        }
+        
+        self.pos = context.element_pos;
+        self.size = context.element_size;
+    }
+
+    pub fn end_selection(&mut self, ui: &mut UiState) {
+        if self.typ == ElementType::Button {
+            let element = unsafe { &mut *(self as *mut UiElement) };
+            let button: &mut Button = unsafe { self.downcast_mut() };
+            button.state = ButtonState::Normal;
+            if !button.callback.is_null() {
+                let context = CallContext {
+                    ui,
+                    element,
+                    event: UiEvent::Release,
+                };
+                button.callback.call(context);
+            }
+
+        }
+    }
+
+    pub fn get_instances(&mut self, ui: &mut UiState, instances: &mut Vec<UiInstance>) {
+        if !self.visible {
+            return;
+        }
+        
+        if self.typ == ElementType::Text {
+            let size = self.parent().size;
+            let pos = self.parent().pos;
+            let text = unsafe { self.downcast_mut::<Text>() };
+            text.get_font_instances(size, pos, ui);
+        } else {
+            instances.push(self.element.instance());
+        }
+
+        for child in self.element.childs() {
+            child.get_instances(ui, instances);
+        }
+    }
+
+    #[inline(always)]
+    pub fn get_offset(&mut self) -> Vec2 {
+        let mut offset = Vec2::default();
+        if !self.parent.is_null() {
+            let id = self.id;
+            let parent = self.parent();
+            let childs = parent.element.childs();
+
+            for child in childs {
+                if child.id == id {
+                    break;
+                }
+                offset = child.pos - parent.pos + child.size;
+            }
+        }
+        offset
+    }
+
+    #[inline(always)]
+    pub fn move_computed(&mut self, amount: Vec2) {
+        for child in self.element.childs() {
+            child.move_computed(amount);
+        }
+        self.pos += amount;
+
+        if self.typ == ElementType::Text {
+            todo!()
+            //for raw in &mut text.comp_text {
+            //    raw.x += amount.x;
+            //    raw.y += amount.y;
+            //}
+        }
+    }
+
+    #[inline(always)]
+    pub fn move_computed_absolute(&mut self, pos: Vec2) {
+        for child in self.element.childs() {
+            child.move_computed_absolute(pos);
+        }
+        self.pos = pos;
+    }
+
+    #[inline]
+    pub fn is_in(&self, pos: Vec2) -> bool {
+        if self.pos < pos {
+            if self.pos.x + self.size.x > pos.x && self.pos.y + self.size.y > pos.y {
+                return true;
+            }
+        }
+        false
+    }
+
+    #[allow(unused)]
+    pub fn update_cursor(&mut self, ui: &mut UiState, parent_pos: Vec2, cursor_pos: Vec2, ui_event: UiEvent) -> EventResult {
+        if !self.visible {
+            return EventResult::None;
+        }
+
+        let (size, pos) = (self.size, self.pos);
+
+        if pos < cursor_pos {
+            if pos.x + size.x > cursor_pos.x && pos.y + size.y > cursor_pos.y {
+                for child in self.element.childs() {
+                    let result = child.update_cursor(ui, pos, cursor_pos, ui_event);
+                    if !result.is_none() { return result };
+                }
+
+                let mut result = EventResult::None;
+
+                match self.typ {
+                    ElementType::Button => {
+                        let element = unsafe { &mut *(self as *mut UiElement) };
+                        let button: &mut Button = unsafe { self.downcast_mut() };
+
+                        if matches!(button.state, ButtonState::Normal | ButtonState::Disabled) {
+                            result = EventResult::New;
+                        } else {
+                            result = EventResult::Old;
+                        };
+                        
+                        match ui_event {
+                            UiEvent::Press => {
+                                button.state = ButtonState::Pressed;
+                                ui.selected.set_pressed(element);
+                            },
+                            UiEvent::Release => {
+                                if element.is_in(cursor_pos) {
+                                    button.state = ButtonState::Hovered;
+                                    ui.selected.set_selected(element);
+                                } else {
+                                    button.state = ButtonState::Normal;
+                                    ui.selected.clear();
+                                }
+                            },
+                            UiEvent::Move => {
+                                if !matches!(button.state, ButtonState::Pressed) {
+                                    button.state = ButtonState::Hovered;
+                                    ui.selected.set_selected(element);
+                                }
+                            },
+                        }
+                        
+                        if !button.callback.is_null() {
+                            let context = CallContext {
+                                ui,
+                                element,
+                                event: ui_event
+                            };
+                            button.callback.call(context);
+                        }
+                    },
+                    _ => ()
+                }
+
+                return result;
+            }
+        }
+        EventResult::None
+    }
+
+    pub fn add_to_parent(mut self, parent: &mut UiElement) {
+        self.parent = parent as *mut UiElement;
+        parent.add_child(self);
+    }
+
+    #[inline]
+    pub fn get_mut(this: &mut Rc<UiElement>) -> Option<&mut UiElement> {
+        Rc::get_mut(this)
+    }
+
+    #[inline]
+    pub fn set_dirty(&self) {
+        unsafe { (self as *const UiElement as *mut UiElement).as_mut().unwrap_unchecked().dirty = true };
+    }
+
+    #[inline]
+    pub fn add_child(&mut self, mut child: UiElement) {
+        child.parent = self as *mut UiElement;
+        self.element.add_child(child);
+    }
+
+    pub fn init(&mut self) {
+        let parent = self as *mut UiElement;
+        for child in self.element.childs() {
+            child.parent = parent;
+            child.init();
+        }
+    }
+
+    pub fn get_child_by_id(&mut self, id: u32) -> Option<&mut UiElement> {
+        for child in self.element.childs() {
+            if child.id == id {
+                return Some(child);
+            } else {
+                let result = child.get_child_by_id(id);
+                if result.is_some() {
+                    return result;
+                }
+            }
+        }
+        None
+    }
+}
+
+impl Debug for UiElement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UiElement")
+            .field("id", &self.id)
+            .field("typ", &self.typ)
+            .field("dirty", &self.dirty)
+            .field("visible", &self.visible)
+            .field("size", &self.size)
+            .field("pos", &self.pos)
+            .finish()
+    }
+}
