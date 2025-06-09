@@ -1,4 +1,4 @@
-use crate::{graphics::formats::Color, primitives::Vec2};
+use crate::{graphics::formats::Color, primitives::Vec2, ui::{ui_state::EventResult, CallContext, UiEvent, UiState}};
 use super::{
     ui_element::{Element, ElementBuild, TypeConst}, BuildContext, ElementType, ErasedFnPointer, Overflow, OutArea, RawUiElement, UiElement, UiUnit
 };
@@ -71,7 +71,7 @@ impl Element for Button {
     }
 
     fn instance(&self) -> crate::graphics::UiInstance {
-        self.comp.to_instance(&self.color, &self.border_color)
+        self.comp.to_instance(self.color, self.border_color)
     }
 
     fn childs(&mut self) -> &mut[UiElement] {
@@ -80,6 +80,57 @@ impl Element for Button {
 
     fn add_child(&mut self, child: UiElement) {
         self.childs.push(child);
+    }
+
+    fn interaction(&mut self, element: &mut UiElement, ui: &mut UiState, cursor_pos: Vec2, event: UiEvent) -> EventResult {
+        let button: &mut Button = self;
+        let mut result;
+
+        if matches!(button.state, ButtonState::Normal | ButtonState::Disabled) {
+            result = EventResult::New;
+        } else {
+            result = EventResult::Old;
+        };
+                        
+        match event {
+            UiEvent::Press => {
+                button.state = ButtonState::Pressed;
+                ui.selected.set_pressed(element as _);
+            },
+            UiEvent::Release => {
+                if element.is_in(cursor_pos) {
+                    button.state = ButtonState::Hovered;
+                    ui.selected.set_selected(element);
+                } else {
+                    result = EventResult::None;
+                    button.state = ButtonState::Normal;
+                    ui.selected.clear();
+                }
+            },
+            UiEvent::Move => {
+                if !matches!(button.state, ButtonState::Pressed) {
+                    if matches!(result, EventResult::New) || element.is_in(cursor_pos) {
+                        button.state = ButtonState::Hovered;
+                        ui.selected.set_selected(element);
+                    } else {
+                        result = EventResult::None;
+                        button.state = ButtonState::Normal;
+                        ui.selected.clear();
+                    }
+                }
+            },
+        }
+                        
+        if !button.callback.is_null() {
+            let context = CallContext {
+                ui,
+                element,
+                event,
+            };
+            button.callback.call(context);
+        }
+
+        result
     }
 }
 

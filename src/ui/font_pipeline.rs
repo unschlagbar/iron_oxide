@@ -5,8 +5,7 @@ use crate::graphics::{self, VkBase};
 
 use graphics::create_shader_modul;
 
-#[inline(always)]
-pub fn font_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_pass: vk::RenderPass, descriptor_set_layout: &vk::DescriptorSetLayout, shaders: (&[u8], &[u8])) -> (vk::PipelineLayout, vk::Pipeline) {
+pub fn font_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_pass: vk::RenderPass, descriptor_set_layout: vk::DescriptorSetLayout, shaders: (&[u8], &[u8])) -> (vk::PipelineLayout, vk::Pipeline) {
     let vertex_shader_buff = shaders.0;
     let fragment_shader_buff = shaders.1;
 
@@ -22,7 +21,7 @@ pub fn font_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_pass:
         s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
         stage: vk::ShaderStageFlags::VERTEX,
         module: vertex_shader_module,
-        p_name:  b"main\0".as_ptr() as *const _,
+        p_name:  c"main".as_ptr(),
         ..Default::default()
     };
 
@@ -30,7 +29,7 @@ pub fn font_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_pass:
         s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
         stage: vk::ShaderStageFlags::FRAGMENT,
         module: fragment_shader_module,
-        p_name:  b"main\0".as_ptr() as *const _,
+        p_name:  c"main".as_ptr(),
         ..Default::default()
     };
 
@@ -117,7 +116,7 @@ pub fn font_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_pass:
 
     let pipeline_layout_info = vk::PipelineLayoutCreateInfo {
         set_layout_count: 1,
-        p_set_layouts: descriptor_set_layout,
+        p_set_layouts: &descriptor_set_layout,
         ..Default::default()
     };
 

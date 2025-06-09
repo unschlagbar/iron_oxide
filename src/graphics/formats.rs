@@ -8,7 +8,6 @@ pub struct RGB {
 
 impl RGB {
     pub const ZERO: RGB = RGB { r: 0, g: 0, b: 0 };
-
     pub const BLACK: RGB = RGB { r: 0, g: 0, b: 0 };
     pub const GREY: RGB = RGB { r: 10, g: 100, b: 100 };
     pub const WHITE: RGB = RGB { r: 255, g: 255, b: 255 };
@@ -37,7 +36,6 @@ pub struct RGBA {
 
 impl RGBA {
     pub const ZERO: RGBA = RGBA { r: 0, g: 0, b: 0, a: 0 };
-
     pub const BLACK: RGBA = RGBA { r: 0, g: 0, b: 0, a: 255 };
     pub const GREY: RGBA = RGBA { r: 80, g: 80, b: 80, a: 255 };
     pub const WHITE: RGBA = RGBA { r: 255, g: 255, b: 255, a: 255 };
@@ -77,7 +75,6 @@ pub struct Color {
 
 impl Color {
     pub const ZERO: Self = Self { r: 0.0, g: 0.0, b: 0.0, a: 0.0 };
-
     pub const BLACK: Self = Self { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
     pub const GREY: Self = Self { r: 0.05, g: 0.4, b: 0.4, a: 1.0 };
     pub const DARKGREY: Self = Self { r: 0.05, g: 0.05, b: 0.05, a: 1.0 };
@@ -98,7 +95,7 @@ impl Color {
             g: g as f32 / 255.0,
             b: b as f32 / 255.0,
             a: 1.0,
-        }.gama_correct()
+        }
     }
 
     pub const fn rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
@@ -107,15 +104,6 @@ impl Color {
             g: g as f32 / 255.0,
             b: b as f32 / 255.0,
             a: a as f32 / 255.0,
-        }.gama_correct()
-    }
-
-    pub const fn gama_correct(&mut self) -> Self {
-        Self {
-            r: self.r * self.r,
-            g: self.g * self.g,
-            b: self.b * self.b,
-            a: self.a,
         }
     }
 }

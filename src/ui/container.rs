@@ -73,7 +73,7 @@ impl Element for Container {
     }
 
     fn instance(&self) -> crate::graphics::UiInstance {
-        self.comp.to_instance(&self.color, &self.border_color)
+        self.comp.to_instance(self.color, self.border_color)
     }
 
     fn childs(&mut self) -> &mut[UiElement] {

@@ -43,7 +43,7 @@ impl Buffer {
         Self { inner: vk::Buffer::null(), mem: vk::DeviceMemory::null(), size: 0 }
     }
 
-    pub fn device_local_raw(base: &VkBase, command_pool: &vk::CommandPool, stride: u64, len: u64, data: *const u8, usage: vk::BufferUsageFlags) -> Self {
+    pub fn device_local_raw(base: &VkBase, command_pool: vk::CommandPool, stride: u64, len: u64, data: *const u8, usage: vk::BufferUsageFlags) -> Self {
         let buffer_size = stride * len;
         let staging_buffer = Self::create(base, buffer_size, vk::BufferUsageFlags::TRANSFER_SRC, vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT);
 
@@ -55,8 +55,8 @@ impl Buffer {
 
         let device_local_buffer = Self::create(base, buffer_size, usage | vk::BufferUsageFlags::TRANSFER_DST, vk::MemoryPropertyFlags::DEVICE_LOCAL);
 
-        let cmd_buf = SinlgeTimeCommands::begin(&base, &command_pool);
-        staging_buffer.copy(&device_local_buffer, base, buffer_size, cmd_buf);
+        let cmd_buf = SinlgeTimeCommands::begin(&base, command_pool);
+        staging_buffer.copy(base, &device_local_buffer, buffer_size, 0, cmd_buf);
         SinlgeTimeCommands::end(base, command_pool, cmd_buf);
 
         staging_buffer.destroy(&base.device);
@@ -76,7 +76,7 @@ impl Buffer {
 
     }
 
-    pub fn update<T>(&mut self, base: &VkBase, command_pool: &vk::CommandPool, data: &[T], usage: vk::BufferUsageFlags) {
+    pub fn update<T>(&mut self, base: &VkBase, command_pool: vk::CommandPool, data: &[T], usage: vk::BufferUsageFlags) {
         let buffer_size = size_of::<T>() as u64 * data.len() as u64;
         let staging_buffer = Self::create(base, buffer_size, vk::BufferUsageFlags::TRANSFER_SRC, vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT);
 
@@ -92,14 +92,14 @@ impl Buffer {
             *self = Self::create(base, buffer_size, usage | vk::BufferUsageFlags::TRANSFER_DST, vk::MemoryPropertyFlags::DEVICE_LOCAL);
         }
 
-        let cmd_buf = SinlgeTimeCommands::begin(&base, &command_pool);
-        staging_buffer.copy(&self, base, buffer_size, cmd_buf);
+        let cmd_buf = SinlgeTimeCommands::begin(&base, command_pool);
+        staging_buffer.copy(base, &self, buffer_size, 0, cmd_buf);
         SinlgeTimeCommands::end(base, command_pool, cmd_buf);
 
         staging_buffer.destroy(&base.device);
     }
 
-    pub fn device_local<T>(base: &VkBase, command_pool: &vk::CommandPool, data: &[T], usage: vk::BufferUsageFlags) -> Self {
+    pub fn device_local_slow<T>(base: &VkBase, command_pool: vk::CommandPool, data: &[T], usage: vk::BufferUsageFlags) -> Self {
         let buffer_size = data.len() as u64 * size_of::<T>() as u64;
         let staging_buffer = Self::create(base, buffer_size, vk::BufferUsageFlags::TRANSFER_SRC, vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT);
 
@@ -111,8 +111,8 @@ impl Buffer {
 
         let device_local_buffer = Self::create(base, buffer_size, usage | vk::BufferUsageFlags::TRANSFER_DST, vk::MemoryPropertyFlags::DEVICE_LOCAL);
 
-        let cmd_buf = SinlgeTimeCommands::begin(&base, &command_pool);
-        staging_buffer.copy(&device_local_buffer, base, buffer_size, cmd_buf);
+        let cmd_buf = SinlgeTimeCommands::begin(&base, command_pool);
+        staging_buffer.copy(base, &device_local_buffer, buffer_size, 0, cmd_buf);
         SinlgeTimeCommands::end(base, command_pool, cmd_buf);
 
         staging_buffer.destroy(&base.device);
@@ -120,9 +120,9 @@ impl Buffer {
         device_local_buffer
     }
 
-    pub fn copy(&self, dst_buffer: &Self, base: &VkBase, size: vk::DeviceSize, cmd_buf: vk::CommandBuffer) {
+    pub fn copy(&self, base: &VkBase, dst_buffer: &Self, size: u64, src_offset: u64, cmd_buf: vk::CommandBuffer) {
         let copy_region = vk::BufferCopy {
-            src_offset: 0,
+            src_offset,
             dst_offset: 0,
             size
         };

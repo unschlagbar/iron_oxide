@@ -37,9 +37,9 @@ impl Image {
             ..Default::default()
         };
 
-        let image_memory = unsafe { base.device.allocate_memory(&allocate_info, None).unwrap() };
-        unsafe { base.device.bind_image_memory(image, image_memory, 0).unwrap() };
-        Self { inner: image, mem: image_memory, view: ImageView::null(), format, layout: vk::ImageLayout::UNDEFINED }
+        let mem = unsafe { base.device.allocate_memory(&allocate_info, None).unwrap() };
+        unsafe { base.device.bind_image_memory(image, mem, 0).unwrap() };
+        Self { inner: image, mem, view: ImageView::null(), format, layout: vk::ImageLayout::UNDEFINED }
     }
 
     pub fn create_view(&mut self, base: &VkBase, aspect_flags: vk::ImageAspectFlags) {
@@ -59,8 +59,7 @@ impl Image {
         self.view = unsafe { base.device.create_image_view(&create_info, None).unwrap() }
     }
 
-    pub fn trasition_layout(&mut self, base: &VkBase, cmd_buf: &vk::CommandBuffer, new_layout: vk::ImageLayout) {
-
+    pub fn trasition_layout(&mut self, base: &VkBase, cmd_buf: vk::CommandBuffer, new_layout: vk::ImageLayout) {
         let mut barrier = vk::ImageMemoryBarrier {
             old_layout: self.layout,
             new_layout,
@@ -131,11 +130,11 @@ impl Image {
             panic!("From layout: {:?} to layout: {:?} is not implemented!", self.layout, new_layout);
         }
         self.layout = new_layout;
-        unsafe { base.device.cmd_pipeline_barrier(*cmd_buf, source_stage, destination_stage, vk::DependencyFlags::empty(), &[], &[], &[barrier]) }
+        unsafe { base.device.cmd_pipeline_barrier(cmd_buf, source_stage, destination_stage, vk::DependencyFlags::empty(), &[], &[], &[barrier]) }
 
     }
 
-    pub fn copy_from_buffer(&self, base: &VkBase, cmd_buf: &vk::CommandBuffer, buffer: &Buffer, extent: vk::Extent3D, aspect_mask: vk::ImageAspectFlags) {
+    pub fn copy_from_buffer(&self, base: &VkBase, cmd_buf: vk::CommandBuffer, buffer: &Buffer, extent: vk::Extent3D, aspect_mask: vk::ImageAspectFlags) {
         let region = vk::BufferImageCopy {
             buffer_offset: 0,
             buffer_row_length: 0,
@@ -150,7 +149,7 @@ impl Image {
             image_extent: extent,
         };
     
-        unsafe { base.device.cmd_copy_buffer_to_image(*cmd_buf, buffer.inner, self.inner, vk::ImageLayout::TRANSFER_DST_OPTIMAL, &[region]) };
+        unsafe { base.device.cmd_copy_buffer_to_image(cmd_buf, buffer.inner, self.inner, vk::ImageLayout::TRANSFER_DST_OPTIMAL, &[region]) };
     }
 
     #[inline]

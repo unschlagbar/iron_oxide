@@ -61,7 +61,7 @@ impl Element for AbsoluteLayout {
     }
 
     fn instance(&self) -> crate::graphics::UiInstance {
-        self.comp.to_instance(&self.color, &self.border_color)
+        self.comp.to_instance(self.color, self.border_color)
     }
 
     fn childs(&mut self) -> &mut[UiElement] {
@@ -89,8 +89,8 @@ impl Default for AbsoluteLayout {
             height: UiUnit::Px(100.0),
             color: Color::DARKGREY,
             border_color: Color::GREEN,
-            border: [1.0; 4],
-            corner: [UiUnit::Px(5.0); 4],
+            border: [0.0; 4],
+            corner: [UiUnit::Zero; 4],
             padding: OutArea::default(),
         }
     }

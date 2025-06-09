@@ -16,10 +16,10 @@ impl RawUiElement {
     }
 
     #[inline(always)]
-    pub fn to_instance(&self, color: &Color, border_color: &Color) -> UiInstance {
+    pub fn to_instance(&self, color: Color, border_color: Color) -> UiInstance {
         UiInstance { 
-            color: *color,
-            border_color: *border_color,
+            color: color,
+            border_color: border_color,
             border: self.border,
             x: self.pos.x.floor(),
             y: self.pos.y.floor(),

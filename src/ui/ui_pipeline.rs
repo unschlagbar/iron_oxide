@@ -5,11 +5,7 @@ use crate::graphics::{self, VkBase};
 
 use graphics::create_shader_modul;
 
-#[inline(always)]
-pub fn basic_ui_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_pass: vk::RenderPass, descriptor_set_layout: &vk::DescriptorSetLayout, shaders: (&[u8], &[u8])) -> (vk::PipelineLayout, vk::Pipeline) {
-    //let vertex_shader_buff= include_bytes!("../../shaders/ui/vert.spv");
-    //let fragment_shader_buff = include_bytes!("../../shaders/ui/frag.spv");
-
+pub fn basic_ui_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_pass: vk::RenderPass, descriptor_set_layout: vk::DescriptorSetLayout, shaders: (&[u8], &[u8])) -> (vk::PipelineLayout, vk::Pipeline) {
     let vertex_shader_buff = shaders.0;
     let fragment_shader_buff = shaders.1;
 
@@ -25,7 +21,7 @@ pub fn basic_ui_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_p
         s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
         stage: vk::ShaderStageFlags::VERTEX,
         module: vertex_shader_module,
-        p_name:  b"main\0".as_ptr() as *const _,
+        p_name:  c"main".as_ptr(),
         ..Default::default()
     };
 
@@ -33,7 +29,7 @@ pub fn basic_ui_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_p
         s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
         stage: vk::ShaderStageFlags::FRAGMENT,
         module: fragment_shader_module,
-        p_name:  b"main\0".as_ptr() as *const _,
+        p_name:  c"main".as_ptr(),
         ..Default::default()
     };
 
@@ -53,7 +49,7 @@ pub fn basic_ui_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_p
         ..Default::default()
     };
 
-    let dynamic_states = [ vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR ];
+    let dynamic_states = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
     
     let dynamic_state = vk::PipelineDynamicStateCreateInfo {
         dynamic_state_count: dynamic_states.len() as _,
@@ -102,8 +98,6 @@ pub fn basic_ui_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_p
         src_color_blend_factor: vk::BlendFactor::SRC_ALPHA,
         dst_color_blend_factor: vk::BlendFactor::ONE_MINUS_SRC_ALPHA,
         color_blend_op: vk::BlendOp::ADD,
-        //src_alpha_blend_factor: vk::BlendFactor::ONE,
-        //dst_alpha_blend_factor: vk::BlendFactor::ZERO,
         alpha_blend_op: vk::BlendOp::ADD,
         color_write_mask: vk::ColorComponentFlags::RGBA,
         ..Default::default()
@@ -120,7 +114,7 @@ pub fn basic_ui_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_p
 
     let pipeline_layout_info = vk::PipelineLayoutCreateInfo {
         set_layout_count: 1,
-        p_set_layouts: descriptor_set_layout,
+        p_set_layouts: &descriptor_set_layout,
         ..Default::default()
     };
 

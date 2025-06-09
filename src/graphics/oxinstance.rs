@@ -1,14 +1,10 @@
 use std::ffi::{c_char, CStr, CString};
-
-use ash::{ext, khr, prelude::VkResult, vk::{self, SurfaceKHR}};
-use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+use ash::{ext, khr::{self, surface}, prelude::VkResult, vk};
+use winit::raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
 pub struct VkBase {
     pub entry: ash::Entry,
     pub instance: ash::Instance,
-
-    pub surface_loader: khr::surface::Instance,
-    pub surface: SurfaceKHR,
 
     #[cfg(debug_assertions)]
     pub debug_utils: ext::debug_utils::Instance,
@@ -24,14 +20,14 @@ pub struct VkBase {
 }
 
 impl VkBase {
-    pub fn create(mut instance_extension: Vec<*const c_char>, window: &winit::window::Window, required_capabilities: u32) -> Self {
+    pub fn create(mut instance_extension: Vec<*const c_char>, required_capabilities: u32, display_handle: RawDisplayHandle, window_handle: RawWindowHandle) -> (Self, surface::Instance, vk::SurfaceKHR) {
         #[cfg(feature = "linked")]
         let entry = ash::Entry::linked();
 
         #[cfg(not(feature = "linked"))]
         let entry = unsafe { ash::Entry::load().unwrap() };
 
-        let instance = Self::create_instance(&entry, &mut instance_extension);
+        let instance = Self::create_instance(&entry, &mut instance_extension, display_handle);
 
         #[cfg(debug_assertions)]
         let debug_utils = ext::debug_utils::Instance::new(&entry, &instance);
@@ -54,18 +50,18 @@ impl VkBase {
         let utils_messenger = unsafe {debug_utils.create_debug_utils_messenger(&create_info, None).unwrap_unchecked()};
         let (physical_device, capabilities) = Self::select_physical_device(&instance, required_capabilities);
 
-        let surface_loader = khr::surface::Instance::new(&entry, &instance);
-        let surface = unsafe { ash_window::create_surface(&entry, &instance, window.display_handle().unwrap_unchecked().as_raw(), window.window_handle().unwrap_unchecked().as_raw(), None).unwrap_unchecked() };
+        let surface_loader = surface::Instance::new(&entry, &instance);
+        let surface = unsafe { ash_window::create_surface(&entry, &instance, display_handle, window_handle, None).unwrap_unchecked() };
 
-        let queue_family_index = Self::get_queue_family_index(&physical_device, &instance, surface, &surface_loader);
-        let device = Self::create_logical_device(&instance, &physical_device, queue_family_index, capabilities);
+        let queue_family_index = Self::get_queue_family_index(physical_device, &instance, surface, &surface_loader);
+
+        let device = Self::create_logical_device(&instance, physical_device, queue_family_index, capabilities);
+
         let queue = unsafe { device.get_device_queue(queue_family_index, 0) };
 
-        Self {
+        (Self {
             entry,
             instance,
-            surface_loader,
-            surface,
             #[cfg(debug_assertions)] 
             debug_utils,
             #[cfg(debug_assertions)]
@@ -75,10 +71,10 @@ impl VkBase {
             device,
             queue_family_index,
             queue,
-        }
+        }, surface_loader, surface)
     }
 
-    fn create_instance(entry: &ash::Entry, extension: &mut Vec<*const c_char>) -> ash::Instance {
+    fn create_instance(entry: &ash::Entry, extension: &mut Vec<*const c_char>, display_handle: RawDisplayHandle) -> ash::Instance {
         let app_name = unsafe { CString::new("Lol").unwrap_unchecked() };
         
         let app_info = vk::ApplicationInfo {
@@ -92,6 +88,7 @@ impl VkBase {
 
         #[cfg(debug_assertions)]
         extension.push(ext::debug_utils::NAME.as_ptr() as _);
+        extension.extend_from_slice(ash_window::enumerate_required_extensions(display_handle).unwrap());
 
 
         const LAYER_NAMES: &[&CStr] = {
@@ -175,7 +172,7 @@ impl VkBase {
         (devices[0], 0)
     }
 
-    fn create_logical_device(instance: &ash::Instance, physical_device: &vk::PhysicalDevice, queue_family_index: u32, capabilities: u32) -> ash::Device {
+    fn create_logical_device(instance: &ash::Instance, physical_device: vk::PhysicalDevice, queue_family_index: u32, capabilities: u32) -> ash::Device {
         let mut raytracing_pipeline_structure_features = vk::PhysicalDeviceRayTracingPipelineFeaturesKHR {
             ray_tracing_pipeline: vk::TRUE,
             ..Default::default()
@@ -229,7 +226,7 @@ impl VkBase {
         let queue_create_info = vk::DeviceQueueCreateInfo {
            queue_family_index,
            p_queue_priorities: queue_priorities.as_ptr(),
-           queue_count: 1,
+           queue_count: queue_priorities.len() as _,
            ..Default::default()
         };
 
@@ -244,14 +241,14 @@ impl VkBase {
             ..Default::default()
         };
 
-        unsafe { instance.create_device(*physical_device, &device_create_info, None).unwrap() }
+        unsafe { instance.create_device(physical_device, &device_create_info, None).unwrap() }
     }
 
-    fn get_queue_family_index(physical_device: &vk::PhysicalDevice, instance: &ash::Instance, surface: vk::SurfaceKHR, surface_loader: &khr::surface::Instance) -> u32 {
-        let family_queue = unsafe { instance.get_physical_device_queue_family_properties(*physical_device) };
+    fn get_queue_family_index(physical_device: vk::PhysicalDevice, instance: &ash::Instance, surface: vk::SurfaceKHR, surface_loader: &khr::surface::Instance) -> u32 {
+        let family_queue = unsafe { instance.get_physical_device_queue_family_properties(physical_device) };
     
         for f in 0..family_queue.len() {
-            if family_queue[f].queue_flags.contains(vk::QueueFlags::GRAPHICS) && unsafe { surface_loader.get_physical_device_surface_support(*physical_device, f as u32, surface).unwrap() } {
+            if family_queue[f].queue_flags.contains(vk::QueueFlags::GRAPHICS) && unsafe { surface_loader.get_physical_device_surface_support(physical_device, f as u32, surface).unwrap() } {
                 return f as _;
             }
         }
@@ -274,6 +271,6 @@ unsafe extern "system" fn vulkan_debug_utils_callback(
     let message = unsafe { CStr::from_ptr((*p_callback_data).p_message) };
     let severity = format!("{:?}", message_severity).to_lowercase();
     let ty = format!("{:?}", message_type).to_lowercase();
-    println!("\n[Debug][{}][{}] {:?}", severity, ty, message);
+    println!("[Debug][{}][{}] {:?}", severity, ty, message);
     vk::FALSE
 }

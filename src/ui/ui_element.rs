@@ -8,7 +8,8 @@ pub trait Element {
     fn instance(&self) -> UiInstance;
     fn childs(&mut self) -> &mut[UiElement];
     fn add_child(&mut self, child: UiElement);
-    fn on_interaction(&mut self, _ui: &mut UiState, _event: UiEvent) -> EventResult { EventResult::None }
+    #[allow(unused)]
+    fn interaction(&mut self, element: &mut UiElement, ui: &mut UiState, curser_pos: Vec2, event: UiEvent) -> EventResult { EventResult::None }
 }
 
 pub trait ElementBuild {
@@ -163,69 +164,30 @@ impl UiElement {
     }
 
     #[allow(unused)]
-    pub fn update_cursor(&mut self, ui: &mut UiState, parent_pos: Vec2, cursor_pos: Vec2, ui_event: UiEvent) -> EventResult {
+    pub fn update_cursor(&mut self, ui: &mut UiState, cursor_pos: Vec2, ui_event: UiEvent) -> EventResult {
         if !self.visible {
             return EventResult::None;
         }
 
         let (size, pos) = (self.size, self.pos);
 
-        if pos < cursor_pos {
-            if pos.x + size.x > cursor_pos.x && pos.y + size.y > cursor_pos.y {
-                for child in self.element.childs() {
-                    let result = child.update_cursor(ui, pos, cursor_pos, ui_event);
-                    if !result.is_none() { return result };
-                }
-
-                let mut result = EventResult::None;
-
-                match self.typ {
-                    ElementType::Button => {
-                        let element = unsafe { &mut *(self as *mut UiElement) };
-                        let button: &mut Button = unsafe { self.downcast_mut() };
-
-                        if matches!(button.state, ButtonState::Normal | ButtonState::Disabled) {
-                            result = EventResult::New;
-                        } else {
-                            result = EventResult::Old;
-                        };
-                        
-                        match ui_event {
-                            UiEvent::Press => {
-                                button.state = ButtonState::Pressed;
-                                ui.selected.set_pressed(element);
-                            },
-                            UiEvent::Release => {
-                                if element.is_in(cursor_pos) {
-                                    button.state = ButtonState::Hovered;
-                                    ui.selected.set_selected(element);
-                                } else {
-                                    button.state = ButtonState::Normal;
-                                    ui.selected.clear();
-                                }
-                            },
-                            UiEvent::Move => {
-                                if !matches!(button.state, ButtonState::Pressed) {
-                                    button.state = ButtonState::Hovered;
-                                    ui.selected.set_selected(element);
-                                }
-                            },
-                        }
-                        
-                        if !button.callback.is_null() {
-                            let context = CallContext {
-                                ui,
-                                element,
-                                event: ui_event
-                            };
-                            button.callback.call(context);
-                        }
-                    },
-                    _ => ()
-                }
-
-                return result;
+        if self.is_in(cursor_pos) {
+            for child in self.element.childs() {
+                let result = child.update_cursor(ui, cursor_pos, ui_event);
+                if !result.is_none() { return result };
             }
+
+            let mut result = EventResult::None;
+            let element = unsafe { &mut *(self as *mut _) };
+
+            match self.typ {
+                ElementType::Button => {
+                    result = self.element.interaction(element, ui, cursor_pos, ui_event);
+                },
+                _ => ()
+            }
+
+            return result;
         }
         EventResult::None
     }

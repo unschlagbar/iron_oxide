@@ -16,6 +16,7 @@ pub struct UiState {
     pub dirty: DirtyFlags,
     pub texts: Vec<FontInstance>,
     id_gen: AtomicU32,
+
     pipeline_layout: vk::PipelineLayout,
     pipeline: vk::Pipeline,
     instance_buffer: Buffer,
@@ -68,7 +69,7 @@ impl UiState {
         self.id_gen.load(std::sync::atomic::Ordering::Relaxed)
     }
 
-    pub fn init_graphics(&mut self, base: &VkBase, window_size: PhysicalSize<u32>, render_pass: vk::RenderPass, descriptor: &vk::DescriptorSetLayout, shaders: (&[u8], &[u8]), font_shader: (&[u8], &[u8])) {
+    pub fn init_graphics(&mut self, base: &VkBase, window_size: PhysicalSize<u32>, render_pass: vk::RenderPass, descriptor: vk::DescriptorSetLayout, shaders: (&[u8], &[u8]), font_shader: (&[u8], &[u8])) {
         self.size = window_size.into();
         (self.pipeline_layout, self.pipeline) = ui_pipeline::basic_ui_pipeline(base, window_size, render_pass, descriptor, shaders);
         (self.font_pipeline_layout, self.font_pipeline) = super::font_pipeline::font_pipeline(base, window_size, render_pass, descriptor, font_shader)
@@ -138,17 +139,16 @@ impl UiState {
         let mut result = EventResult::None;
 
         if !self.selected.is_none() {
-            let selected = unsafe { &mut *self.selected.ptr };
-            if !selected.is_in(cursor_pos) && !self.selected.pressed() {
-                selected.end_selection(self);
-                self.selected.clear();
-            } else if self.selected.pressed() && !matches!(event, UiEvent::Release) {
-                return result;
+            let element = unsafe { &mut *self.selected.ptr };
+            let element2 = unsafe { &mut *self.selected.ptr };
+            let element_result = element.element.interaction(element2, self_clone, cursor_pos, event);
+            if !element_result.is_none() {
+                return element_result;
             }
         }
 
         for element in &mut self.elements {
-            let r = element.update_cursor(self_clone, Vec2::zero(), cursor_pos, event);
+            let r = element.update_cursor(self_clone, cursor_pos, event);
             if !r.is_none() {
                 result = r;
                 break;
@@ -164,7 +164,7 @@ impl UiState {
         self.size = new_size;
     }
 
-    pub fn update(&mut self, base: &VkBase, command_pool: &vk::CommandPool) {
+    pub fn update(&mut self, base: &VkBase, command_pool: vk::CommandPool) {
         if matches!(self.dirty, DirtyFlags::Resize) {
             self.dirty = DirtyFlags::None;
             self.build();
@@ -177,24 +177,24 @@ impl UiState {
             self.instance_buffer.destroy(&base.device);
             self.font_instance_buffer.destroy(&base.device);
         
-            self.font_instance_buffer = Buffer::device_local(&base, &command_pool, &self.texts, vk::BufferUsageFlags::VERTEX_BUFFER);
-            self.instance_buffer = Buffer::device_local(&base, &command_pool, &ui_instances, vk::BufferUsageFlags::VERTEX_BUFFER);
+            self.font_instance_buffer = Buffer::device_local_slow(&base, command_pool, &self.texts, vk::BufferUsageFlags::VERTEX_BUFFER);
+            self.instance_buffer = Buffer::device_local_slow(&base, command_pool, &ui_instances, vk::BufferUsageFlags::VERTEX_BUFFER);
         } else if matches!(self.dirty, DirtyFlags::Color | DirtyFlags::Size) {
             let ui_instances = self.get_instaces();
 
             self.instance_buffer.destroy(&base.device);
-            self.instance_buffer = Buffer::device_local(&base, &command_pool, &ui_instances, vk::BufferUsageFlags::VERTEX_BUFFER);
+            self.instance_buffer = Buffer::device_local_slow(&base, command_pool, &ui_instances, vk::BufferUsageFlags::VERTEX_BUFFER);
 
             self.font_instance_buffer.destroy(&base.device);
-            self.font_instance_buffer = Buffer::device_local(&base, &command_pool, &self.texts, vk::BufferUsageFlags::VERTEX_BUFFER);
+            self.font_instance_buffer = Buffer::device_local_slow(&base, command_pool, &self.texts, vk::BufferUsageFlags::VERTEX_BUFFER);
         }
     }
 
-    pub fn draw(&self, device: &ash::Device, cmd: vk::CommandBuffer, descriptor_set: &vk::DescriptorSet) {
+    pub fn draw(&self, device: &ash::Device, cmd: vk::CommandBuffer, descriptor_set: vk::DescriptorSet) {
         unsafe {
             device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, self.pipeline);
             device.cmd_bind_vertex_buffers(cmd, 0, &[self.instance_buffer.inner], &[0]);
-            device.cmd_bind_descriptor_sets(cmd, vk::PipelineBindPoint::GRAPHICS, self.pipeline_layout, 0, &[*descriptor_set], &[]);
+            device.cmd_bind_descriptor_sets(cmd, vk::PipelineBindPoint::GRAPHICS, self.pipeline_layout, 0, &[descriptor_set], &[]);
             device.cmd_draw(cmd, 4, self.instance_buffer.size as u32 / size_of::<UiInstance>() as u32, 0, 0);
 
             if !self.texts.is_empty(){
