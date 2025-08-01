@@ -1,4 +1,4 @@
-
+#![cfg(feature = "graphics")]
 mod vertex_ui;
 pub mod formats;
 mod buffer;

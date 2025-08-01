@@ -1,6 +1,5 @@
 
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
-use winit::dpi::{PhysicalPosition, PhysicalSize};
 
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -198,6 +197,9 @@ impl Neg for Vec2 {
         Vec2::new(-self.x, -self.y)
     }
 }
+
+#[cfg(feature = "graphics")]
+use winit::dpi::{PhysicalPosition, PhysicalSize};
 
 #[cfg(feature = "graphics")]
 impl From<PhysicalSize<u32>> for Vec2 {

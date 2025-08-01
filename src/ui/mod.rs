@@ -1,3 +1,4 @@
+#![cfg(feature = "graphics")]
 mod ui_state;
 mod ui_unit;
 mod r#type;
