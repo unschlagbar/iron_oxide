@@ -1,4 +1,4 @@
-use std::{ptr::null_mut, sync::atomic::AtomicU32};
+use std::{ptr::null_mut, sync::atomic::{AtomicU32, Ordering}};
 use ash::vk;
 use winit::dpi::PhysicalSize;
 
@@ -33,7 +33,7 @@ impl UiState {
             elements: Vec::new(),
             dirty: DirtyFlags::Resize,
             size: Vec2::zero(),
-            id_gen: AtomicU32::new(0),
+            id_gen: AtomicU32::new(1),
             cursor_pos: Vec2::default(),
             selected: Selected::default(),
             texts: Vec::new(),
@@ -65,8 +65,7 @@ impl UiState {
     }
 
     pub fn get_id(&self) -> u32 {
-        self.id_gen.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        self.id_gen.load(std::sync::atomic::Ordering::Relaxed)
+        self.id_gen.fetch_add(1, Ordering::Relaxed)
     }
 
     pub fn init_graphics(&mut self, base: &VkBase, window_size: PhysicalSize<u32>, render_pass: vk::RenderPass, descriptor: vk::DescriptorSetLayout, shaders: (&[u8], &[u8]), font_shader: (&[u8], &[u8])) {

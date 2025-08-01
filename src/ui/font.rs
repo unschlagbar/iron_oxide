@@ -15,13 +15,10 @@ impl Font {
         Self { data: unsafe {*(buf.as_ptr() as *const [u16; 1024])} }
     }
 
-    pub fn parse_from_bytes(data: &[u8]) -> Self {
+    pub const fn parse_from_bytes(data: &[u8; 768]) -> Self {
         let mut buf: [u8; 2048] = [0; 2048];
-
-        for i in 0..data.len() {
-            buf[i] = data[i];
-        }
-        Self { data: unsafe {*(buf.as_ptr() as *const [u16; 1024])} }
+        buf.copy_from_slice(data);
+        Self { data: unsafe {*(buf.as_ptr().cast() as *const [u16; 1024])} }
     }
 
     pub fn get_data(&self, char: u8) -> (u16, u16, u16, u16) {
