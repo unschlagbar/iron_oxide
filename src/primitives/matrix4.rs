@@ -1,6 +1,5 @@
 use super::Vec4;
 
-
 pub struct Matrix4 {
     pub x: Vec4,
     pub y: Vec4,

@@ -1,8 +1,7 @@
 use std::fmt::Debug;
-use std::path::PathBuf;
-use std::io::Read;
 use std::fs::File;
-
+use std::io::Read;
+use std::path::PathBuf;
 
 pub struct Font {
     data: [u16; 1024],
@@ -12,13 +11,19 @@ impl Font {
     pub fn parse(path: PathBuf) -> Self {
         let mut buf: [u8; 2048] = [0; 2048];
         File::open(path).unwrap().read(&mut buf).unwrap();
-        Self { data: unsafe {*(buf.as_ptr() as *const [u16; 1024])} }
+        Self {
+            data: unsafe { *(buf.as_ptr() as *const [u16; 1024]) },
+        }
     }
 
-    pub const fn parse_from_bytes(data: &[u8; 768]) -> Self {
+    pub fn parse_from_bytes(data: &[u8; 768]) -> Self {
         let mut buf: [u8; 2048] = [0; 2048];
-        buf.copy_from_slice(data);
-        Self { data: unsafe {*(buf.as_ptr().cast() as *const [u16; 1024])} }
+        for i in 0..data.len() {
+            buf[i] = data[i]
+        }
+        Self {
+            data: unsafe { *(buf.as_ptr().cast() as *const [u16; 1024]) },
+        }
     }
 
     pub fn get_data(&self, char: u8) -> (u16, u16, u16, u16) {
@@ -28,7 +33,12 @@ impl Font {
 
         let i = (char as usize - 32) * 4;
 
-        (self.data[i], self.data[i + 1], self.data[i + 2], self.data[i + 3])
+        (
+            self.data[i],
+            self.data[i + 1],
+            self.data[i + 2],
+            self.data[i + 3],
+        )
     }
 }
 

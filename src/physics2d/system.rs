@@ -1,7 +1,5 @@
 use crate::physics::ImplRigitBody;
 
-
-
 #[derive(Debug)]
 #[allow(unused)]
 pub struct System {
@@ -15,7 +13,6 @@ impl System {
 
     #[allow(unused)]
     pub fn update(&self, objects: &mut [impl ImplRigitBody], delta_time: f32) {
-
-       todo!()
+        todo!()
     }
 }

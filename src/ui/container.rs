@@ -1,11 +1,8 @@
-use crate::{graphics::formats::Color, primitives::Vec2};
 use super::{
+    BuildContext, ElementType, OutArea, Overflow, RawUiElement, UiElement, UiUnit,
     ui_element::{Element, ElementBuild, TypeConst},
-    BuildContext, ElementType,
-    Overflow, OutArea,
-    RawUiElement, UiElement,
-    UiUnit
 };
+use crate::{graphics::formats::Color, primitives::Vec2};
 
 pub struct Container {
     pub margin: OutArea,
@@ -28,18 +25,16 @@ impl Element for Container {
 
         let space = Vec2::new(
             context.parent_size.x - self.padding.x(context.parent_size),
-            context.parent_size.y -  self.padding.y(context.parent_size)
+            context.parent_size.y - self.padding.y(context.parent_size),
         );
 
-        size = Vec2::new(
-            self.width.pixelx(space),
-            self.height.pixely(space)
-        );
+        size = Vec2::new(self.width.pixelx(space), self.height.pixely(space));
 
-        let mut outer_size = size + Vec2::new(
-            self.margin.x(context.parent_size),
-            self.margin.y(context.parent_size),
-        );
+        let mut outer_size = size
+            + Vec2::new(
+                self.margin.x(context.parent_size),
+                self.margin.y(context.parent_size),
+            );
 
         pos = self.margin.start(context.parent_size);
 
@@ -51,7 +46,7 @@ impl Element for Container {
         comp.corner = self.corner[0].pixelx(size);
 
         pos += context.parent_pos;
-                
+
         comp.size = size;
         comp.pos = pos;
 
@@ -76,7 +71,7 @@ impl Element for Container {
         self.comp.to_instance(self.color, self.border_color)
     }
 
-    fn childs(&mut self) -> &mut[UiElement] {
+    fn childs(&mut self) -> &mut [UiElement] {
         &mut self.childs
     }
 

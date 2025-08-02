@@ -1,6 +1,11 @@
-
-use crate::{graphics::{formats::Color, FontInstance, UiInstance}, primitives::Vec2};
-use super::{ui_element::{Element, TypeConst}, Align, BuildContext, ElementBuild, ElementType, UiElement, UiState};
+use super::{
+    Align, BuildContext, ElementBuild, ElementType, UiElement, UiState,
+    ui_element::{Element, TypeConst},
+};
+use crate::{
+    graphics::{FontInstance, UiInstance, formats::Color},
+    primitives::Vec2,
+};
 
 pub struct Text {
     pub text: String,
@@ -22,7 +27,7 @@ impl Text {
                 context.parent_pos = parent_pos;
                 self.build(&mut context);
                 ui.texts.extend_from_slice(&self.font_instances)
-            },
+            }
             TextDirtyFlags::AddedChar => todo!(),
             TextDirtyFlags::RemovedChar => todo!(),
         }
@@ -43,7 +48,6 @@ impl Element for Text {
         let scale_factor = self.font_size / font_uv_height as f32;
         let mut cursor_pos = Vec2::zero();
 
-
         for c in self.text.chars() {
             if c == ' ' {
                 cursor_pos.x += self.font_size * 0.5;
@@ -58,7 +62,10 @@ impl Element for Text {
                 let font_instance = FontInstance {
                     color: self.color,
                     pos: cursor_pos,
-                    size: Vec2::new(char_data.2 as f32 * scale_factor, font_uv_height as f32 * scale_factor),
+                    size: Vec2::new(
+                        char_data.2 as f32 * scale_factor,
+                        font_uv_height as f32 * scale_factor,
+                    ),
                     uv_start,
                     uv_size,
                 };
@@ -77,14 +84,13 @@ impl Element for Text {
         for i in &mut self.font_instances {
             i.pos += offset
         }
-
     }
 
     fn instance(&self) -> UiInstance {
         UiInstance::default()
     }
 
-    fn childs(&mut self) -> &mut[UiElement] {
+    fn childs(&mut self) -> &mut [UiElement] {
         &mut []
     }
 
@@ -120,7 +126,7 @@ impl Default for Text {
             align: Align::Top,
             line_spacing: 8.0,
             wrap: WrapMode::default(),
-            dirty_flags: TextDirtyFlags::TextChanged
+            dirty_flags: TextDirtyFlags::TextChanged,
         }
     }
 }

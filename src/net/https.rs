@@ -1,12 +1,11 @@
 use std::{fs, io::Cursor, path::PathBuf};
-use zip::write::FileOptions;
 use zip::ZipWriter;
-
+use zip::write::FileOptions;
 
 pub struct HTTPS {
     pub http_verion: Option<String>,
     pub host: Option<String>,
-    pub status: Option<String>
+    pub status: Option<String>,
 }
 
 impl HTTPS {
@@ -24,7 +23,6 @@ impl HTTPS {
     }
 
     pub fn format_content(path: PathBuf) -> Option<Vec<u8>> {
-
         if path.is_dir() {
             match Self::zip_directory(&path) {
                 Ok(zip_data) => {
@@ -73,12 +71,12 @@ impl HTTPS {
                     },
                     None => b"text/html",
                 };
-                return Some(HTTPS::format(content_type, &content));
+                Some(HTTPS::format(content_type, &content))
             }
-            Err(_) => return None,
+            Err(_) => None,
         }
     }
-    
+
     /// Verzeichnis rekursiv in eine ZIP-Datei packen
     fn zip_directory(dir: &PathBuf) -> Result<Vec<u8>, std::io::Error> {
         let mut zip_data = Vec::new();

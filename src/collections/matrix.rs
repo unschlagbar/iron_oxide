@@ -1,6 +1,12 @@
 #![allow(dead_code)]
 
-use std::{alloc::{alloc, dealloc, Layout}, fmt::{Debug, Formatter}, mem::forget, ops::{Index, IndexMut, Mul}, ptr::NonNull};
+use std::{
+    alloc::{Layout, alloc, dealloc},
+    fmt::{Debug, Formatter},
+    mem::forget,
+    ops::{Index, IndexMut, Mul},
+    ptr::NonNull,
+};
 
 pub struct Matrix {
     data: NonNull<f32>, // Rohspeicher für die Matrixdaten
@@ -37,7 +43,7 @@ impl Matrix {
             if ptr.is_null() {
                 panic!("Speicherallokation fehlgeschlagen");
             }
-            
+
             ptr.write_bytes(0, size);
             NonNull::new_unchecked(ptr)
         };
@@ -72,11 +78,17 @@ impl Matrix {
     }
 
     pub fn from_slice(slice: &[f32], rows: usize, cols: usize) -> Self {
-        debug_assert_eq!(slice.len(), rows * cols, "Slice-Länge stimmt nicht mit den Matrix-Dimensionen überein");
+        debug_assert_eq!(
+            slice.len(),
+            rows * cols,
+            "Slice-Länge stimmt nicht mit den Matrix-Dimensionen überein"
+        );
         let matrix = Matrix::new(rows, cols);
 
         unsafe {
-            slice.as_ptr().copy_to_nonoverlapping(matrix.data.as_ptr(), slice.len());
+            slice
+                .as_ptr()
+                .copy_to_nonoverlapping(matrix.data.as_ptr(), slice.len());
         }
 
         matrix
@@ -84,12 +96,17 @@ impl Matrix {
 
     /// Erstellt eine Matrix aus einem Vec
     pub fn from_vec(vec: Vec<f32>, rows: usize, cols: usize) -> Self {
-        debug_assert_eq!(vec.len(), rows * cols, "Vec-Länge stimmt nicht mit den Matrix-Dimensionen überein");
+        debug_assert_eq!(
+            vec.len(),
+            rows * cols,
+            "Vec-Länge stimmt nicht mit den Matrix-Dimensionen überein"
+        );
         let matrix = Matrix::new(rows, cols);
 
         // Speicher direkt kopieren
         unsafe {
-            vec.as_ptr().copy_to_nonoverlapping(matrix.data.as_ptr(), vec.len());
+            vec.as_ptr()
+                .copy_to_nonoverlapping(matrix.data.as_ptr(), vec.len());
         }
 
         // Vec darf hiernach nicht mehr verwendet werden
@@ -99,7 +116,11 @@ impl Matrix {
     }
 
     pub fn from_vec_no_copy(mut vec: Vec<f32>, rows: usize, cols: usize) -> Self {
-        debug_assert_eq!(vec.len(), rows * cols, "Vec-Länge stimmt nicht mit den Matrix-Dimensionen überein");
+        debug_assert_eq!(
+            vec.len(),
+            rows * cols,
+            "Vec-Länge stimmt nicht mit den Matrix-Dimensionen überein"
+        );
 
         // Zeiger aus dem Vec extrahieren
         let ptr = vec.as_mut_ptr();
@@ -117,11 +138,14 @@ impl Matrix {
 
     /// Konvertiert die Matrix in einen Vec
     pub fn to_vec(&self) -> Vec<f32> {
+        #[allow(clippy::uninit_vec)]
         let mut vec = Vec::with_capacity(self.flat_len());
 
         unsafe {
             vec.set_len(self.flat_len());
-            self.data.as_ptr().copy_to_nonoverlapping(vec.as_mut_ptr(), self.flat_len());
+            self.data
+                .as_ptr()
+                .copy_to_nonoverlapping(vec.as_mut_ptr(), self.flat_len());
         }
 
         vec
@@ -129,7 +153,8 @@ impl Matrix {
 
     #[inline]
     pub fn into_vec(self) -> Vec<f32> {
-        let out = unsafe { Vec::from_raw_parts(self.data.as_ptr(), self.flat_len(), self.flat_len()) };
+        let out =
+            unsafe { Vec::from_raw_parts(self.data.as_ptr(), self.flat_len(), self.flat_len()) };
         forget(self);
         out
     }
@@ -138,11 +163,9 @@ impl Matrix {
     pub fn zero(&mut self) {
         unsafe { self.data.write_bytes(0, self.flat_len()) };
     }
-
 }
 
-
-impl Clone for Matrix  {
+impl Clone for Matrix {
     fn clone(&self) -> Self {
         let size = self.rows * self.cols;
         let layout = unsafe { Layout::array::<f32>(size).unwrap_unchecked() };
@@ -158,7 +181,11 @@ impl Clone for Matrix  {
             self.data.as_ptr().copy_to_nonoverlapping(ptr, size);
             NonNull::new_unchecked(ptr)
         };
-        Self { data, rows: self.rows, cols: self.cols }
+        Self {
+            data,
+            rows: self.rows,
+            cols: self.cols,
+        }
     }
 }
 
@@ -167,7 +194,10 @@ impl Index<(usize, usize)> for Matrix {
 
     fn index(&self, index: (usize, usize)) -> &Self::Output {
         let (row, col) = index;
-        debug_assert!(row < self.rows && col < self.cols, "Index außerhalb der Matrix");
+        debug_assert!(
+            row < self.rows && col < self.cols,
+            "Index außerhalb der Matrix"
+        );
 
         let idx = row * self.cols + col;
         unsafe { &*self.data.as_ptr().add(idx) }
@@ -230,7 +260,10 @@ impl Mul for Matrix {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        debug_assert_eq!(self.cols, rhs.rows, "Matrix-Dimensionen stimmen nicht überein");
+        debug_assert_eq!(
+            self.cols, rhs.rows,
+            "Matrix-Dimensionen stimmen nicht überein"
+        );
 
         let mut result = Matrix::new(self.rows, rhs.cols);
 
@@ -246,5 +279,4 @@ impl Mul for Matrix {
 
         result
     }
-    
 }

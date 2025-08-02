@@ -1,10 +1,8 @@
-use crate::{graphics::formats::Color, primitives::Vec2};
 use super::{
+    Align, BuildContext, ElementType, OutArea, RawUiElement, UiElement, UiUnit,
     ui_element::{Element, TypeConst},
-    Align, BuildContext,
-    ElementType, OutArea,
-    RawUiElement, UiUnit, UiElement
 };
+use crate::{graphics::formats::Color, primitives::Vec2};
 
 pub struct AbsoluteLayout {
     pub align: Align,
@@ -23,18 +21,18 @@ pub struct AbsoluteLayout {
 
 impl Element for AbsoluteLayout {
     fn build(&mut self, context: &mut BuildContext) {
-
         let mut size = Vec2::new(
             self.width.pixelx(context.parent_size),
-            self.height.pixely(context.parent_size)
+            self.height.pixely(context.parent_size),
         );
 
         let mut pos = self.align.get_pos(
-            context.parent_size, size,
+            context.parent_size,
+            size,
             Vec2::new(
                 self.x.pixelx(context.parent_size),
-                self.y.pixely(context.parent_size)
-            )
+                self.y.pixely(context.parent_size),
+            ),
         );
 
         let comp = &mut self.comp;
@@ -43,8 +41,9 @@ impl Element for AbsoluteLayout {
         comp.corner = self.corner[0].pixelx(size);
 
         pos += context.parent_pos;
-                
-        let mut child_context = BuildContext::new_from(context, size, pos + self.padding.start(size), &comp);
+
+        let mut child_context =
+            BuildContext::new_from(context, size, pos + self.padding.start(size), &comp);
 
         size.x += self.padding.x(child_context.parent_size);
         size.y += self.padding.y(child_context.parent_size);
@@ -64,7 +63,7 @@ impl Element for AbsoluteLayout {
         self.comp.to_instance(self.color, self.border_color)
     }
 
-    fn childs(&mut self) -> &mut[UiElement] {
+    fn childs(&mut self) -> &mut [UiElement] {
         &mut self.childs
     }
 

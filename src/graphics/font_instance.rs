@@ -1,20 +1,19 @@
-use std::mem::offset_of;
 use ash::vk;
+use std::mem::offset_of;
 
-use crate::primitives::Vec2;
 use super::formats::Color;
+use crate::primitives::Vec2;
 
 #[repr(C)]
 pub struct FontVertex;
 
 impl FontVertex {
-    pub const GET_BINDING_DESCRIPTION: [vk::VertexInputBindingDescription; 1] = [
-        vk::VertexInputBindingDescription {
+    pub const GET_BINDING_DESCRIPTION: [vk::VertexInputBindingDescription; 1] =
+        [vk::VertexInputBindingDescription {
             binding: 0,
             stride: std::mem::size_of::<FontInstance>() as _,
             input_rate: vk::VertexInputRate::INSTANCE,
-        },
-    ];
+        }];
 
     pub const GET_ATTRIBUTE_DESCRIPTIONS: [vk::VertexInputAttributeDescription; 5] = [
         vk::VertexInputAttributeDescription {
@@ -61,6 +60,12 @@ pub struct FontInstance {
 
 impl Default for FontInstance {
     fn default() -> Self {
-        Self { color: Color::WHITE, pos: Vec2::zero(), size: Vec2::zero(), uv_start: (0, 0), uv_size: (0, 0)}
+        Self {
+            color: Color::WHITE,
+            pos: Vec2::zero(),
+            size: Vec2::zero(),
+            uv_start: (0, 0),
+            uv_size: (0, 0),
+        }
     }
 }

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use std::{
-    alloc::{alloc, dealloc, Layout},
+    alloc::{Layout, alloc, dealloc},
     ops::{Index, IndexMut},
     ptr::NonNull,
 };
@@ -28,7 +28,12 @@ impl Vec3D {
             NonNull::new_unchecked(ptr)
         };
 
-        Vec3D { data, depth, rows, cols }
+        Vec3D {
+            data,
+            depth,
+            rows,
+            cols,
+        }
     }
 
     pub const fn depth(&self) -> usize {

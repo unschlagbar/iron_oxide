@@ -1,7 +1,6 @@
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 #[cfg(feature = "graphics")]
 use cgmath::Vector4;
-
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec4 {
@@ -17,11 +16,21 @@ impl Vec4 {
     }
 
     pub const fn zero() -> Self {
-        Self { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }
+        Self {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            w: 0.0,
+        }
     }
 
     pub const fn one() -> Self {
-        Self { x: 1.0, y: 1.0, z: 1.0, w: 1.0 }
+        Self {
+            x: 1.0,
+            y: 1.0,
+            z: 1.0,
+            w: 1.0,
+        }
     }
 
     #[inline(always)]
@@ -40,23 +49,23 @@ impl Vec4 {
             self.y * other.z - self.z * other.y,
             self.z * other.x - self.x * other.z,
             self.x * other.y - self.y * other.x,
-            0.0 // Assuming w should be 0.0 for the cross product
+            0.0, // Assuming w should be 0.0 for the cross product
         )
     }
 
     #[inline(always)]
     pub fn distance(&self, other: Self) -> f32 {
-        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2) + (self.z - other.z).powi(2) + (self.w - other.w).powi(2)).sqrt()
+        ((self.x - other.x).powi(2)
+            + (self.y - other.y).powi(2)
+            + (self.z - other.z).powi(2)
+            + (self.w - other.w).powi(2))
+        .sqrt()
     }
 
     #[inline(always)]
     pub fn normalize(&self) -> Self {
         let len = self.len();
-        if len > 0.0 {
-            *self / len
-        } else {
-            *self
-        }
+        if len > 0.0 { *self / len } else { *self }
     }
 
     #[inline(always)]
@@ -96,7 +105,6 @@ impl Add<f32> for Vec4 {
     }
 }
 
-
 impl AddAssign for Vec4 {
     fn add_assign(&mut self, other: Vec4) {
         self.x += other.x;
@@ -130,7 +138,6 @@ impl Mul<f32> for Vec4 {
         }
     }
 }
-
 
 impl MulAssign for Vec4 {
     fn mul_assign(&mut self, other: Vec4) {
@@ -177,7 +184,6 @@ impl DivAssign for Vec4 {
 }
 
 impl DivAssign<f32> for Vec4 {
-
     fn div_assign(&mut self, other: f32) {
         self.x /= other;
         self.y /= other;
@@ -253,13 +259,23 @@ impl Neg for Vec4 {
 #[cfg(feature = "graphics")]
 impl From<Vector4<f32>> for Vec4 {
     fn from(v: Vector4<f32>) -> Self {
-        Self { x: v.x, y: v.y, z: v.z, w: v.w }
+        Self {
+            x: v.x,
+            y: v.y,
+            z: v.z,
+            w: v.w,
+        }
     }
 }
 
 #[cfg(feature = "graphics")]
 impl From<Vec4> for Vector4<f32> {
     fn from(v: Vec4) -> Self {
-        Self { x: v.x, y: v.y, z: v.z, w: v.w }
+        Self {
+            x: v.x,
+            y: v.y,
+            z: v.z,
+            w: v.w,
+        }
     }
 }

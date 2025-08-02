@@ -1,21 +1,20 @@
-use std::alloc::{alloc, Layout};
+use std::alloc::{Layout, alloc};
 use std::fmt::{self};
 use std::marker::PhantomData;
-use std::mem::{forget, ManuallyDrop};
-use std::ptr::{self, NonNull};
+use std::mem::{ManuallyDrop, forget};
 use std::ops::{Add, AddAssign, Index, IndexMut};
+use std::ptr::{self, NonNull};
 
 pub struct FixedVec<T> {
     data: NonNull<T>, // Rohspeicher für die Daten
-    len: usize,    // Feste Länge des Vektors
+    len: usize,       // Feste Länge des Vektors
 }
 
 impl<T> FixedVec<T> {
-
     #[inline]
     pub fn new(len: usize) -> Self {
         debug_assert!(len > 0, "Len must not be 0");
-        
+
         // Allokation des Speichers
         let layout = Layout::array::<T>(len).expect("Ungültiges Layout");
         let data = unsafe {
@@ -36,7 +35,7 @@ impl<T> FixedVec<T> {
     #[track_caller]
     pub fn uninit(len: usize) -> Self {
         debug_assert!(len > 0, "Len must not be 0");
-        
+
         // Allokation des Speicher
         let layout = Layout::array::<T>(len).expect("Ungültiges Layout");
         let data = unsafe {
@@ -56,9 +55,19 @@ impl<T> FixedVec<T> {
     }
 
     #[inline]
+    pub const fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    #[inline]
     #[track_caller]
     pub fn set(&mut self, index: usize, value: T) {
-        debug_assert!(index < self.len, "Index out of bounds: the len is {} but the index is {}", self.len, index);
+        debug_assert!(
+            index < self.len,
+            "Index out of bounds: the len is {} but the index is {}",
+            self.len,
+            index
+        );
         unsafe {
             self.data.as_ptr().add(index).write(value);
         }
@@ -67,33 +76,35 @@ impl<T> FixedVec<T> {
     #[inline]
     #[track_caller]
     pub fn get(&self, index: usize) -> &T {
-        debug_assert!(index < self.len, "Index out of bounds: the len is {} but the index is {}", self.len, index);
-        unsafe {
-            &*self.data.as_ptr().add(index)
-        }
+        debug_assert!(
+            index < self.len,
+            "Index out of bounds: the len is {} but the index is {}",
+            self.len,
+            index
+        );
+        unsafe { &*self.data.as_ptr().add(index) }
     }
 
     #[inline]
     #[track_caller]
     pub fn get_mut(&mut self, index: usize) -> &mut T {
-        debug_assert!(index < self.len, "Index out of bounds: the len is {} but the index is {}", self.len, index);
-        unsafe {
-            &mut *self.data.as_ptr().add(index)
-        }
+        debug_assert!(
+            index < self.len,
+            "Index out of bounds: the len is {} but the index is {}",
+            self.len,
+            index
+        );
+        unsafe { &mut *self.data.as_ptr().add(index) }
     }
 
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        unsafe {
-            std::slice::from_raw_parts(self.data.as_ptr(), self.len)
-        }
+        unsafe { std::slice::from_raw_parts(self.data.as_ptr(), self.len) }
     }
 
     #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        unsafe {
-            std::slice::from_raw_parts_mut(self.data.as_ptr(), self.len)
-        }
+        unsafe { std::slice::from_raw_parts_mut(self.data.as_ptr(), self.len) }
     }
 
     #[inline]
@@ -134,7 +145,11 @@ impl<T> FixedVec<T> {
         unsafe {
             let begin = self.data.as_ptr();
             let end = begin.add(self.len) as *const T;
-            IntoIter { ptr: begin, end, _marker: PhantomData }
+            IntoIter {
+                ptr: begin,
+                end,
+                _marker: PhantomData,
+            }
         }
     }
 
@@ -142,8 +157,12 @@ impl<T> FixedVec<T> {
     pub fn iter_mut<'a>(&self) -> IterMut<'a, T> {
         unsafe {
             let begin = self.data.as_ptr();
-            let end = begin.add(self.len) as *mut T;
-            IterMut { ptr: begin, end, _marker: PhantomData }
+            let end = begin.add(self.len);
+            IterMut {
+                ptr: begin,
+                end,
+                _marker: PhantomData,
+            }
         }
     }
 
@@ -155,21 +174,12 @@ impl<T> FixedVec<T> {
             Some(unsafe { &*self.data.as_ptr().add(self.len - 1) })
         }
     }
-
-    #[inline]
-    pub fn last_mut(&self) -> Option<&mut T> {
-        if self.len == 0 {
-            None
-        } else {
-            Some(unsafe { &mut *self.data.as_ptr().add(self.len - 1) })
-        }
-    }
 }
 
 impl<T: Default> FixedVec<T> {
     #[inline]
     pub fn zero(&mut self) {
-        unsafe { 
+        unsafe {
             for i in 0..self.len {
                 self.data.as_ptr().add(i).write(T::default());
             }
@@ -179,7 +189,7 @@ impl<T: Default> FixedVec<T> {
     #[inline]
     pub fn default(len: usize) -> Self {
         debug_assert!(len > 0, "Len must not be 0");
-        
+
         // Allokation des Speichers
         let layout = Layout::array::<T>(len).expect("Ungültiges Layout");
         let data = unsafe {
@@ -194,7 +204,6 @@ impl<T: Default> FixedVec<T> {
 
             NonNull::new_unchecked(ptr)
         };
-
 
         FixedVec { data, len }
     }
@@ -232,7 +241,6 @@ impl<'a, T> IntoIterator for &'a mut FixedVec<T> {
     }
 }
 
-
 impl<T: Copy> FixedVec<T> {
     // Allokiert den Speicher und initialisiert den Vektor mit einem Wert
     pub fn with_value(len: usize, value: T) -> Self {
@@ -255,7 +263,6 @@ impl<T: Copy> FixedVec<T> {
 
         FixedVec { data, len }
     }
-
 }
 
 impl<T: Copy> From<&[T]> for FixedVec<T> {
@@ -268,7 +275,7 @@ impl<T: Copy> From<&Vec<T>> for FixedVec<T> {
     fn from(vec: &Vec<T>) -> Self {
         let len = vec.len();
         let layout = Layout::array::<T>(len).expect("Ungültiges Layout");
-        
+
         let data = unsafe {
             let ptr = alloc(layout) as *mut T;
             if ptr.is_null() {
@@ -284,33 +291,14 @@ impl<T: Copy> From<&Vec<T>> for FixedVec<T> {
     }
 }
 
-impl<T: Copy> Into<Vec<T>> for FixedVec<T> {
-    fn into(self) -> Vec<T> {
-        let me = ManuallyDrop::new(self);
-        let ptr = me.data.as_ptr();
-        let length = me.len;
+impl<T: Copy> From<FixedVec<T>> for Vec<T> {
+    fn from(mut fixed_vec: FixedVec<T>) -> Vec<T> {
+        let ptr = unsafe { fixed_vec.data.as_mut() };
+        let me = ManuallyDrop::new(fixed_vec);
+        let length = me.len();
         let capacity = length;
-        
+
         unsafe { Vec::from_raw_parts(ptr, length, capacity) }
-    }
-}
-
-impl<T: Copy> Into<Vec<T>> for &FixedVec<T> {
-    fn into(self) -> Vec<T> {
-        let len = self.len();
-        let layout = Layout::array::<T>(len).expect("Ungültiges Layout");
-        
-        let ptr = unsafe {
-            let ptr = alloc(layout) as *mut T;
-            if ptr.is_null() {
-                panic!("Speicherallokation fehlgeschlagen");
-            }
-
-            self.as_ptr().copy_to_nonoverlapping(ptr, len);
-            ptr
-        };
-
-        unsafe { Vec::from_raw_parts(ptr, len, len) }
     }
 }
 
@@ -333,7 +321,6 @@ impl<T> AsMut<[T]> for FixedVec<T> {
     }
 }
 
-
 // Ermöglicht den Zugriff über Index-Operatoren
 impl<T> Index<usize> for FixedVec<T> {
     type Output = T;
@@ -353,7 +340,7 @@ impl<T: Clone> Clone for FixedVec<T> {
     fn clone(&self) -> Self {
         let len = self.len();
         let layout = Layout::array::<T>(len).expect("Ungültiges Layout");
-        
+
         let data = unsafe {
             let ptr = alloc(layout) as *mut T;
             if ptr.is_null() {
@@ -372,7 +359,10 @@ impl<T> Drop for FixedVec<T> {
     fn drop(&mut self) {
         if self.len > 0 {
             unsafe {
-                std::ptr::drop_in_place(ptr::slice_from_raw_parts_mut(self.data.as_ptr(), self.len));
+                std::ptr::drop_in_place(ptr::slice_from_raw_parts_mut(
+                    self.data.as_ptr(),
+                    self.len,
+                ));
                 std::alloc::dealloc(
                     self.data.as_ptr() as *mut u8,
                     std::alloc::Layout::array::<T>(self.len).expect("Invalid layout"),
@@ -384,17 +374,19 @@ impl<T> Drop for FixedVec<T> {
 
 impl<T: fmt::Debug> fmt::Debug for FixedVec<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list().entries(&mut self.iter()).finish()
+        f.debug_list().entries(self.iter()).finish()
     }
 }
 
 impl<T: Add<Output = T> + Copy> Add for FixedVec<T> {
-
     type Output = FixedVec<T>;
 
     #[inline]
     fn add(self, rsh: Self) -> Self::Output {
-        debug_assert!(self.len() == rsh.len(), "FixedVecs must have the same length");
+        debug_assert!(
+            self.len() == rsh.len(),
+            "FixedVecs must have the same length"
+        );
 
         let mut sum = FixedVec::uninit(self.len());
         for i in 0..self.len() {
@@ -402,10 +394,9 @@ impl<T: Add<Output = T> + Copy> Add for FixedVec<T> {
         }
         sum
     }
-    
 }
 
-impl<T: AddAssign + Copy> AddAssign for FixedVec<T>  {
+impl<T: AddAssign + Copy> AddAssign for FixedVec<T> {
     #[inline(always)]
     fn add_assign(&mut self, rhs: Self) {
         debug_assert!(self.len() == rhs.len(), "Length mismatch");
@@ -416,7 +407,6 @@ impl<T: AddAssign + Copy> AddAssign for FixedVec<T>  {
     }
 }
 
-
 pub struct IntoIter<'a, T> {
     ptr: *const T,
     end: *const T,
@@ -425,10 +415,9 @@ pub struct IntoIter<'a, T> {
 
 impl<'a, T> Iterator for IntoIter<'a, T> {
     type Item = &'a T;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.ptr == self.end {
-
             None
         } else {
             let item = unsafe { &*self.ptr };
@@ -446,10 +435,9 @@ pub struct IterMut<'a, T> {
 
 impl<'a, T> Iterator for IterMut<'a, T> {
     type Item = &'a mut T;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.ptr == self.end {
-
             None
         } else {
             let item = unsafe { &mut *self.ptr };
@@ -458,8 +446,6 @@ impl<'a, T> Iterator for IterMut<'a, T> {
         }
     }
 }
-
-
 
 #[macro_export]
 macro_rules! fixed_vec {

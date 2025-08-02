@@ -1,27 +1,36 @@
+use crate::graphics::{self, VkBase};
 use ash::vk;
 use graphics::VertexUi;
 use winit::dpi::PhysicalSize;
-use crate::graphics::{self, VkBase};
 
 use graphics::create_shader_modul;
 
-pub fn basic_ui_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_pass: vk::RenderPass, descriptor_set_layout: vk::DescriptorSetLayout, shaders: (&[u8], &[u8])) -> (vk::PipelineLayout, vk::Pipeline) {
+pub fn basic_ui_pipeline(
+    base: &VkBase,
+    window_size: PhysicalSize<u32>,
+    render_pass: vk::RenderPass,
+    descriptor_set_layout: vk::DescriptorSetLayout,
+    shaders: (&[u8], &[u8]),
+) -> (vk::PipelineLayout, vk::Pipeline) {
     let vertex_shader_buff = shaders.0;
     let fragment_shader_buff = shaders.1;
 
     let vertex_shader_module = create_shader_modul(base, vertex_shader_buff);
     let fragment_shader_module = create_shader_modul(base, fragment_shader_buff);
 
-    let window_rect = vk::Rect2D { 
+    let window_rect = vk::Rect2D {
         offset: vk::Offset2D { x: 0, y: 0 },
-        extent: vk::Extent2D { width: window_size.width, height: window_size.height },
+        extent: vk::Extent2D {
+            width: window_size.width,
+            height: window_size.height,
+        },
     };
 
     let vertex_stage_info = vk::PipelineShaderStageCreateInfo {
         s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
         stage: vk::ShaderStageFlags::VERTEX,
         module: vertex_shader_module,
-        p_name:  c"main".as_ptr(),
+        p_name: c"main".as_ptr(),
         ..Default::default()
     };
 
@@ -29,7 +38,7 @@ pub fn basic_ui_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_p
         s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
         stage: vk::ShaderStageFlags::FRAGMENT,
         module: fragment_shader_module,
-        p_name:  c"main".as_ptr(),
+        p_name: c"main".as_ptr(),
         ..Default::default()
     };
 
@@ -50,7 +59,7 @@ pub fn basic_ui_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_p
     };
 
     let dynamic_states = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
-    
+
     let dynamic_state = vk::PipelineDynamicStateCreateInfo {
         dynamic_state_count: dynamic_states.len() as _,
         p_dynamic_states: dynamic_states.as_ptr(),
@@ -63,7 +72,7 @@ pub fn basic_ui_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_p
         width: window_size.width as _,
         height: window_size.height as _,
         min_depth: 0.0,
-        max_depth: 1.0
+        max_depth: 1.0,
     };
 
     let view_ports_state = vk::PipelineViewportStateCreateInfo {
@@ -118,7 +127,11 @@ pub fn basic_ui_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_p
         ..Default::default()
     };
 
-    let pipeline_layout = unsafe { base.device.create_pipeline_layout(&pipeline_layout_info, None).unwrap() };
+    let pipeline_layout = unsafe {
+        base.device
+            .create_pipeline_layout(&pipeline_layout_info, None)
+            .unwrap()
+    };
 
     let depth_stencil = vk::PipelineDepthStencilStateCreateInfo {
         depth_test_enable: vk::FALSE,
@@ -149,12 +162,18 @@ pub fn basic_ui_pipeline(base: &VkBase, window_size: PhysicalSize<u32>, render_p
         ..Default::default()
     };
 
-    let pipelines = unsafe { base.device.create_graphics_pipelines(vk::PipelineCache::null(), &[main_create_info], None).unwrap()[0] };
+    let pipelines = unsafe {
+        base.device
+            .create_graphics_pipelines(vk::PipelineCache::null(), &[main_create_info], None)
+            .unwrap()[0]
+    };
 
     unsafe {
-        base.device.destroy_shader_module(vertex_shader_module, None);
-        base.device.destroy_shader_module(fragment_shader_module, None);
+        base.device
+            .destroy_shader_module(vertex_shader_module, None);
+        base.device
+            .destroy_shader_module(fragment_shader_module, None);
     }
 
     (pipeline_layout, pipelines)
-}   
+}

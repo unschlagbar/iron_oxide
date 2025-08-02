@@ -22,7 +22,10 @@ impl Clone for ErasedFnPointer {
 }
 
 impl ErasedFnPointer {
-    pub fn from_associated<S>(struct_pointer: &mut S, fp: fn(&mut S, &mut UiElement)) -> ErasedFnPointer {
+    pub fn from_associated<S>(
+        struct_pointer: &mut S,
+        fp: fn(&mut S, &mut UiElement),
+    ) -> ErasedFnPointer {
         ErasedFnPointer {
             struct_pointer: struct_pointer as *mut S as *mut (),
             fp: fp as *const (),
@@ -31,7 +34,10 @@ impl ErasedFnPointer {
         }
     }
 
-    pub fn from_associated_ui<S>(struct_pointer: &mut S, fp: fn(&mut S, &mut UiState, &mut UiElement)) -> ErasedFnPointer {
+    pub fn from_associated_ui<S>(
+        struct_pointer: &mut S,
+        fp: fn(&mut S, &mut UiState, &mut UiElement),
+    ) -> ErasedFnPointer {
         ErasedFnPointer {
             struct_pointer: struct_pointer as *mut S as *mut (),
             fp: fp as *const (),
@@ -40,21 +46,24 @@ impl ErasedFnPointer {
         }
     }
 
-    pub fn from_associated_vars<S, T>(struct_pointer: &mut S, fp: fn(&mut S, &mut T)) -> ErasedFnPointer {
+    pub fn from_associated_vars<S, T>(
+        struct_pointer: &mut S,
+        fp: fn(&mut S, &mut T),
+    ) -> ErasedFnPointer {
         ErasedFnPointer {
             struct_pointer: struct_pointer as *mut S as *mut (),
             fp: fp as *const (),
             id: usize::MAX,
-            ui: false
+            ui: false,
         }
     }
-    
+
     pub const fn from_free(fp: fn(CallContext)) -> ErasedFnPointer {
         ErasedFnPointer {
             struct_pointer: null_mut(),
             fp: fp as *const (),
             id: usize::MAX,
-            ui: false
+            ui: false,
         }
     }
 
@@ -63,14 +72,14 @@ impl ErasedFnPointer {
             struct_pointer: null_mut(),
             fp: null(),
             id: usize::MAX,
-            ui: false
+            ui: false,
         }
     }
 
     pub fn is_null(&self) -> bool {
         self.fp.is_null()
     }
-    
+
     pub fn call(&self, context: CallContext) {
         if !self.fp.is_null() && self.id == usize::MAX {
             if self.struct_pointer.is_null() {
@@ -80,7 +89,7 @@ impl ErasedFnPointer {
                 unimplemented!()
             }
         } else {
-            unimplemented!() 
+            unimplemented!()
         }
     }
 
@@ -94,7 +103,8 @@ impl ErasedFnPointer {
                 fp(self.struct_pointer, vars)
             }
         } else {
-            let fp: fn(id: usize, &mut T) = unsafe { transmute::<_, fn(id: usize, &mut T)>(self.fp) };
+            let fp: fn(id: usize, &mut T) =
+                unsafe { transmute::<_, fn(id: usize, &mut T)>(self.fp) };
             fp(self.id, vars)
         }
     }
@@ -125,7 +135,11 @@ pub struct CallContext<'a> {
 }
 
 impl CallContext<'_> {
-    pub fn new<'a>(ui: &'a mut UiState, element: &'a mut UiElement, event: UiEvent) -> CallContext<'a> {
+    pub fn new<'a>(
+        ui: &'a mut UiState,
+        element: &'a mut UiElement,
+        event: UiEvent,
+    ) -> CallContext<'a> {
         CallContext { ui, element, event }
     }
 }

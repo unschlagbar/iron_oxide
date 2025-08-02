@@ -1,4 +1,3 @@
-
 #[derive(Clone, Copy, Debug)]
 pub struct Overflow {
     pub x: OverflowAxis,
@@ -7,19 +6,31 @@ pub struct Overflow {
 
 impl Overflow {
     pub const fn scroll() -> Self {
-        Overflow { x: OverflowAxis::Scroll, y: OverflowAxis::Scroll }
+        Overflow {
+            x: OverflowAxis::Scroll,
+            y: OverflowAxis::Scroll,
+        }
     }
 
     pub const fn clip() -> Self {
-        Overflow { x: OverflowAxis::Clip, y: OverflowAxis::Clip }
+        Overflow {
+            x: OverflowAxis::Clip,
+            y: OverflowAxis::Clip,
+        }
     }
 
     pub const fn hidden() -> Self {
-        Overflow { x: OverflowAxis::Hidden, y: OverflowAxis::Hidden }
+        Overflow {
+            x: OverflowAxis::Hidden,
+            y: OverflowAxis::Hidden,
+        }
     }
 
     pub const fn visible() -> Self {
-        Overflow { x: OverflowAxis::Visible, y: OverflowAxis::Visible }
+        Overflow {
+            x: OverflowAxis::Visible,
+            y: OverflowAxis::Visible,
+        }
     }
 }
 

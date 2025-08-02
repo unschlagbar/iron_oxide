@@ -2,8 +2,6 @@ use crate::primitives::Vec3;
 
 use super::Collision;
 
-
-
 pub trait ImplRigitBody {
     fn velocity(&mut self) -> &mut Vec3;
     fn position(&mut self) -> &mut Vec3;

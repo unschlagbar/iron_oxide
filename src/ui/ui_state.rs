@@ -1,9 +1,20 @@
-use std::{ptr::null_mut, sync::atomic::{AtomicU32, Ordering}};
 use ash::vk;
+use std::{
+    ptr::null_mut,
+    sync::atomic::{AtomicU32, Ordering},
+};
 use winit::dpi::PhysicalSize;
 
-use crate::{graphics::{Buffer, FontInstance, UiInstance, VkBase}, primitives::Vec2};
-use super::{raw_ui_element::UiEvent, ui_element::{Element, TypeConst}, ui_pipeline, BuildContext, Font, UiElement};
+use super::{
+    BuildContext, Font, UiElement,
+    raw_ui_element::UiEvent,
+    ui_element::{Element, TypeConst},
+    ui_pipeline,
+};
+use crate::{
+    graphics::{Buffer, FontInstance, UiInstance, VkBase},
+    primitives::Vec2,
+};
 
 #[derive(Debug)]
 pub struct UiState {
@@ -68,17 +79,32 @@ impl UiState {
         self.id_gen.fetch_add(1, Ordering::Relaxed)
     }
 
-    pub fn init_graphics(&mut self, base: &VkBase, window_size: PhysicalSize<u32>, render_pass: vk::RenderPass, descriptor: vk::DescriptorSetLayout, shaders: (&[u8], &[u8]), font_shader: (&[u8], &[u8])) {
+    pub fn init_graphics(
+        &mut self,
+        base: &VkBase,
+        window_size: PhysicalSize<u32>,
+        render_pass: vk::RenderPass,
+        descriptor: vk::DescriptorSetLayout,
+        shaders: (&[u8], &[u8]),
+        font_shader: (&[u8], &[u8]),
+    ) {
         self.size = window_size.into();
-        (self.pipeline_layout, self.pipeline) = ui_pipeline::basic_ui_pipeline(base, window_size, render_pass, descriptor, shaders);
-        (self.font_pipeline_layout, self.font_pipeline) = super::font_pipeline::font_pipeline(base, window_size, render_pass, descriptor, font_shader)
+        (self.pipeline_layout, self.pipeline) =
+            ui_pipeline::basic_ui_pipeline(base, window_size, render_pass, descriptor, shaders);
+        (self.font_pipeline_layout, self.font_pipeline) = super::font_pipeline::font_pipeline(
+            base,
+            window_size,
+            render_pass,
+            descriptor,
+            font_shader,
+        )
     }
 
     pub fn build(&mut self) {
         self.selected.clear();
 
         let mut build_context = BuildContext::default(&self.font, self.size);
-        
+
         for element in &mut self.elements {
             element.build(&mut build_context);
             build_context.order += 1;
@@ -88,7 +114,7 @@ impl UiState {
     pub fn get_instaces(&mut self) -> Vec<UiInstance> {
         self.dirty = DirtyFlags::None;
         self.texts.clear();
-        
+
         let mut instances = Vec::new();
         let self_copy = unsafe { &mut *(self as *mut UiState) };
 
@@ -100,7 +126,6 @@ impl UiState {
         for raw_e in &mut self.elements {
             raw_e.get_instances(self_copy, &mut instances);
         }
-
 
         instances
     }
@@ -140,7 +165,9 @@ impl UiState {
         if !self.selected.is_none() {
             let element = unsafe { &mut *self.selected.ptr };
             let element2 = unsafe { &mut *self.selected.ptr };
-            let element_result = element.element.interaction(element2, self_clone, cursor_pos, event);
+            let element_result = element
+                .element
+                .interaction(element2, self_clone, cursor_pos, event);
             if !element_result.is_none() {
                 return element_result;
             }
@@ -171,35 +198,79 @@ impl UiState {
             if ui_instances.is_empty() {
                 return;
             }
-        
+
             unsafe { base.device.queue_wait_idle(base.queue).unwrap() };
             self.instance_buffer.destroy(&base.device);
             self.font_instance_buffer.destroy(&base.device);
-        
-            self.font_instance_buffer = Buffer::device_local_slow(&base, command_pool, &self.texts, vk::BufferUsageFlags::VERTEX_BUFFER);
-            self.instance_buffer = Buffer::device_local_slow(&base, command_pool, &ui_instances, vk::BufferUsageFlags::VERTEX_BUFFER);
+
+            self.font_instance_buffer = Buffer::device_local_slow(
+                &base,
+                command_pool,
+                &self.texts,
+                vk::BufferUsageFlags::VERTEX_BUFFER,
+            );
+            self.instance_buffer = Buffer::device_local_slow(
+                &base,
+                command_pool,
+                &ui_instances,
+                vk::BufferUsageFlags::VERTEX_BUFFER,
+            );
         } else if matches!(self.dirty, DirtyFlags::Color | DirtyFlags::Size) {
             let ui_instances = self.get_instaces();
 
             self.instance_buffer.destroy(&base.device);
-            self.instance_buffer = Buffer::device_local_slow(&base, command_pool, &ui_instances, vk::BufferUsageFlags::VERTEX_BUFFER);
+            self.instance_buffer = Buffer::device_local_slow(
+                &base,
+                command_pool,
+                &ui_instances,
+                vk::BufferUsageFlags::VERTEX_BUFFER,
+            );
 
             self.font_instance_buffer.destroy(&base.device);
-            self.font_instance_buffer = Buffer::device_local_slow(&base, command_pool, &self.texts, vk::BufferUsageFlags::VERTEX_BUFFER);
+            self.font_instance_buffer = Buffer::device_local_slow(
+                &base,
+                command_pool,
+                &self.texts,
+                vk::BufferUsageFlags::VERTEX_BUFFER,
+            );
         }
     }
 
-    pub fn draw(&self, device: &ash::Device, cmd: vk::CommandBuffer, descriptor_set: vk::DescriptorSet) {
+    pub fn draw(
+        &self,
+        device: &ash::Device,
+        cmd: vk::CommandBuffer,
+        descriptor_set: vk::DescriptorSet,
+    ) {
         unsafe {
             device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, self.pipeline);
             device.cmd_bind_vertex_buffers(cmd, 0, &[self.instance_buffer.inner], &[0]);
-            device.cmd_bind_descriptor_sets(cmd, vk::PipelineBindPoint::GRAPHICS, self.pipeline_layout, 0, &[descriptor_set], &[]);
-            device.cmd_draw(cmd, 4, self.instance_buffer.size as u32 / size_of::<UiInstance>() as u32, 0, 0);
+            device.cmd_bind_descriptor_sets(
+                cmd,
+                vk::PipelineBindPoint::GRAPHICS,
+                self.pipeline_layout,
+                0,
+                &[descriptor_set],
+                &[],
+            );
+            device.cmd_draw(
+                cmd,
+                4,
+                self.instance_buffer.size as u32 / size_of::<UiInstance>() as u32,
+                0,
+                0,
+            );
 
-            if !self.texts.is_empty(){
+            if !self.texts.is_empty() {
                 device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, self.font_pipeline);
                 device.cmd_bind_vertex_buffers(cmd, 0, &[self.font_instance_buffer.inner], &[0]);
-                device.cmd_draw(cmd, 4, self.font_instance_buffer.size as u32 / size_of::<FontInstance>() as u32, 0, 0);
+                device.cmd_draw(
+                    cmd,
+                    4,
+                    self.font_instance_buffer.size as u32 / size_of::<FontInstance>() as u32,
+                    0,
+                    0,
+                );
             }
         }
     }

@@ -1,11 +1,9 @@
-
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
-
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec2 {
     pub x: f32,
-    pub y: f32 
+    pub y: f32,
 }
 
 impl Vec2 {
@@ -22,19 +20,11 @@ impl Vec2 {
     }
 
     pub const fn min(&self) -> f32 {
-        if self.x < self.y {
-            self.x
-        } else {
-            self.y
-        }
+        if self.x < self.y { self.x } else { self.y }
     }
 
     pub const fn max(&self) -> f32 {
-        if self.x > self.y {
-            self.x
-        } else {
-            self.y
-        }
+        if self.x > self.y { self.x } else { self.y }
     }
 
     #[inline(always)]
@@ -65,7 +55,6 @@ impl Add<f32> for Vec2 {
     }
 }
 
-
 impl AddAssign for Vec2 {
     fn add_assign(&mut self, other: Vec2) {
         self.x += other.x;
@@ -94,7 +83,6 @@ impl Mul<f32> for Vec2 {
         }
     }
 }
-
 
 impl MulAssign for Vec2 {
     fn mul_assign(&mut self, other: Vec2) {
@@ -133,7 +121,6 @@ impl DivAssign for Vec2 {
 }
 
 impl DivAssign<f32> for Vec2 {
-
     fn div_assign(&mut self, other: f32) {
         self.x /= other;
         self.y /= other;

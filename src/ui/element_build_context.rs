@@ -28,7 +28,7 @@ impl BuildContext {
             start_pos: Vec2::default(),
             parent: null(),
             order: 0,
-            font: font as _
+            font: font as _,
         }
     }
 
@@ -36,7 +36,12 @@ impl BuildContext {
         unsafe { &*self.font }
     }
 
-    pub fn new_from(context: &Self, parent_size: Vec2, parent_pos: Vec2, parent: &RawUiElement) -> Self {
+    pub fn new_from(
+        context: &Self,
+        parent_size: Vec2,
+        parent_pos: Vec2,
+        parent: &RawUiElement,
+    ) -> Self {
         Self {
             element_size: Vec2::default(),
             element_pos: Vec2::default(),
@@ -46,7 +51,7 @@ impl BuildContext {
             start_pos: Vec2::default(),
             parent: parent as *const RawUiElement,
             order: 0,
-            font: context.font
+            font: context.font,
         }
     }
 
@@ -59,7 +64,6 @@ impl BuildContext {
             self.start_pos.x += size.x;
 
             return true;
-
         } else {
             self.start_pos.y += self.line_offset;
             pos.y += self.start_pos.y;

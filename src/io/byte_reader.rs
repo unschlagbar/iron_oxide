@@ -1,10 +1,11 @@
-use std::{fmt, io::{self, Read, Write}};
-
-
+use std::{
+    fmt,
+    io::{self, Read, Write},
+};
 
 pub struct ByteReader<T> {
     inner: T,
-    pos: usize
+    pos: usize,
 }
 
 impl<T> ByteReader<T> {
@@ -13,7 +14,10 @@ impl<T> ByteReader<T> {
     }
 
     pub const fn new_at(inner: T, position: usize) -> Self {
-        ByteReader { inner, pos: position }
+        ByteReader {
+            inner,
+            pos: position,
+        }
     }
 
     pub fn skip_bytes(&mut self, amount: usize) {
@@ -38,8 +42,9 @@ impl<T> ByteReader<T> {
 }
 
 impl<T> ByteReader<T>
-where T: AsRef<[u8]> {
-
+where
+    T: AsRef<[u8]>,
+{
     pub fn read_byte(&mut self) -> u8 {
         self.pos += 1;
         self.inner.as_ref()[self.pos - 1]
@@ -64,37 +69,76 @@ where T: AsRef<[u8]> {
 
     pub fn read_be_u16(&mut self) -> u16 {
         self.pos += 2;
-        u16::from_be_bytes([self.inner.as_ref()[self.pos - 2], self.inner.as_ref()[self.pos - 1]])
+        u16::from_be_bytes([
+            self.inner.as_ref()[self.pos - 2],
+            self.inner.as_ref()[self.pos - 1],
+        ])
     }
 
     pub fn read_le_u24(&mut self) -> u32 {
         self.pos += 3;
-        u32::from_le_bytes([self.inner.as_ref()[self.pos - 3], self.inner.as_ref()[self.pos - 2], self.inner.as_ref()[self.pos - 1], 0])
+        u32::from_le_bytes([
+            self.inner.as_ref()[self.pos - 3],
+            self.inner.as_ref()[self.pos - 2],
+            self.inner.as_ref()[self.pos - 1],
+            0,
+        ])
     }
 
     pub fn read_be_u32(&mut self) -> u32 {
         self.pos += 4;
-        u32::from_be_bytes([self.inner.as_ref()[self.pos - 4], self.inner.as_ref()[self.pos - 3], self.inner.as_ref()[self.pos - 2], self.inner.as_ref()[self.pos - 1]])
+        u32::from_be_bytes([
+            self.inner.as_ref()[self.pos - 4],
+            self.inner.as_ref()[self.pos - 3],
+            self.inner.as_ref()[self.pos - 2],
+            self.inner.as_ref()[self.pos - 1],
+        ])
     }
 
     pub fn read_be_u64(&mut self) -> u64 {
         self.pos += 8;
-        u64::from_be_bytes([self.inner.as_ref()[self.pos - 8], self.inner.as_ref()[self.pos - 7], self.inner.as_ref()[self.pos - 6], self.inner.as_ref()[self.pos - 5], self.inner.as_ref()[self.pos - 4], self.inner.as_ref()[self.pos - 3], self.inner.as_ref()[self.pos - 2], self.inner.as_ref()[self.pos - 1]])
+        u64::from_be_bytes([
+            self.inner.as_ref()[self.pos - 8],
+            self.inner.as_ref()[self.pos - 7],
+            self.inner.as_ref()[self.pos - 6],
+            self.inner.as_ref()[self.pos - 5],
+            self.inner.as_ref()[self.pos - 4],
+            self.inner.as_ref()[self.pos - 3],
+            self.inner.as_ref()[self.pos - 2],
+            self.inner.as_ref()[self.pos - 1],
+        ])
     }
 
     pub fn read_be_i64(&mut self) -> i64 {
         self.pos += 8;
-        i64::from_be_bytes([self.inner.as_ref()[self.pos - 8], self.inner.as_ref()[self.pos - 7], self.inner.as_ref()[self.pos - 6], self.inner.as_ref()[self.pos - 5], self.inner.as_ref()[self.pos - 4], self.inner.as_ref()[self.pos - 3], self.inner.as_ref()[self.pos - 2], self.inner.as_ref()[self.pos - 1]])
+        i64::from_be_bytes([
+            self.inner.as_ref()[self.pos - 8],
+            self.inner.as_ref()[self.pos - 7],
+            self.inner.as_ref()[self.pos - 6],
+            self.inner.as_ref()[self.pos - 5],
+            self.inner.as_ref()[self.pos - 4],
+            self.inner.as_ref()[self.pos - 3],
+            self.inner.as_ref()[self.pos - 2],
+            self.inner.as_ref()[self.pos - 1],
+        ])
     }
 
     pub fn read_le_u16(&mut self) -> u16 {
         self.pos += 2;
-        u16::from_le_bytes([self.inner.as_ref()[self.pos - 2], self.inner.as_ref()[self.pos - 1]])
+        u16::from_le_bytes([
+            self.inner.as_ref()[self.pos - 2],
+            self.inner.as_ref()[self.pos - 1],
+        ])
     }
 
     pub fn read_le_u32(&mut self) -> u32 {
         self.pos += 4;
-        u32::from_le_bytes([self.inner.as_ref()[self.pos - 4], self.inner.as_ref()[self.pos - 3], self.inner.as_ref()[self.pos - 2], self.inner.as_ref()[self.pos - 1]])
+        u32::from_le_bytes([
+            self.inner.as_ref()[self.pos - 4],
+            self.inner.as_ref()[self.pos - 3],
+            self.inner.as_ref()[self.pos - 2],
+            self.inner.as_ref()[self.pos - 1],
+        ])
     }
 
     pub fn remaining_bytes(&self) -> &[u8] {
@@ -120,42 +164,49 @@ where
     }
 }
 
-impl<T> ByteReader<T> 
-where T: AsRef<Vec<u8>> {
+impl<T> ByteReader<T>
+where
+    T: AsRef<Vec<u8>>,
+{
     pub fn get_remaining(&self) -> &[u8] {
         &self.inner.as_ref()[self.pos..self.inner.as_ref().len() - 1]
     }
 }
 
-impl <T>  ByteReader<T> 
-where T: AsRef<[u8]> {}
+impl<T> ByteReader<T> where T: AsRef<[u8]> {}
 
-impl<T: std::fmt::Debug> std::fmt::Debug for ByteReader<T> 
-where T: AsRef<[u8]> {
-
+impl<T: std::fmt::Debug> std::fmt::Debug for ByteReader<T>
+where
+    T: AsRef<[u8]>,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ByteReader {{ inner: {:?}, position: {} }}", self.inner.as_ref()[self.pos], self.pos)
+        write!(
+            f,
+            "ByteReader {{ inner: {:?}, position: {} }}",
+            self.inner.as_ref()[self.pos],
+            self.pos
+        )
     }
 }
 
-
-
+#[derive(Default)]
 pub struct ByteWriter {
-    buf: Vec<u8>
+    buf: Vec<u8>,
 }
 
 impl ByteWriter {
-    
-    pub const fn new() -> Self {
-        ByteWriter { buf: Vec::new() }
-    }
-
     pub fn with_capacity(capacity: usize) -> Self {
-        ByteWriter { buf: Vec::with_capacity(capacity) }
+        ByteWriter {
+            buf: Vec::with_capacity(capacity),
+        }
     }
 
     pub fn len(&self) -> usize {
         self.buf.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.buf.len() == 0
     }
 
     pub const fn as_ref(&self) -> &Vec<u8> {
@@ -192,12 +243,13 @@ impl ByteWriter {
 
     pub fn write_u24(&mut self, number: u32) {
         let bytes = number.to_le_bytes();
-        self.buf.extend_from_slice(&[bytes[0], bytes[1], bytes [2]]);
+        self.buf.extend_from_slice(&[bytes[0], bytes[1], bytes[2]]);
     }
 
     pub fn write_be_u24(&mut self, number: u32) {
         let bytes = number.to_be_bytes();
-        self.buf.extend_from_slice(&[bytes[0], bytes[1], bytes [2], 0]);
+        self.buf
+            .extend_from_slice(&[bytes[0], bytes[1], bytes[2], 0]);
     }
 
     pub fn write_u64(&mut self, number: u64) {
@@ -220,7 +272,7 @@ impl ByteWriter {
         self.buf.extend(number.to_be_bytes());
     }
 
-    pub fn write_f32(&mut self, number: f32){
+    pub fn write_f32(&mut self, number: f32) {
         self.buf.extend(number.to_le_bytes());
     }
 
@@ -229,16 +281,16 @@ impl ByteWriter {
     }
 }
 
-impl Write for ByteWriter {    
+impl Write for ByteWriter {
     fn write_fmt(&mut self, args: fmt::Arguments<'_>) -> io::Result<()> {
         self.buf.write_fmt(args)
     }
-    
+
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.buf.extend_from_slice(buf);
         Ok(buf.len())
     }
-    
+
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }

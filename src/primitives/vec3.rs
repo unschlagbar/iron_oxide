@@ -1,8 +1,6 @@
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 #[cfg(feature = "graphics")]
-
 use cgmath::Vector3;
-
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec3 {
@@ -17,11 +15,19 @@ impl Vec3 {
     }
 
     pub const fn zero() -> Self {
-        Self { x: 0.0, y: 0.0, z: 0.0 }
+        Self {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        }
     }
 
     pub const fn one() -> Self {
-        Self { x: 1.0, y: 1.0, z: 1.0 }
+        Self {
+            x: 1.0,
+            y: 1.0,
+            z: 1.0,
+        }
     }
 
     #[inline(always)]
@@ -45,17 +51,14 @@ impl Vec3 {
 
     #[inline(always)]
     pub fn distance(&self, other: Self) -> f32 {
-        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2) + (self.z - other.z).powi(2)).sqrt()
+        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2) + (self.z - other.z).powi(2))
+            .sqrt()
     }
 
     #[inline(always)]
     pub fn normalize(&self) -> Self {
         let len = self.len();
-        if len > 0.0 {
-            *self / len
-        } else {
-            *self
-        }
+        if len > 0.0 { *self / len } else { *self }
     }
 
     #[inline(always)]
@@ -93,7 +96,6 @@ impl Add<f32> for Vec3 {
     }
 }
 
-
 impl AddAssign for Vec3 {
     fn add_assign(&mut self, other: Vec3) {
         self.x += other.x;
@@ -125,7 +127,6 @@ impl Mul<f32> for Vec3 {
         }
     }
 }
-
 
 impl MulAssign for Vec3 {
     fn mul_assign(&mut self, other: Vec3) {
@@ -168,7 +169,6 @@ impl DivAssign for Vec3 {
 }
 
 impl DivAssign<f32> for Vec3 {
-
     fn div_assign(&mut self, other: f32) {
         self.x /= other;
         self.y /= other;
@@ -241,7 +241,11 @@ impl Neg for Vec3 {
 
 impl From<Vector3<f32>> for Vec3 {
     fn from(v: Vector3<f32>) -> Self {
-        Self { x: v.x, y: v.y, z: v.z }
+        Self {
+            x: v.x,
+            y: v.y,
+            z: v.z,
+        }
     }
 }
 
@@ -249,6 +253,10 @@ impl From<Vector3<f32>> for Vec3 {
 
 impl From<Vec3> for Vector3<f32> {
     fn from(v: Vec3) -> Self {
-        Self { x: v.x, y: v.y, z: v.z }
+        Self {
+            x: v.x,
+            y: v.y,
+            z: v.z,
+        }
     }
 }

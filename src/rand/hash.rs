@@ -1,5 +1,3 @@
-
-
 pub fn hash(mut seed: u32) -> u32 {
     seed ^= 2747636419;
     seed = seed.wrapping_mul(2654435769);

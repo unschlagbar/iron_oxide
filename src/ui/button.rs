@@ -1,6 +1,11 @@
-use crate::{graphics::formats::Color, primitives::Vec2, ui::{ui_state::EventResult, CallContext, UiEvent, UiState}};
 use super::{
-    ui_element::{Element, ElementBuild, TypeConst}, BuildContext, ElementType, ErasedFnPointer, Overflow, OutArea, RawUiElement, UiElement, UiUnit
+    BuildContext, ElementType, ErasedFnPointer, OutArea, Overflow, RawUiElement, UiElement, UiUnit,
+    ui_element::{Element, ElementBuild, TypeConst},
+};
+use crate::{
+    graphics::formats::Color,
+    primitives::Vec2,
+    ui::{CallContext, UiEvent, UiState, ui_state::EventResult},
 };
 
 pub struct Button {
@@ -26,18 +31,16 @@ impl Element for Button {
 
         let space = Vec2::new(
             context.parent_size.x - self.padding.x(context.parent_size),
-            context.parent_size.y -  self.padding.y(context.parent_size)
+            context.parent_size.y - self.padding.y(context.parent_size),
         );
 
-        size = Vec2::new(
-            self.width.pixelx(space),
-            self.height.pixely(space)
-        );
+        size = Vec2::new(self.width.pixelx(space), self.height.pixely(space));
 
-        let mut outer_size = size + Vec2::new(
-            self.margin.x(context.parent_size),
-            self.margin.y(context.parent_size),
-        );
+        let mut outer_size = size
+            + Vec2::new(
+                self.margin.x(context.parent_size),
+                self.margin.y(context.parent_size),
+            );
 
         pos = self.margin.start(context.parent_size);
 
@@ -49,7 +52,7 @@ impl Element for Button {
         comp.corner = self.corner[0].pixelx(size);
 
         pos += context.parent_pos;
-                
+
         comp.size = size;
         comp.pos = pos;
 
@@ -74,7 +77,7 @@ impl Element for Button {
         self.comp.to_instance(self.color, self.border_color)
     }
 
-    fn childs(&mut self) -> &mut[UiElement] {
+    fn childs(&mut self) -> &mut [UiElement] {
         &mut self.childs
     }
 
@@ -82,7 +85,13 @@ impl Element for Button {
         self.childs.push(child);
     }
 
-    fn interaction(&mut self, element: &mut UiElement, ui: &mut UiState, cursor_pos: Vec2, event: UiEvent) -> EventResult {
+    fn interaction(
+        &mut self,
+        element: &mut UiElement,
+        ui: &mut UiState,
+        cursor_pos: Vec2,
+        event: UiEvent,
+    ) -> EventResult {
         let button: &mut Button = self;
         let mut result;
 
@@ -91,12 +100,12 @@ impl Element for Button {
         } else {
             result = EventResult::Old;
         };
-                        
+
         match event {
             UiEvent::Press => {
                 button.state = ButtonState::Pressed;
                 ui.selected.set_pressed(element as _);
-            },
+            }
             UiEvent::Release => {
                 if element.is_in(cursor_pos) {
                     button.state = ButtonState::Hovered;
@@ -106,7 +115,7 @@ impl Element for Button {
                     button.state = ButtonState::Normal;
                     ui.selected.clear();
                 }
-            },
+            }
             UiEvent::Move => {
                 if !matches!(button.state, ButtonState::Pressed) {
                     if matches!(result, EventResult::New) || element.is_in(cursor_pos) {
@@ -118,15 +127,11 @@ impl Element for Button {
                         ui.selected.clear();
                     }
                 }
-            },
+            }
         }
-                        
+
         if !button.callback.is_null() {
-            let context = CallContext {
-                ui,
-                element,
-                event,
-            };
+            let context = CallContext { ui, element, event };
             button.callback.call(context);
         }
 

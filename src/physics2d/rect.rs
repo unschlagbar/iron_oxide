@@ -12,7 +12,13 @@ pub struct Rect {
 
 impl Rect {
     pub const fn new(position: Vec2, size: Vec2, velocity: Vec2) -> Self {
-        Self { position, size, velocity, mass: 1.0, rotation: 0.0, angular_velocity: 0.0 }
+        Self {
+            position,
+            size,
+            velocity,
+            mass: 1.0,
+            rotation: 0.0,
+            angular_velocity: 0.0,
+        }
     }
-
 }

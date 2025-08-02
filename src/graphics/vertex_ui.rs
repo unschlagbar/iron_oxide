@@ -1,5 +1,5 @@
-use std::mem::offset_of;
 use ash::vk;
+use std::mem::offset_of;
 
 use super::formats::Color;
 
@@ -7,13 +7,12 @@ use super::formats::Color;
 pub struct VertexUi;
 
 impl VertexUi {
-    pub const GET_BINDING_DESCRIPTION: [vk::VertexInputBindingDescription; 1] = [
-        vk::VertexInputBindingDescription {
+    pub const GET_BINDING_DESCRIPTION: [vk::VertexInputBindingDescription; 1] =
+        [vk::VertexInputBindingDescription {
             binding: 0,
             stride: std::mem::size_of::<UiInstance>() as _,
             input_rate: vk::VertexInputRate::INSTANCE,
-        },
-    ];
+        }];
 
     pub const GET_ATTRIBUTE_DESCRIPTIONS: [vk::VertexInputAttributeDescription; 8] = [
         vk::VertexInputAttributeDescription {
@@ -63,7 +62,7 @@ impl VertexUi {
             location: 7,
             format: vk::Format::R32_SFLOAT,
             offset: offset_of!(UiInstance, corner) as u32,
-        }
+        },
     ];
 }
 
@@ -81,6 +80,15 @@ pub struct UiInstance {
 
 impl Default for UiInstance {
     fn default() -> Self {
-        Self { color: Color::WHITE, border_color: Color::WHITE, border: 0.0, x: 0.0, y: 0.0, width: 0.0, height: 0.0, corner: 0.0 }
+        Self {
+            color: Color::WHITE,
+            border_color: Color::WHITE,
+            border: 0.0,
+            x: 0.0,
+            y: 0.0,
+            width: 0.0,
+            height: 0.0,
+            corner: 0.0,
+        }
     }
 }

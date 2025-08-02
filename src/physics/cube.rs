@@ -12,7 +12,14 @@ pub struct Cube {
 
 impl Cube {
     pub const fn new(position: Vec3, size: Vec3, velocity: Vec3) -> Self {
-        Self { position, size, velocity, mass: 1.0, rotation: 0.0, angular_velocity: 0.0 }
+        Self {
+            position,
+            size,
+            velocity,
+            mass: 1.0,
+            rotation: 0.0,
+            angular_velocity: 0.0,
+        }
     }
 
     pub fn apply_force(&mut self, force: Vec3) {
@@ -31,9 +38,12 @@ impl Cube {
         let other_min = other.position - other.size / 2.0;
         let other_max = other.position + other.size / 2.0;
 
-        self_min.x <= other_max.x && self_max.x >= other_min.x &&
-        self_min.y <= other_max.y && self_max.y >= other_min.y &&
-        self_min.z <= other_max.z && self_max.z >= other_min.z
+        self_min.x <= other_max.x
+            && self_max.x >= other_min.x
+            && self_min.y <= other_max.y
+            && self_max.y >= other_min.y
+            && self_min.z <= other_max.z
+            && self_max.z >= other_min.z
     }
 
     pub fn resolve_collision(&mut self, other: &mut Cube) {
@@ -47,7 +57,8 @@ impl Cube {
             }
 
             let restitution = 0.5; // coefficient of restitution
-            let impulse_scalar = -(1.0 + restitution) * velocity_along_normal / (1.0 / self.mass + 1.0 / other.mass);
+            let impulse_scalar =
+                -(1.0 + restitution) * velocity_along_normal / (1.0 / self.mass + 1.0 / other.mass);
             let impulse = normal * impulse_scalar;
 
             self.velocity -= impulse / self.mass;

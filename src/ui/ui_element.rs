@@ -1,15 +1,26 @@
 use std::{fmt::Debug, rc::Rc};
 
+use super::{
+    AbsoluteLayout, BuildContext, Button, ButtonState, CallContext, Container, ElementType, Text,
+    UiEvent, UiState, ui_state::EventResult,
+};
 use crate::{graphics::UiInstance, primitives::Vec2};
-use super::{ui_state::EventResult, AbsoluteLayout, BuildContext, Button, ButtonState, CallContext, Container, ElementType, Text, UiEvent, UiState};
 
 pub trait Element {
     fn build(&mut self, context: &mut BuildContext);
     fn instance(&self) -> UiInstance;
-    fn childs(&mut self) -> &mut[UiElement];
+    fn childs(&mut self) -> &mut [UiElement];
     fn add_child(&mut self, child: UiElement);
     #[allow(unused)]
-    fn interaction(&mut self, element: &mut UiElement, ui: &mut UiState, curser_pos: Vec2, event: UiEvent) -> EventResult { EventResult::None }
+    fn interaction(
+        &mut self,
+        element: &mut UiElement,
+        ui: &mut UiState,
+        curser_pos: Vec2,
+        event: UiEvent,
+    ) -> EventResult {
+        EventResult::None
+    }
 }
 
 pub trait ElementBuild {
@@ -28,7 +39,7 @@ pub struct UiElement {
     pub size: Vec2,
     pub pos: Vec2,
     pub parent: *mut UiElement,
-    pub element: Box<dyn Element>
+    pub element: Box<dyn Element>,
 }
 
 impl UiElement {
@@ -38,8 +49,8 @@ impl UiElement {
     }
 
     pub unsafe fn downcast_mut<'a, T: Element>(&'a mut self) -> &'a mut T {
-        let raw: *mut dyn Element = &mut*self.element as *mut dyn Element;
-        unsafe { &mut*(raw as *mut T) }
+        let raw: *mut dyn Element = &mut *self.element as *mut dyn Element;
+        unsafe { &mut *(raw as *mut T) }
     }
 
     pub fn parent(&mut self) -> &mut UiElement {
@@ -52,25 +63,25 @@ impl UiElement {
                 let div: &mut Container = unsafe { self.downcast_mut() };
                 div.build(context);
                 self.dirty = false;
-            },
+            }
             ElementType::AbsoluteLayout => {
                 let div: &mut AbsoluteLayout = unsafe { self.downcast_mut() };
                 div.build(context);
                 self.dirty = false;
-            },
+            }
             ElementType::Button => {
                 let div: &mut Button = unsafe { self.downcast_mut() };
                 div.build(context);
                 self.dirty = false;
-            },
+            }
             ElementType::Text => {
                 let div: &mut Text = unsafe { self.downcast_mut() };
                 div.build(context);
                 self.dirty = false;
-            },
-            _ => unimplemented!()
+            }
+            _ => unimplemented!(),
         }
-        
+
         self.pos = context.element_pos;
         self.size = context.element_size;
     }
@@ -88,7 +99,6 @@ impl UiElement {
                 };
                 button.callback.call(context);
             }
-
         }
     }
 
@@ -96,7 +106,7 @@ impl UiElement {
         if !self.visible {
             return;
         }
-        
+
         if self.typ == ElementType::Text {
             let size = self.parent().size;
             let pos = self.parent().pos;
@@ -164,7 +174,12 @@ impl UiElement {
     }
 
     #[allow(unused)]
-    pub fn update_cursor(&mut self, ui: &mut UiState, cursor_pos: Vec2, ui_event: UiEvent) -> EventResult {
+    pub fn update_cursor(
+        &mut self,
+        ui: &mut UiState,
+        cursor_pos: Vec2,
+        ui_event: UiEvent,
+    ) -> EventResult {
         if !self.visible {
             return EventResult::None;
         }
@@ -174,7 +189,9 @@ impl UiElement {
         if self.is_in(cursor_pos) {
             for child in self.element.childs() {
                 let result = child.update_cursor(ui, cursor_pos, ui_event);
-                if !result.is_none() { return result };
+                if !result.is_none() {
+                    return result;
+                };
             }
 
             let mut result = EventResult::None;
@@ -183,8 +200,8 @@ impl UiElement {
             match self.typ {
                 ElementType::Button => {
                     result = self.element.interaction(element, ui, cursor_pos, ui_event);
-                },
-                _ => ()
+                }
+                _ => (),
             }
 
             return result;
@@ -204,7 +221,12 @@ impl UiElement {
 
     #[inline]
     pub fn set_dirty(&self) {
-        unsafe { (self as *const UiElement as *mut UiElement).as_mut().unwrap_unchecked().dirty = true };
+        unsafe {
+            (self as *const UiElement as *mut UiElement)
+                .as_mut()
+                .unwrap_unchecked()
+                .dirty = true
+        };
     }
 
     #[inline]

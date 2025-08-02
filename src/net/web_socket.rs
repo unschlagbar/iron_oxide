@@ -1,6 +1,12 @@
-use std::{collections::VecDeque, io::{Read, Write}, net::{SocketAddr, TcpStream}, sync::{Arc, RwLock}, time::Duration};
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use sha1_smol::Sha1;
+use std::{
+    collections::VecDeque,
+    io::{ErrorKind, Read, Write},
+    net::{SocketAddr, TcpStream},
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 
 #[derive(Debug)]
 pub struct WebSocket {
@@ -11,9 +17,7 @@ pub struct WebSocket {
 
 #[allow(dead_code)]
 impl WebSocket {
-
     pub fn try_connect(mut stream: TcpStream, handshake_key: &str) -> Option<Self> {
-
         let mut sha = Sha1::new();
         sha.update(handshake_key.as_bytes());
         sha.update(b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
@@ -21,18 +25,30 @@ impl WebSocket {
         let mut encoded_key = [0; 28];
         STANDARD.encode_slice(umbrella, &mut encoded_key).unwrap();
 
-        let response = format!("HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Accept: {}\r\n\r\n", unsafe {String::from_utf8_unchecked(encoded_key.to_vec())});
-        stream.write(response.as_bytes()).unwrap();
+        let response = format!(
+            "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Accept: {}\r\n\r\n",
+            unsafe { String::from_utf8_unchecked(encoded_key.to_vec()) }
+        );
+        stream.write_all(response.as_bytes()).unwrap();
         stream.flush().unwrap();
-        stream.set_read_timeout(Some(Duration::from_millis(1000))).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_millis(1000)))
+            .unwrap();
 
-        let ws = Self { stream, send_queue: VecDeque::with_capacity(10), close: false };
+        let ws = Self {
+            stream,
+            send_queue: VecDeque::with_capacity(10),
+            close: false,
+        };
         Some(ws)
     }
 
     pub fn new(stream: TcpStream) -> Self {
-        let ws = WebSocket { stream, send_queue: VecDeque::with_capacity(10), close: false };
-        ws
+        WebSocket {
+            stream,
+            send_queue: VecDeque::with_capacity(10),
+            close: false,
+        }
     }
 
     pub fn close(&mut self) {
@@ -40,17 +56,14 @@ impl WebSocket {
     }
 
     pub fn send_ping(&mut self) {
-        let mut ping = Vec::with_capacity(2);
-        ping.push(0b10001001); // FIN und Opcode für Ping
-        ping.push(1);
-        ping.push(95);        // Länge 0 für Ping
+        let ping = vec![0b10001001, 1, 95];
         self.send_queue.push_back(ping);
     }
 
     pub fn send_pong(&mut self, data: Vec<u8>) {
         let mut pong = Vec::with_capacity(data.len() + 2);
         pong.push(0b10001000); // FIN und Opcode für Pong
-        pong.push(data.len() as u8);  // Länge des Pongs
+        pong.push(data.len() as u8); // Länge des Pongs
         pong.extend_from_slice(&data); // Daten des Pongs
         self.send_queue.push_back(pong);
     }
@@ -66,12 +79,12 @@ impl WebSocket {
                 m.push(len as u8);
                 m.extend_from_slice(message);
             }
-            0..=65535 => {
+            126..=65535 => {
                 m.push(0b10000000 | msg_type as u8);
                 m.push(126);
                 m.extend_from_slice(&(len as u16).to_be_bytes());
                 m.extend_from_slice(message);
-            },
+            }
             _ => {
                 m.push(0b10000000 | msg_type as u8);
                 m.push(127);
@@ -86,7 +99,7 @@ impl WebSocket {
         if data.len() < 3 {
             return MessageLen::ToShort;
         }
-        let len  = data[1] & 0b01111111;
+        let len = data[1] & 0b01111111;
 
         let actual_len: u64 = match len {
             126 => {
@@ -100,13 +113,17 @@ impl WebSocket {
                 if data.len() < 10 {
                     return MessageLen::MissingBytes(10 - data.len());
                 }
-                let len = ((data[2] as u64) << 56) | ((data[3] as u64) << 48) |
-                ((data[4] as u64) << 40) | ((data[5] as u64) << 32) |
-                ((data[6] as u64) << 24) | ((data[7] as u64) << 16) |
-                ((data[8] as u64) << 8) | (data[9] as u64);
+                let len = ((data[2] as u64) << 56)
+                    | ((data[3] as u64) << 48)
+                    | ((data[4] as u64) << 40)
+                    | ((data[5] as u64) << 32)
+                    | ((data[6] as u64) << 24)
+                    | ((data[7] as u64) << 16)
+                    | ((data[8] as u64) << 8)
+                    | (data[9] as u64);
                 len + 14
             }
-            _ => len as u64 + 6
+            _ => len as u64 + 6,
         };
 
         MessageLen::Len(actual_len as usize)
@@ -115,7 +132,7 @@ impl WebSocket {
     /// **Verarbeitet ausgehende Nachrichten**
     fn flush(&mut self) -> Option<()> {
         while let Some(message) = self.send_queue.pop_front() {
-            if let Err(_) = self.stream.write_all(&message) {
+            if self.stream.write_all(&message).is_err() {
                 return None;
             }
         }
@@ -129,32 +146,32 @@ impl WebSocket {
             let interface = ws_interface.read().unwrap();
             stream = interface.websocket().stream.try_clone().unwrap();
         }
-    
+
         let ip = stream.peer_addr().unwrap();
         let mut buffer = [0; 8192];
-        
+
         let mut message_buffer: Vec<u8> = Vec::new();
         let mut incomplete_message: Vec<u8> = Vec::new();
         let mut required_length: Option<usize> = None;
         let mut is_fragmented = false;
         let mut bytes_processed;
         let mut expected_fragment_type = None;
-    
+
         loop {
             stream.take_error().expect("No error was expected...");
 
-            //if  
-    
+            //if
+
             match stream.read(&mut buffer) {
                 Ok(0) => {
                     println!("Connection closed");
                     let client = ws_interface.write().unwrap();
                     client.on_closed(ip);
                     return;
-                },
+                }
                 Ok(bytes_read) => {
                     bytes_processed = 0;
-    
+
                     while bytes_processed < bytes_read {
                         if !incomplete_message.is_empty() {
                             let remaining_bytes = match required_length {
@@ -167,15 +184,15 @@ impl WebSocket {
                                             incomplete_message.reserve(total_len);
                                             required_length = Some(total_len);
                                             total_len.saturating_sub(incomplete_message.len())
-                                        },
+                                        }
                                         MessageLen::MissingBytes(missing) => missing,
                                         MessageLen::ToShort => {
                                             let to_add = std::cmp::min(
                                                 bytes_read - bytes_processed,
-                                                3 - incomplete_message.len()
+                                                3 - incomplete_message.len(),
                                             );
                                             incomplete_message.extend_from_slice(
-                                                &buffer[bytes_processed..bytes_processed + to_add]
+                                                &buffer[bytes_processed..bytes_processed + to_add],
                                             );
                                             bytes_processed += to_add;
                                             continue;
@@ -183,13 +200,14 @@ impl WebSocket {
                                     }
                                 }
                             };
-    
-                            let bytes_to_add = std::cmp::min(bytes_read - bytes_processed, remaining_bytes);
+
+                            let bytes_to_add =
+                                std::cmp::min(bytes_read - bytes_processed, remaining_bytes);
                             incomplete_message.extend_from_slice(
-                                &buffer[bytes_processed..bytes_processed + bytes_to_add]
+                                &buffer[bytes_processed..bytes_processed + bytes_to_add],
                             );
                             bytes_processed += bytes_to_add;
-    
+
                             if let Some(len) = required_length {
                                 if incomplete_message.len() >= len {
                                     Self::process_message(
@@ -199,7 +217,7 @@ impl WebSocket {
                                         &mut expected_fragment_type,
                                         ws_interface.clone(),
                                         &mut stream,
-                                        ip
+                                        ip,
                                     );
                                     incomplete_message.clear();
                                     required_length = None;
@@ -207,7 +225,7 @@ impl WebSocket {
                             }
                             continue;
                         }
-    
+
                         match Self::get_payloadlen(&buffer[bytes_processed..bytes_read]) {
                             MessageLen::Len(len) => {
                                 if bytes_processed + len <= bytes_read {
@@ -218,40 +236,40 @@ impl WebSocket {
                                         &mut expected_fragment_type,
                                         ws_interface.clone(),
                                         &mut stream,
-                                        ip
+                                        ip,
                                     );
                                     bytes_processed += len;
                                 } else {
                                     // Reserviere die Kapazität für die komplette Nachricht
                                     incomplete_message = Vec::with_capacity(len);
-                                    incomplete_message.extend_from_slice(
-                                        &buffer[bytes_processed..bytes_read]
-                                    );
+                                    incomplete_message
+                                        .extend_from_slice(&buffer[bytes_processed..bytes_read]);
                                     required_length = Some(len);
                                     bytes_processed = bytes_read;
                                 }
-                            },
+                            }
                             MessageLen::MissingBytes(missing) => {
                                 // Reserviere initial nur für den Header
                                 incomplete_message = Vec::with_capacity(missing + 10);
-                                incomplete_message.extend_from_slice(
-                                    &buffer[bytes_processed..bytes_read]
-                                );
+                                incomplete_message
+                                    .extend_from_slice(&buffer[bytes_processed..bytes_read]);
                                 required_length = Some(missing);
                                 bytes_processed = bytes_read;
-                            },
+                            }
                             MessageLen::ToShort => {
                                 // Reserviere initial für einen kleinen Header
                                 incomplete_message = Vec::with_capacity(14);
-                                incomplete_message.extend_from_slice(
-                                    &buffer[bytes_processed..bytes_read]
-                                );
+                                incomplete_message
+                                    .extend_from_slice(&buffer[bytes_processed..bytes_read]);
                                 bytes_processed = bytes_read;
                             }
                         }
                     }
-                },
-                Err(e) if e.kind() == std::io::ErrorKind::TimedOut || e.kind() == std::io::ErrorKind::WouldBlock => (),
+                }
+                Err(e)
+                    if e.kind() == ErrorKind::TimedOut
+                        || e.kind() == ErrorKind::WouldBlock =>
+                {}
                 Err(e) => {
                     println!("Error occurred: {e}");
                     let client = ws_interface.write().unwrap();
@@ -259,7 +277,7 @@ impl WebSocket {
                     return;
                 }
             }
-    
+
             let mut client = ws_interface.write().unwrap();
             let ws = client.websocket_mut();
             if ws.flush().is_none() {
@@ -278,19 +296,19 @@ impl WebSocket {
         expected_type: &mut Option<u8>,
         ws_interface: Arc<RwLock<impl WebSocketInterface>>,
         stream: &mut TcpStream,
-        ip: SocketAddr
+        ip: SocketAddr,
     ) {
         let fin = (message[0] & 0b10000000) != 0;
         let opt_code = message[0] & 0b00001111;
         let len = message[1] & 0b01111111;
         let mask_bit = (message[1] & 0b10000000) != 0;
-    
+
         if !mask_bit {
             return;
         }
-    
+
         let mut offset = 2;
-        
+
         let actual_len: u64 = match len {
             126 => {
                 let len = ((message[offset] as u64) << 8) | (message[offset + 1] as u64);
@@ -298,33 +316,37 @@ impl WebSocket {
                 len
             }
             127 => {
-                let len = ((message[offset] as u64) << 56) | ((message[offset + 1] as u64) << 48) |
-                ((message[offset + 2] as u64) << 40) | ((message[offset + 3] as u64) << 32) |
-                ((message[offset + 4] as u64) << 24) | ((message[offset + 5] as u64) << 16) |
-                ((message[offset + 6] as u64) << 8) | (message[offset + 7] as u64);
+                let len = ((message[offset] as u64) << 56)
+                    | ((message[offset + 1] as u64) << 48)
+                    | ((message[offset + 2] as u64) << 40)
+                    | ((message[offset + 3] as u64) << 32)
+                    | ((message[offset + 4] as u64) << 24)
+                    | ((message[offset + 5] as u64) << 16)
+                    | ((message[offset + 6] as u64) << 8)
+                    | (message[offset + 7] as u64);
                 offset += 8;
                 len
             }
-            _ => len as u64
+            _ => len as u64,
         };
-    
+
         let mask = [
             message[offset],
             message[offset + 1],
             message[offset + 2],
-            message[offset + 3]
+            message[offset + 3],
         ];
         offset += 4;
-    
+
         let mut data = Vec::with_capacity(actual_len as usize);
         data.extend_from_slice(&message[offset..]);
-    
+
         for i in 0..data.len() {
             data[i] ^= mask[i % 4];
         }
-    
+
         //println!("Processing message: fin={}, opcode={}, is_frag={}", fin, opt_code, is_frag);
-    
+
         match opt_code {
             0 => {
                 // Continuation Frame
@@ -348,7 +370,7 @@ impl WebSocket {
                     println!("Received new message while still processing fragments");
                     return;
                 }
-                
+
                 if fin {
                     // Complete message in single frame
                     let mut client = ws_interface.write().unwrap();
@@ -381,10 +403,9 @@ impl WebSocket {
                 pong.extend_from_slice(&data);
                 let _ = stream.write_all(&pong);
             }
-            _ => println!("Unhandled opcode: {}", opt_code),
+            _ => println!("Unhandled opcode: {opt_code}"),
         }
     }
-
 
     pub fn ip(&self) -> SocketAddr {
         self.stream.peer_addr().unwrap()
@@ -393,7 +414,11 @@ impl WebSocket {
 
 impl Clone for WebSocket {
     fn clone(&self) -> Self {
-        Self { stream: self.stream.try_clone().unwrap(), send_queue: VecDeque::with_capacity(10), close: false }
+        Self {
+            stream: self.stream.try_clone().unwrap(),
+            send_queue: VecDeque::with_capacity(10),
+            close: false,
+        }
     }
 }
 
