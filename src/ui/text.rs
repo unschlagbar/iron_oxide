@@ -19,13 +19,13 @@ pub struct Text {
 }
 
 impl Text {
-    pub fn get_font_instances(&mut self, parent_size: Vec2, parent_pos: Vec2, ui: &mut UiState) {
+    pub fn get_font_instances(&mut self, parent_size: Vec2, parent_pos: Vec2, ui: &mut UiState, element: &UiElement) {
         match self.dirty_flags {
             TextDirtyFlags::None => ui.texts.extend_from_slice(&self.font_instances),
             TextDirtyFlags::TextChanged => {
                 let mut context = BuildContext::default(&ui.font, parent_size);
                 context.parent_pos = parent_pos;
-                self.build(&mut context);
+                self.build(&mut context, element);
                 ui.texts.extend_from_slice(&self.font_instances)
             }
             TextDirtyFlags::AddedChar => todo!(),
@@ -40,13 +40,14 @@ impl Text {
 }
 
 impl Element for Text {
-    fn build(&mut self, context: &mut BuildContext) {
+    fn build(&mut self, context: &mut BuildContext, element: &UiElement) {
         self.dirty_flags = TextDirtyFlags::None;
         self.font_instances.clear();
         let font = context.font();
         let font_uv_height = 8;
         let scale_factor = self.font_size / font_uv_height as f32;
         let mut cursor_pos = Vec2::zero();
+        let z_index = element.z_index;
 
         for c in self.text.chars() {
             if c == ' ' {
@@ -68,6 +69,7 @@ impl Element for Text {
                     ),
                     uv_start,
                     uv_size,
+                    z_index,
                 };
 
                 self.font_instances.push(font_instance);
@@ -86,8 +88,8 @@ impl Element for Text {
         }
     }
 
-    fn instance(&self) -> UiInstance {
-        UiInstance::default()
+    fn instance(&self, _element: &UiElement) -> UiInstance {
+        unreachable!()
     }
 
     fn childs(&mut self) -> &mut [UiElement] {
@@ -108,6 +110,7 @@ impl ElementBuild for Text {
             pos: Vec2::new(0.0, 0.0),
             parent: std::ptr::null_mut(),
             element: Box::new(self),
+            z_index: 0.0,
         }
     }
 }

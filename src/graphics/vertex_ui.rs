@@ -14,7 +14,7 @@ impl VertexUi {
             input_rate: vk::VertexInputRate::INSTANCE,
         }];
 
-    pub const GET_ATTRIBUTE_DESCRIPTIONS: [vk::VertexInputAttributeDescription; 8] = [
+    pub const GET_ATTRIBUTE_DESCRIPTIONS: [vk::VertexInputAttributeDescription; 9] = [
         vk::VertexInputAttributeDescription {
             binding: 0,
             location: 0,
@@ -63,6 +63,12 @@ impl VertexUi {
             format: vk::Format::R32_SFLOAT,
             offset: offset_of!(UiInstance, corner) as u32,
         },
+        vk::VertexInputAttributeDescription {
+            binding: 0,
+            location: 8,
+            format: vk::Format::R32_SFLOAT,
+            offset: offset_of!(UiInstance, z_index) as u32,
+        },
     ];
 }
 
@@ -76,6 +82,7 @@ pub struct UiInstance {
     pub width: f32,
     pub height: f32,
     pub corner: f32,
+    pub z_index: f32,
 }
 
 impl Default for UiInstance {
@@ -89,6 +96,7 @@ impl Default for UiInstance {
             width: 0.0,
             height: 0.0,
             corner: 0.0,
+            z_index: 0.0,
         }
     }
 }

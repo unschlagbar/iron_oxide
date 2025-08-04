@@ -25,7 +25,7 @@ pub struct Button {
 }
 
 impl Element for Button {
-    fn build(&mut self, context: &mut BuildContext) {
+    fn build(&mut self, context: &mut BuildContext, _: &UiElement) {
         let mut size;
         let mut pos;
 
@@ -73,8 +73,8 @@ impl Element for Button {
         context.apply_data(pos, size);
     }
 
-    fn instance(&self) -> crate::graphics::UiInstance {
-        self.comp.to_instance(self.color, self.border_color)
+    fn instance(&self, element: &UiElement) -> crate::graphics::UiInstance {
+        self.comp.to_instance(self.color, self.border_color, element.z_index)
     }
 
     fn childs(&mut self) -> &mut [UiElement] {
@@ -150,6 +150,7 @@ impl ElementBuild for Button {
             pos: Vec2::new(0.0, 0.0),
             parent: std::ptr::null_mut(),
             element: Box::new(self),
+            z_index: 0.0,
         }
     }
 }

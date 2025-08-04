@@ -87,11 +87,9 @@ pub fn font_pipeline(
         depth_clamp_enable: vk::FALSE,
         rasterizer_discard_enable: vk::FALSE,
         polygon_mode: vk::PolygonMode::FILL,
-        cull_mode: vk::CullModeFlags::FRONT,
+        cull_mode: vk::CullModeFlags::NONE,
         front_face: vk::FrontFace::COUNTER_CLOCKWISE,
-        depth_bias_enable: vk::TRUE,
         line_width: 1.0,
-        depth_bias_constant_factor: 0.5,
         ..Default::default()
     };
 
@@ -136,9 +134,9 @@ pub fn font_pipeline(
     };
 
     let depth_stencil = vk::PipelineDepthStencilStateCreateInfo {
-        depth_test_enable: vk::FALSE,
+        depth_test_enable: vk::TRUE,
         depth_write_enable: vk::FALSE,
-        depth_compare_op: vk::CompareOp::LESS,
+        depth_compare_op: vk::CompareOp::GREATER,
         depth_bounds_test_enable: vk::FALSE,
         stencil_test_enable: vk::FALSE,
         min_depth_bounds: 0.0,
@@ -159,7 +157,7 @@ pub fn font_pipeline(
         p_dynamic_state: &dynamic_state,
         layout: pipeline_layout,
         render_pass,
-        subpass: 1,
+        subpass: 0,
         base_pipeline_index: -1,
         ..Default::default()
     };

@@ -7,8 +7,8 @@ use super::{
 use crate::{graphics::UiInstance, primitives::Vec2};
 
 pub trait Element {
-    fn build(&mut self, context: &mut BuildContext);
-    fn instance(&self) -> UiInstance;
+    fn build(&mut self, context: &mut BuildContext, element: &UiElement);
+    fn instance(&self, element: &UiElement) -> UiInstance;
     fn childs(&mut self) -> &mut [UiElement];
     fn add_child(&mut self, child: UiElement);
     #[allow(unused)]
@@ -38,6 +38,7 @@ pub struct UiElement {
     pub visible: bool,
     pub size: Vec2,
     pub pos: Vec2,
+    pub z_index: f32,
     pub parent: *mut UiElement,
     pub element: Box<dyn Element>,
 }
@@ -58,25 +59,26 @@ impl UiElement {
     }
 
     pub fn build(&mut self, context: &mut BuildContext) {
+        let element = unsafe { &*(self as *const UiElement) };
         match &self.typ {
             ElementType::Block => {
                 let div: &mut Container = unsafe { self.downcast_mut() };
-                div.build(context);
+                div.build(context, element);
                 self.dirty = false;
             }
             ElementType::AbsoluteLayout => {
                 let div: &mut AbsoluteLayout = unsafe { self.downcast_mut() };
-                div.build(context);
+                div.build(context, element);
                 self.dirty = false;
             }
             ElementType::Button => {
                 let div: &mut Button = unsafe { self.downcast_mut() };
-                div.build(context);
+                div.build(context, element);
                 self.dirty = false;
             }
             ElementType::Text => {
                 let div: &mut Text = unsafe { self.downcast_mut() };
-                div.build(context);
+                div.build(context, element);
                 self.dirty = false;
             }
             _ => unimplemented!(),
@@ -103,18 +105,19 @@ impl UiElement {
     }
 
     pub fn get_instances(&mut self, ui: &mut UiState, instances: &mut Vec<UiInstance>) {
-        if !self.visible {
-            return;
+        
+        if self.visible {
+            if self.typ == ElementType::Text {
+                let size = self.parent().size;
+                let pos = self.parent().pos;
+                let element = unsafe { &*(self as *const UiElement) };
+                let text = unsafe { self.downcast_mut::<Text>() };
+                text.get_font_instances(size, pos, ui, element);
+            } else {
+                instances.push(self.element.instance(self));
+            }
         }
 
-        if self.typ == ElementType::Text {
-            let size = self.parent().size;
-            let pos = self.parent().pos;
-            let text = unsafe { self.downcast_mut::<Text>() };
-            text.get_font_instances(size, pos, ui);
-        } else {
-            instances.push(self.element.instance());
-        }
 
         for child in self.element.childs() {
             child.get_instances(ui, instances);
@@ -237,8 +240,10 @@ impl UiElement {
 
     pub fn init(&mut self) {
         let parent = self as *mut UiElement;
+        let z_index = self.z_index + 0.01;
         for child in self.element.childs() {
             child.parent = parent;
+            child.z_index = z_index;
             child.init();
         }
     }

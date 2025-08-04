@@ -69,7 +69,9 @@ impl UiState {
             pos: Vec2::default(),
             parent: null_mut(),
             element: Box::new(element),
+            z_index: 0.01,
         };
+
 
         element.init();
         self.elements.push(element);

@@ -24,7 +24,7 @@ impl RawUiElement {
     }
 
     #[inline(always)]
-    pub fn to_instance(&self, color: Color, border_color: Color) -> UiInstance {
+    pub fn to_instance(&self, color: Color, border_color: Color, z_index: f32) -> UiInstance {
         UiInstance {
             color: color,
             border_color: border_color,
@@ -34,6 +34,7 @@ impl RawUiElement {
             width: self.size.x.floor(),
             height: self.size.y.floor(),
             corner: self.corner,
+            z_index,
         }
     }
 }

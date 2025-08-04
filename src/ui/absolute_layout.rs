@@ -20,7 +20,7 @@ pub struct AbsoluteLayout {
 }
 
 impl Element for AbsoluteLayout {
-    fn build(&mut self, context: &mut BuildContext) {
+    fn build(&mut self, context: &mut BuildContext, _: &UiElement) {
         let mut size = Vec2::new(
             self.width.pixelx(context.parent_size),
             self.height.pixely(context.parent_size),
@@ -59,8 +59,8 @@ impl Element for AbsoluteLayout {
         context.apply_data(pos, size);
     }
 
-    fn instance(&self) -> crate::graphics::UiInstance {
-        self.comp.to_instance(self.color, self.border_color)
+    fn instance(&self, element: &UiElement) -> crate::graphics::UiInstance {
+        self.comp.to_instance(self.color, self.border_color, element.z_index)
     }
 
     fn childs(&mut self) -> &mut [UiElement] {

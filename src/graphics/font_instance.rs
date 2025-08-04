@@ -15,7 +15,7 @@ impl FontVertex {
             input_rate: vk::VertexInputRate::INSTANCE,
         }];
 
-    pub const GET_ATTRIBUTE_DESCRIPTIONS: [vk::VertexInputAttributeDescription; 5] = [
+    pub const GET_ATTRIBUTE_DESCRIPTIONS: [vk::VertexInputAttributeDescription; 6] = [
         vk::VertexInputAttributeDescription {
             binding: 0,
             location: 0,
@@ -46,6 +46,12 @@ impl FontVertex {
             format: vk::Format::R32_UINT,
             offset: offset_of!(FontInstance, uv_size) as u32,
         },
+        vk::VertexInputAttributeDescription {
+            binding: 0,
+            location: 5,
+            format: vk::Format::R32_SFLOAT,
+            offset: offset_of!(FontInstance, z_index) as u32,
+        },
     ];
 }
 
@@ -56,6 +62,7 @@ pub struct FontInstance {
     pub size: Vec2,
     pub uv_start: (u16, u16),
     pub uv_size: (u16, u16),
+    pub z_index: f32,
 }
 
 impl Default for FontInstance {
@@ -66,6 +73,7 @@ impl Default for FontInstance {
             size: Vec2::zero(),
             uv_start: (0, 0),
             uv_size: (0, 0),
+            z_index: 0.0
         }
     }
 }
