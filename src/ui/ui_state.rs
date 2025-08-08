@@ -13,7 +13,7 @@ use super::{
 };
 use crate::{
     graphics::{Buffer, FontInstance, UiInstance, VkBase},
-    primitives::Vec2,
+    primitives::Vec2, ui::ElementType,
 };
 
 #[derive(Debug)]
@@ -26,6 +26,7 @@ pub struct UiState {
     pub visible: bool,
     pub dirty: DirtyFlags,
     pub texts: Vec<FontInstance>,
+    pub event: Option<QueuedEvent>,
     id_gen: AtomicU32,
 
     pipeline_layout: vk::PipelineLayout,
@@ -48,6 +49,7 @@ impl UiState {
             cursor_pos: Vec2::default(),
             selected: Selected::default(),
             texts: Vec::new(),
+            event: None,
             font: Font::parse_from_bytes(include_bytes!("../../font/std1.fef")),
             pipeline_layout: vk::PipelineLayout::null(),
             pipeline: vk::Pipeline::null(),
@@ -99,6 +101,7 @@ impl UiState {
 
         child.init();
         element.add_child(child);
+        self.dirty = DirtyFlags::Resize;
         id
     }
 
@@ -174,7 +177,7 @@ impl UiState {
     pub fn get_element_mut(&mut self, root: Vec<usize>) -> Option<&mut UiElement> {
         let mut h = self.elements.get_mut(*root.first()?)?;
         for i in 1..root.len() {
-            if let Some(childs) = h.element.childs() {
+            if let Some(childs) = h.element.childs_mut() {
                 h = childs.get_mut(*root.get(i)?)?;
             } else {
                 return None;
@@ -190,12 +193,14 @@ impl UiState {
         //2 = old event
         //3 = new event
 
+        //This is perfectly Safe dont worry
         let self_clone = unsafe { &mut *(self as *mut UiState) };
         let mut result = EventResult::None;
 
         if !self.selected.is_none() {
             let element = unsafe { &mut *self.selected.ptr };
             let element2 = unsafe { &mut *self.selected.ptr };
+
             let element_result = element
                 .element
                 .interaction(element2, self_clone, cursor_pos, event);
@@ -226,7 +231,7 @@ impl UiState {
             self.dirty = DirtyFlags::None;
             self.build();
             let ui_instances = self.get_instaces();
-            if !ui_instances.is_empty() && !self.texts.is_empty() {
+            if !ui_instances.is_empty() || !self.texts.is_empty() {
                 unsafe { base.device.queue_wait_idle(base.queue).unwrap() };
             }
             if !ui_instances.is_empty() {
@@ -272,6 +277,10 @@ impl UiState {
                 );
             }
         }
+    }
+
+    pub fn set_event(&mut self, event: QueuedEvent) {
+        self.event = Some(event);
     }
 
     pub fn draw(
@@ -336,7 +345,15 @@ pub enum EventResult {
 
 impl EventResult {
     pub const fn is_none(&self) -> bool {
-        matches!(self, EventResult::None)
+        matches!(self, Self::None)
+    }
+
+    pub const fn is_new(&self) -> bool {
+        matches!(self, Self::New)
+    }
+
+    pub const fn is_old(&self) -> bool {
+        matches!(self, Self::Old)
     }
 }
 
@@ -403,5 +420,20 @@ impl Default for Selected {
             ptr: null_mut(),
             selected: SelectedFlags::default(),
         }
+    }
+}
+
+
+#[derive(Debug)]
+pub struct QueuedEvent {
+    pub element_id: u32,
+    pub element_type: ElementType,
+    pub event: UiEvent,
+    pub message: u16,
+}
+
+impl QueuedEvent {
+    pub fn new(element: &UiElement, event: UiEvent, message: u16) -> Self {
+        Self { element_id: element.id, element_type: element.typ, event, message }
     }
 }

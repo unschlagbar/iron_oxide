@@ -14,8 +14,11 @@ pub trait Element {
     fn instance(&self, _element: &UiElement) -> UiInstance {
         unimplemented!()
     }
-    fn childs(&mut self) -> Option<&mut Vec<UiElement>> {
+    fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
         None
+    }
+    fn childs(&self) -> &[UiElement] {
+        &[]
     }
     fn add_child(&mut self, _child: UiElement) {}
     #[allow(unused)]
@@ -124,7 +127,7 @@ impl UiElement {
             }
         }
 
-        if let Some(childs) = self.element.childs() {
+        if let Some(childs) = self.element.childs_mut() {
             for child in childs {
                 child.get_instances(ui, instances);
             }
@@ -138,7 +141,7 @@ impl UiElement {
             let id = self.id;
             let parent = self.parent();
 
-            for child in parent.element.childs().unwrap() {
+            for child in parent.element.childs_mut().unwrap() {
                 if child.id == id {
                     break;
                 }
@@ -150,7 +153,7 @@ impl UiElement {
 
     #[inline(always)]
     pub fn move_computed(&mut self, amount: Vec2) {
-        if let Some(childs) = self.element.childs() {
+        if let Some(childs) = self.element.childs_mut() {
             for child in childs {
                 child.move_computed(amount);
             }
@@ -168,7 +171,7 @@ impl UiElement {
 
     #[inline(always)]
     pub fn move_computed_absolute(&mut self, pos: Vec2) {
-        if let Some(childs) = self.element.childs() {
+        if let Some(childs) = self.element.childs_mut() {
             for child in childs {
                 child.move_computed_absolute(pos);
             }
@@ -186,12 +189,21 @@ impl UiElement {
         false
     }
 
+    pub fn get_text(&self) -> Option<&str> {
+        let child = self.element.childs().get(0)?;
+        if !matches!(child.typ, ElementType::Text) {
+            return None;
+        }
+        let text_element: &Text = unsafe { child.downcast() };
+        Some(&text_element.text)
+    }
+
     #[allow(unused)]
     pub fn update_cursor(
         &mut self,
         ui: &mut UiState,
         cursor_pos: Vec2,
-        ui_event: UiEvent,
+        event: UiEvent,
     ) -> EventResult {
         if !self.visible {
             return EventResult::None;
@@ -200,9 +212,9 @@ impl UiElement {
         let (size, pos) = (self.size, self.pos);
 
         if self.is_in(cursor_pos) {
-            if let Some(childs) = self.element.childs() {
+            if let Some(childs) = self.element.childs_mut() {
                 for child in childs {
-                    let result = child.update_cursor(ui, cursor_pos, ui_event);
+                    let result = child.update_cursor(ui, cursor_pos, event);
                     if !result.is_none() {
                         return result;
                     };
@@ -214,7 +226,7 @@ impl UiElement {
 
             match self.typ {
                 ElementType::Button => {
-                    result = self.element.interaction(element, ui, cursor_pos, ui_event);
+                    result = self.element.interaction(element, ui, cursor_pos, event);
                 }
                 _ => (),
             }
@@ -251,7 +263,7 @@ impl UiElement {
     }
 
     pub fn clear_childs(&mut self) {
-        if let Some(childs) = self.element.childs() {
+        if let Some(childs) = self.element.childs_mut() {
             childs.clear();
         }
     }
@@ -259,7 +271,7 @@ impl UiElement {
     pub fn init(&mut self) {
         let parent = self as *mut UiElement;
         let z_index = self.z_index + 0.01;
-        if let Some(childs) = self.element.childs() {
+        if let Some(childs) = self.element.childs_mut() {
             for child in childs {
                 child.parent = parent;
                 child.z_index = z_index;
@@ -269,7 +281,7 @@ impl UiElement {
     }
 
     pub fn get_child_by_id(&mut self, id: u32) -> Option<&mut UiElement> {
-        if let Some(childs) = self.element.childs() {
+        if let Some(childs) = self.element.childs_mut() {
             for child in childs {
                 if child.id == id {
                     return Some(child);

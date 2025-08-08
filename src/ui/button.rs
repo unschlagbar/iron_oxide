@@ -5,7 +5,7 @@ use super::{
 use crate::{
     graphics::formats::Color,
     primitives::Vec2,
-    ui::{CallContext, FlexDirection, UiEvent, UiState, ui_state::EventResult},
+    ui::{ui_state::EventResult, CallContext, FlexDirection, QueuedEvent, UiEvent, UiState},
 };
 
 pub struct Button {
@@ -21,6 +21,7 @@ pub struct Button {
     pub corner: [UiUnit; 4],
     pub state: ButtonState,
     pub callback: ErasedFnPointer,
+    pub message: u16,
     pub comp: RawUiElement,
     pub childs: Vec<UiElement>,
 }
@@ -89,8 +90,12 @@ impl Element for Button {
             .to_instance(self.color, self.border_color, element.z_index)
     }
 
-    fn childs(&mut self) -> Option<&mut Vec<UiElement>> {
+    fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
         Some(&mut self.childs)
+    }
+
+    fn childs(&self) -> &[UiElement] {
+        &self.childs
     }
 
     fn add_child(&mut self, child: UiElement) {
@@ -106,6 +111,8 @@ impl Element for Button {
     ) -> EventResult {
         let button: &mut Button = self;
         let mut result;
+
+        ui.set_event(QueuedEvent::new(element, event, button.message));
 
         if matches!(button.state, ButtonState::Normal | ButtonState::Disabled) {
             result = EventResult::New;
@@ -188,6 +195,7 @@ impl Default for Button {
             comp: Default::default(),
             childs: Default::default(),
             callback: ErasedFnPointer::null(),
+            message: 0,
         }
     }
 }

@@ -51,8 +51,7 @@ impl Default for RawUiElement {
     }
 }
 
-#[repr(u8)]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum UiEvent {
     Press,
     Release,

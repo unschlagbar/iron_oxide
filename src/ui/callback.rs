@@ -86,7 +86,8 @@ impl ErasedFnPointer {
                 let fp: fn(CallContext) = unsafe { transmute::<_, fn(CallContext)>(self.fp) };
                 fp(context)
             } else {
-                let fp: fn(&mut (), CallContext) = unsafe { transmute::<_, fn(&mut (), CallContext)>(self.fp) };
+                let fp: fn(&mut (), CallContext) =
+                    unsafe { transmute::<_, fn(&mut (), CallContext)>(self.fp) };
                 fp(unsafe { &mut *self.struct_pointer }, context)
             }
         } else {

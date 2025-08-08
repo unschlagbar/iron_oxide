@@ -1,8 +1,4 @@
-
-
-pub struct LayoutInline {
-
-}
+pub struct LayoutInline {}
 
 impl LayoutInline {
     pub fn build() {

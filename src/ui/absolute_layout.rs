@@ -2,7 +2,11 @@ use super::{
     Align, BuildContext, ElementType, OutArea, RawUiElement, UiElement, UiUnit,
     ui_element::{Element, TypeConst},
 };
-use crate::{graphics::{formats::Color, UiInstance}, primitives::Vec2, ui::FlexDirection};
+use crate::{
+    graphics::{UiInstance, formats::Color},
+    primitives::Vec2,
+    ui::FlexDirection,
+};
 
 pub struct AbsoluteLayout {
     pub align: Align,
@@ -73,8 +77,12 @@ impl Element for AbsoluteLayout {
             .to_instance(self.color, self.border_color, element.z_index)
     }
 
-    fn childs(&mut self) -> Option<&mut Vec<UiElement>> {
+    fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
         Some(&mut self.childs)
+    }
+
+    fn childs(&self) -> &[UiElement] {
+        &self.childs
     }
 
     fn add_child(&mut self, child: UiElement) {

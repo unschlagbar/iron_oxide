@@ -83,8 +83,12 @@ impl Element for Container {
             .to_instance(self.color, self.border_color, element.z_index)
     }
 
-    fn childs(&mut self) -> Option<&mut Vec<UiElement>> {
+    fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
         Some(&mut self.childs)
+    }
+
+    fn childs(&self) -> &[UiElement] {
+        &self.childs
     }
 
     fn add_child(&mut self, child: UiElement) {

@@ -1,5 +1,5 @@
 use super::{SinlgeTimeCommands, VkBase};
-use ash::vk::{self, MemoryAllocateFlags};
+use ash::vk::{self, Handle, MemoryAllocateFlags};
 use std::{ffi::c_void, ptr};
 
 #[derive(Debug, Clone, Copy)]
@@ -266,9 +266,11 @@ impl Buffer {
 
     #[inline]
     pub fn destroy(&self, device: &ash::Device) {
-        unsafe {
-            device.destroy_buffer(self.inner, None);
-            device.free_memory(self.mem, None);
+        if !self.inner.is_null() {
+            unsafe {
+                device.destroy_buffer(self.inner, None);
+                device.free_memory(self.mem, None);
+            }
         }
     }
 }

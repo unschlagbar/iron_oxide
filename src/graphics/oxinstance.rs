@@ -4,7 +4,7 @@ use ash::{
     prelude::VkResult,
     vk,
 };
-use std::ffi::{CStr, CString, c_char};
+use std::ffi::{CStr, c_char};
 use winit::raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
 pub struct VkBase {
@@ -26,7 +26,6 @@ pub struct VkBase {
 
 impl VkBase {
     pub fn create(
-        mut instance_extension: Vec<*const c_char>,
         required_capabilities: u32,
         display_handle: RawDisplayHandle,
         window_handle: RawWindowHandle,
@@ -37,7 +36,7 @@ impl VkBase {
         #[cfg(not(feature = "linked"))]
         let entry = unsafe { ash::Entry::load().unwrap() };
 
-        let instance = Self::create_instance(&entry, &mut instance_extension, display_handle);
+        let instance = Self::create_instance(&entry, display_handle);
 
         #[cfg(debug_assertions)]
         let debug_utils = ext::debug_utils::Instance::new(&entry, &instance);
@@ -59,7 +58,7 @@ impl VkBase {
         let utils_messenger = unsafe {
             debug_utils
                 .create_debug_utils_messenger(&create_info, None)
-                .unwrap_unchecked()
+                .unwrap()
         };
         let (physical_device, capabilities) =
             Self::select_physical_device(&instance, required_capabilities);
@@ -103,10 +102,9 @@ impl VkBase {
 
     fn create_instance(
         entry: &ash::Entry,
-        extension: &mut Vec<*const c_char>,
         display_handle: RawDisplayHandle,
     ) -> ash::Instance {
-        let app_name = unsafe { CString::new("Lol").unwrap_unchecked() };
+        let app_name = c"Home Storage";
 
         let app_info = vk::ApplicationInfo {
             p_application_name: app_name.as_ptr(),
@@ -117,27 +115,23 @@ impl VkBase {
             ..Default::default()
         };
 
-        #[cfg(debug_assertions)]
-        extension.push(ext::debug_utils::NAME.as_ptr() as _);
-        extension
+        let mut extensions = Vec::with_capacity(3);
+        extensions
             .extend_from_slice(ash_window::enumerate_required_extensions(display_handle).unwrap());
 
-        const LAYER_NAMES: &[&CStr] = {
+        #[cfg(debug_assertions)]
+        extensions.push(ext::debug_utils::NAME.as_ptr() as _);
+
+        let layer_names: &[&CStr] = {
             if cfg!(debug_assertions) && cfg!(target_os = "windows") {
-                unsafe {
-                    &[
-                        CStr::from_bytes_with_nul_unchecked(b"VK_LAYER_KHRONOS_validation\0"),
-                        CStr::from_bytes_with_nul_unchecked(b"VK_LAYER_LUNARG_monitor\0"),
-                    ]
-                }
-            } else if cfg!(target_os = "android") {
                 &[
-                    unsafe {
-                        CStr::from_bytes_with_nul_unchecked(b"VK_LAYER_KHRONOS_validation\0")
-                    },
+                    c"VK_LAYER_KHRONOS_validation",
+                    //c"VK_LAYER_LUNARG_monitor",
                 ]
+            } else if cfg!(target_os = "android") {
+                &[c"VK_LAYER_KHRONOS_validation"]
             } else {
-                &[unsafe { CStr::from_bytes_with_nul_unchecked(b"VK_LAYER_LUNARG_monitor\0") }]
+                &[]
             }
         };
 
@@ -145,7 +139,7 @@ impl VkBase {
             unsafe { entry.enumerate_instance_layer_properties().unwrap() };
 
         // Layer filtern, die in LAYER_NAMES definiert sind und unterstützt werden
-        let active_layers: Vec<*const c_char> = LAYER_NAMES
+        let active_layers: Vec<*const c_char> = layer_names
             .iter()
             .filter_map(|&layer_name| {
                 if supported_layers.iter().any(|prop| {
@@ -162,9 +156,9 @@ impl VkBase {
         let create_info = vk::InstanceCreateInfo {
             p_application_info: &app_info,
             enabled_layer_count: active_layers.len() as _,
-            enabled_extension_count: extension.len() as _,
+            enabled_extension_count: extensions.len() as _,
             pp_enabled_layer_names: active_layers.as_ptr(),
-            pp_enabled_extension_names: extension.as_ptr() as _,
+            pp_enabled_extension_names: extensions.as_ptr() as _,
             ..Default::default()
         };
 
@@ -178,41 +172,37 @@ impl VkBase {
         let devices = unsafe { instance.enumerate_physical_devices() }
             .expect("Bro how do you see this without a GPU?");
 
-        let extentions;
-
-        if capabilities != 0 {
-            extentions = vec![
-                khr::swapchain::NAME,
+        let extension: &[&CStr] = if capabilities != 0 {
+            &[
                 khr::acceleration_structure::NAME,
                 khr::ray_tracing_pipeline::NAME,
                 khr::deferred_host_operations::NAME,
-            ];
+            ]
         } else {
-            extentions = vec![khr::swapchain::NAME];
-        }
+            &[]
+        };
 
         for &device in &devices {
-            let extension_properties = unsafe {
+            let supported_extensions: Vec<&CStr> = unsafe {
                 instance
                     .enumerate_device_extension_properties(device)
                     .unwrap()
+                    .into_iter()
+                    .map(|ext| CStr::from_ptr(ext.extension_name.as_ptr()))
+                    .collect()
             };
 
-            let supported_extensions: Vec<&CStr> = extension_properties
-                .iter()
-                .map(|ext| unsafe { CStr::from_ptr(ext.extension_name.as_ptr()) })
-                .collect();
-
-            let all_supported = extentions.iter().all(|required| {
+            let all_supported = extension.iter().all(|&required| {
                 supported_extensions
                     .iter()
-                    .any(|&supported| supported == *required)
+                    .any(|&supported| supported == required)
             });
 
             if all_supported {
                 return (device, capabilities);
             }
         }
+        println!("Gpu doenst support all extentions!");
 
         (devices[0], 0)
     }
@@ -257,18 +247,15 @@ impl VkBase {
             }
         };
 
-        let extensions = {
+        let extensions: &[&CStr] = {
             if capabilities != 0 {
-                vec![
-                    khr::swapchain::NAME.as_ptr(),
-                    khr::acceleration_structure::NAME.as_ptr(),
-                    khr::ray_tracing_pipeline::NAME.as_ptr(),
-                    khr::deferred_host_operations::NAME.as_ptr(),
-                    ext::descriptor_indexing::NAME.as_ptr(),
-                    khr::buffer_device_address::NAME.as_ptr(),
+                &[
+                    khr::swapchain::NAME,
+                    ext::descriptor_indexing::NAME,
+                    khr::buffer_device_address::NAME,
                 ]
             } else {
-                vec![khr::swapchain::NAME.as_ptr()]
+                &[khr::swapchain::NAME]
             }
         };
 
@@ -283,7 +270,7 @@ impl VkBase {
         let queue_create_infos = [queue_create_info];
 
         let device_create_info = vk::DeviceCreateInfo {
-            pp_enabled_extension_names: extensions.as_ptr(),
+            pp_enabled_extension_names: extensions.as_ptr() as _,
             enabled_extension_count: extensions.len() as _,
             queue_create_info_count: queue_create_infos.len() as _,
             p_queue_create_infos: queue_create_infos.as_ptr(),
@@ -304,24 +291,22 @@ impl VkBase {
         surface: vk::SurfaceKHR,
         surface_loader: &khr::surface::Instance,
     ) -> u32 {
-        let family_queue =
-            unsafe { instance.get_physical_device_queue_family_properties(physical_device) };
+        unsafe {
+            let family_queue =
+                instance.get_physical_device_queue_family_properties(physical_device);
 
-        for f in 0..family_queue.len() {
-            if family_queue[f]
-                .queue_flags
-                .contains(vk::QueueFlags::GRAPHICS)
-                && unsafe {
-                    surface_loader
-                        .get_physical_device_surface_support(physical_device, f as u32, surface)
+            for (i, f) in family_queue.into_iter().enumerate() {
+                if f.queue_flags.contains(vk::QueueFlags::GRAPHICS)
+                    && surface_loader
+                        .get_physical_device_surface_support(physical_device, i as u32, surface)
                         .unwrap()
+                {
+                    return i as u32;
                 }
-            {
-                return f as _;
             }
-        }
 
-        panic!();
+            panic!();
+        }
     }
 
     pub fn queue_submit(&self, submits: &[vk::SubmitInfo<'_>], fence: vk::Fence) -> VkResult<()> {

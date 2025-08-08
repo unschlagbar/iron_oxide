@@ -5,6 +5,7 @@ mod element_build_context;
 mod font;
 mod font_pipeline;
 mod interaction;
+pub mod layout_inline;
 mod overflow;
 mod raw_ui_element;
 mod rendermode;
@@ -14,7 +15,6 @@ mod ui_element;
 mod ui_pipeline;
 mod ui_state;
 mod ui_unit;
-pub mod layout_inline;
 
 mod absolute_layout;
 mod button;
@@ -45,6 +45,7 @@ pub use ui_element::ElementBuild;
 pub use ui_element::UiElement;
 pub use ui_state::DirtyFlags;
 pub use ui_state::UiState;
+pub use ui_state::QueuedEvent;
 pub use ui_unit::Align;
 pub use ui_unit::UiUnit;
 
