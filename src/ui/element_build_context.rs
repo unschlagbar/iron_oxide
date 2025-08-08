@@ -1,6 +1,6 @@
 use std::ptr::null;
 
-use crate::primitives::Vec2;
+use crate::{primitives::Vec2, ui::FlexDirection};
 
 use super::{Font, RawUiElement};
 
@@ -8,10 +8,11 @@ use super::{Font, RawUiElement};
 pub struct BuildContext {
     pub element_size: Vec2,
     pub element_pos: Vec2,
-    pub parent_size: Vec2,
-    pub parent_pos: Vec2,
+    pub available_size: Vec2,
+    pub child_start_pos: Vec2,
     pub line_offset: f32,
     pub start_pos: Vec2,
+    pub flex_direction: FlexDirection,
     pub parent: *const RawUiElement,
     pub order: u16,
     font: *const Font,
@@ -22,10 +23,11 @@ impl BuildContext {
         Self {
             element_size: Vec2::default(),
             element_pos: Vec2::default(),
-            parent_size,
-            parent_pos: Vec2::default(),
+            available_size: parent_size,
+            child_start_pos: Vec2::default(),
             line_offset: 0.0,
             start_pos: Vec2::default(),
+            flex_direction: FlexDirection::Vertical,
             parent: null(),
             order: 0,
             font: font as _,
@@ -38,17 +40,19 @@ impl BuildContext {
 
     pub fn new_from(
         context: &Self,
-        parent_size: Vec2,
-        parent_pos: Vec2,
+        available_size: Vec2,
+        child_start_pos: Vec2,
         parent: &RawUiElement,
+        flex_direction: FlexDirection,
     ) -> Self {
         Self {
             element_size: Vec2::default(),
             element_pos: Vec2::default(),
-            parent_size,
-            parent_pos,
+            available_size,
+            child_start_pos,
             line_offset: 0.0,
             start_pos: Vec2::default(),
+            flex_direction,
             parent: parent as *const RawUiElement,
             order: 0,
             font: context.font,
@@ -56,22 +60,44 @@ impl BuildContext {
     }
 
     #[inline]
-    pub fn fits_in_line(&mut self, pos: &mut Vec2, size: &mut Vec2) -> bool {
-        if self.parent_size.x - self.start_pos.x >= size.x {
-            *pos += self.start_pos;
+    pub fn fits_in_line(&mut self, pos: &mut Vec2, size: Vec2) -> bool {
+        match self.flex_direction {
+            FlexDirection::Horizontal => {
+                if self.available_size.x - self.start_pos.x >= size.x {
+                    *pos += self.start_pos;
 
-            self.line_offset = self.line_offset.max(size.y);
-            self.start_pos.x += size.x;
+                    self.line_offset = self.line_offset.max(size.y);
+                    self.start_pos.x += size.x;
 
-            return true;
-        } else {
-            self.start_pos.y += self.line_offset;
-            pos.y += self.start_pos.y;
+                    true
+                } else {
+                    self.start_pos.y += self.line_offset;
+                    pos.y += self.start_pos.y;
 
-            self.line_offset = size.y;
-            self.start_pos.x = size.x;
+                    self.line_offset = size.y;
+                    self.start_pos.x = size.x;
 
-            return false;
+                    false
+                }
+            }
+            FlexDirection::Vertical => {
+                if self.available_size.y - self.start_pos.y >= size.y {
+                    *pos += self.start_pos;
+
+                    self.line_offset = self.line_offset.max(size.x);
+                    self.start_pos.y += size.y;
+
+                    true
+                } else {
+                    self.start_pos.x += self.line_offset;
+                    pos.x += self.start_pos.x;
+
+                    self.line_offset = size.x;
+                    self.start_pos.y = size.y;
+
+                    false
+                }
+            }
         }
     }
 

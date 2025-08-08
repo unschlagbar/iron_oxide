@@ -23,7 +23,7 @@ impl UiUnit {
             Self::Zero => 0.0,
             Self::Undefined => 100.0,
             Self::Auto => 100.0,
-            Self::Fill => parent_size.x,
+            Self::Fill => 1.77,
             Self::Px(pixel) => *pixel,
             Self::Relative(percent) | Self::RelativeWidth(percent) => parent_size.x * percent,
             Self::RelativeHeight(percent) => parent_size.y * percent,
@@ -39,7 +39,7 @@ impl UiUnit {
             Self::Zero => 0.0,
             Self::Undefined => 100.0,
             Self::Auto => 100.0,
-            Self::Fill => parent_size.y,
+            Self::Fill => 1.77,
             Self::Px(pixel) => *pixel,
             Self::Relative(percent) | Self::RelativeHeight(percent) => parent_size.y * percent,
             Self::RelativeWidth(percent) => parent_size.x * percent,
@@ -85,6 +85,24 @@ impl Align {
             Align::BottomLeft => Vec2::new(offset.x, space.y - size.y - offset.y),
             Align::Left => Vec2::new(offset.x, (space.y - size.y) * 0.5 + offset.y),
             Align::TopLeft => offset,
+        }
+    }
+
+    pub fn is_horizontal_centered(&self) -> bool {
+        match self {
+            Self::Center => true,
+            Self::Top => true,
+            Self::Bottom => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_vertical_centered(&self) -> bool {
+        match self {
+            Self::Center => true,
+            Self::Right => true,
+            Self::Left => true,
+            _ => false,
         }
     }
 }

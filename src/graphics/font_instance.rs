@@ -73,7 +73,7 @@ impl Default for FontInstance {
             size: Vec2::zero(),
             uv_start: (0, 0),
             uv_size: (0, 0),
-            z_index: 0.0
+            z_index: 0.0,
         }
     }
 }

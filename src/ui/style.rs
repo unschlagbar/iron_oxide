@@ -49,6 +49,13 @@ impl OutArea {
         Vec2::new(self.left.pixelx(space), self.top.pixely(space))
     }
 
+    pub fn size(&self, space: Vec2) -> Vec2 {
+        Vec2::new(
+            self.left.pixelx(space) + self.right.pixelx(space),
+            self.top.pixely(space) + self.bottom.pixelx(space),
+        )
+    }
+
     pub const fn zero() -> Self {
         Self {
             left: UiUnit::Zero,
@@ -63,4 +70,11 @@ impl Default for OutArea {
     fn default() -> Self {
         Self::zero()
     }
+}
+
+#[derive(Default, Debug, Clone, Copy)]
+pub enum FlexDirection {
+    #[default]
+    Vertical,
+    Horizontal,
 }

@@ -7,6 +7,15 @@ pub struct Vec2 {
 }
 
 impl Vec2 {
+    pub const MAX: Self = Self {
+        x: f32::MAX,
+        y: f32::MAX,
+    };
+    pub const MIN: Self = Self {
+        x: f32::MIN,
+        y: f32::MIN,
+    };
+
     pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }

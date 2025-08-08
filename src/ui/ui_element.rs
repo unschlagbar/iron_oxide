@@ -4,13 +4,20 @@ use super::{
     AbsoluteLayout, BuildContext, Button, ButtonState, CallContext, Container, ElementType, Text,
     UiEvent, UiState, ui_state::EventResult,
 };
-use crate::{graphics::UiInstance, primitives::Vec2};
+use crate::{graphics::UiInstance, primitives::Vec2, ui::UiUnit};
 
 pub trait Element {
     fn build(&mut self, context: &mut BuildContext, element: &UiElement);
-    fn instance(&self, element: &UiElement) -> UiInstance;
-    fn childs(&mut self) -> &mut [UiElement];
-    fn add_child(&mut self, child: UiElement);
+    fn get_size(&mut self) -> (UiUnit, UiUnit) {
+        (UiUnit::Undefined, UiUnit::Undefined)
+    }
+    fn instance(&self, _element: &UiElement) -> UiInstance {
+        unimplemented!()
+    }
+    fn childs(&mut self) -> Option<&mut Vec<UiElement>> {
+        None
+    }
+    fn add_child(&mut self, _child: UiElement) {}
     #[allow(unused)]
     fn interaction(
         &mut self,
@@ -105,7 +112,6 @@ impl UiElement {
     }
 
     pub fn get_instances(&mut self, ui: &mut UiState, instances: &mut Vec<UiInstance>) {
-        
         if self.visible {
             if self.typ == ElementType::Text {
                 let size = self.parent().size;
@@ -118,9 +124,10 @@ impl UiElement {
             }
         }
 
-
-        for child in self.element.childs() {
-            child.get_instances(ui, instances);
+        if let Some(childs) = self.element.childs() {
+            for child in childs {
+                child.get_instances(ui, instances);
+            }
         }
     }
 
@@ -130,9 +137,8 @@ impl UiElement {
         if !self.parent.is_null() {
             let id = self.id;
             let parent = self.parent();
-            let childs = parent.element.childs();
 
-            for child in childs {
+            for child in parent.element.childs().unwrap() {
                 if child.id == id {
                     break;
                 }
@@ -144,8 +150,10 @@ impl UiElement {
 
     #[inline(always)]
     pub fn move_computed(&mut self, amount: Vec2) {
-        for child in self.element.childs() {
-            child.move_computed(amount);
+        if let Some(childs) = self.element.childs() {
+            for child in childs {
+                child.move_computed(amount);
+            }
         }
         self.pos += amount;
 
@@ -160,8 +168,10 @@ impl UiElement {
 
     #[inline(always)]
     pub fn move_computed_absolute(&mut self, pos: Vec2) {
-        for child in self.element.childs() {
-            child.move_computed_absolute(pos);
+        if let Some(childs) = self.element.childs() {
+            for child in childs {
+                child.move_computed_absolute(pos);
+            }
         }
         self.pos = pos;
     }
@@ -190,11 +200,13 @@ impl UiElement {
         let (size, pos) = (self.size, self.pos);
 
         if self.is_in(cursor_pos) {
-            for child in self.element.childs() {
-                let result = child.update_cursor(ui, cursor_pos, ui_event);
-                if !result.is_none() {
-                    return result;
-                };
+            if let Some(childs) = self.element.childs() {
+                for child in childs {
+                    let result = child.update_cursor(ui, cursor_pos, ui_event);
+                    if !result.is_none() {
+                        return result;
+                    };
+                }
             }
 
             let mut result = EventResult::None;
@@ -238,24 +250,34 @@ impl UiElement {
         self.element.add_child(child);
     }
 
+    pub fn clear_childs(&mut self) {
+        if let Some(childs) = self.element.childs() {
+            childs.clear();
+        }
+    }
+
     pub fn init(&mut self) {
         let parent = self as *mut UiElement;
         let z_index = self.z_index + 0.01;
-        for child in self.element.childs() {
-            child.parent = parent;
-            child.z_index = z_index;
-            child.init();
+        if let Some(childs) = self.element.childs() {
+            for child in childs {
+                child.parent = parent;
+                child.z_index = z_index;
+                child.init();
+            }
         }
     }
 
     pub fn get_child_by_id(&mut self, id: u32) -> Option<&mut UiElement> {
-        for child in self.element.childs() {
-            if child.id == id {
-                return Some(child);
-            } else {
-                let result = child.get_child_by_id(id);
-                if result.is_some() {
-                    return result;
+        if let Some(childs) = self.element.childs() {
+            for child in childs {
+                if child.id == id {
+                    return Some(child);
+                } else {
+                    let result = child.get_child_by_id(id);
+                    if result.is_some() {
+                        return result;
+                    }
                 }
             }
         }

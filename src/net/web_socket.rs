@@ -266,10 +266,7 @@ impl WebSocket {
                         }
                     }
                 }
-                Err(e)
-                    if e.kind() == ErrorKind::TimedOut
-                        || e.kind() == ErrorKind::WouldBlock =>
-                {}
+                Err(e) if e.kind() == ErrorKind::TimedOut || e.kind() == ErrorKind::WouldBlock => {}
                 Err(e) => {
                     println!("Error occurred: {e}");
                     let client = ws_interface.write().unwrap();

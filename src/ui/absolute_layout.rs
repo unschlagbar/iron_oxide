@@ -2,7 +2,7 @@ use super::{
     Align, BuildContext, ElementType, OutArea, RawUiElement, UiElement, UiUnit,
     ui_element::{Element, TypeConst},
 };
-use crate::{graphics::formats::Color, primitives::Vec2};
+use crate::{graphics::{formats::Color, UiInstance}, primitives::Vec2, ui::FlexDirection};
 
 pub struct AbsoluteLayout {
     pub align: Align,
@@ -22,16 +22,16 @@ pub struct AbsoluteLayout {
 impl Element for AbsoluteLayout {
     fn build(&mut self, context: &mut BuildContext, _: &UiElement) {
         let mut size = Vec2::new(
-            self.width.pixelx(context.parent_size),
-            self.height.pixely(context.parent_size),
+            self.width.pixelx(context.available_size),
+            self.height.pixely(context.available_size),
         );
 
         let mut pos = self.align.get_pos(
-            context.parent_size,
+            context.available_size,
             size,
             Vec2::new(
-                self.x.pixelx(context.parent_size),
-                self.y.pixely(context.parent_size),
+                self.x.pixelx(context.available_size),
+                self.y.pixely(context.available_size),
             ),
         );
 
@@ -40,13 +40,18 @@ impl Element for AbsoluteLayout {
         comp.border = self.border[0];
         comp.corner = self.corner[0].pixelx(size);
 
-        pos += context.parent_pos;
+        pos += context.child_start_pos;
 
-        let mut child_context =
-            BuildContext::new_from(context, size, pos + self.padding.start(size), &comp);
+        let mut child_context = BuildContext::new_from(
+            context,
+            size,
+            pos + self.padding.start(size),
+            &comp,
+            FlexDirection::Horizontal,
+        );
 
-        size.x += self.padding.x(child_context.parent_size);
-        size.y += self.padding.y(child_context.parent_size);
+        size.x += self.padding.x(child_context.available_size);
+        size.y += self.padding.y(child_context.available_size);
 
         comp.size = size;
         comp.pos = pos;
@@ -59,12 +64,17 @@ impl Element for AbsoluteLayout {
         context.apply_data(pos, size);
     }
 
-    fn instance(&self, element: &UiElement) -> crate::graphics::UiInstance {
-        self.comp.to_instance(self.color, self.border_color, element.z_index)
+    fn get_size(&mut self) -> (UiUnit, UiUnit) {
+        (self.width, self.height)
     }
 
-    fn childs(&mut self) -> &mut [UiElement] {
-        &mut self.childs
+    fn instance(&self, element: &UiElement) -> UiInstance {
+        self.comp
+            .to_instance(self.color, self.border_color, element.z_index)
+    }
+
+    fn childs(&mut self) -> Option<&mut Vec<UiElement>> {
+        Some(&mut self.childs)
     }
 
     fn add_child(&mut self, child: UiElement) {

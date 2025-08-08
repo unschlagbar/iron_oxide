@@ -14,6 +14,7 @@ mod ui_element;
 mod ui_pipeline;
 mod ui_state;
 mod ui_unit;
+pub mod layout_inline;
 
 mod absolute_layout;
 mod button;
@@ -37,6 +38,7 @@ pub use overflow::Overflow;
 pub use raw_ui_element::RawUiElement;
 pub use raw_ui_element::UiEvent;
 pub use rendermode::RenderMode;
+pub use style::FlexDirection;
 pub use style::OutArea;
 pub use r#type::ElementType;
 pub use ui_element::ElementBuild;

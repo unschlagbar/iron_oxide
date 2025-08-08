@@ -46,12 +46,12 @@ impl ErasedFnPointer {
         }
     }
 
-    pub fn from_associated_vars<S, T>(
-        struct_pointer: &mut S,
-        fp: fn(&mut S, &mut T),
+    pub fn from_associated_vars<S>(
+        struct_pointer: *mut S,
+        fp: fn(&mut S, CallContext),
     ) -> ErasedFnPointer {
         ErasedFnPointer {
-            struct_pointer: struct_pointer as *mut S as *mut (),
+            struct_pointer: struct_pointer as *mut (),
             fp: fp as *const (),
             id: usize::MAX,
             ui: false,
@@ -86,7 +86,8 @@ impl ErasedFnPointer {
                 let fp: fn(CallContext) = unsafe { transmute::<_, fn(CallContext)>(self.fp) };
                 fp(context)
             } else {
-                unimplemented!()
+                let fp: fn(&mut (), CallContext) = unsafe { transmute::<_, fn(&mut (), CallContext)>(self.fp) };
+                fp(unsafe { &mut *self.struct_pointer }, context)
             }
         } else {
             unimplemented!()

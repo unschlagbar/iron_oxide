@@ -3,7 +3,7 @@ use super::{
     ui_element::{Element, TypeConst},
 };
 use crate::{
-    graphics::{FontInstance, UiInstance, formats::Color},
+    graphics::{FontInstance, formats::Color},
     primitives::Vec2,
 };
 
@@ -19,12 +19,18 @@ pub struct Text {
 }
 
 impl Text {
-    pub fn get_font_instances(&mut self, parent_size: Vec2, parent_pos: Vec2, ui: &mut UiState, element: &UiElement) {
+    pub fn get_font_instances(
+        &mut self,
+        parent_size: Vec2,
+        parent_pos: Vec2,
+        ui: &mut UiState,
+        element: &UiElement,
+    ) {
         match self.dirty_flags {
             TextDirtyFlags::None => ui.texts.extend_from_slice(&self.font_instances),
             TextDirtyFlags::TextChanged => {
                 let mut context = BuildContext::default(&ui.font, parent_size);
-                context.parent_pos = parent_pos;
+                context.child_start_pos = parent_pos;
                 self.build(&mut context, element);
                 ui.texts.extend_from_slice(&self.font_instances)
             }
@@ -77,26 +83,19 @@ impl Element for Text {
             }
         }
 
-        let mut offset = context.parent_pos;
-        if matches!(self.align, Align::Center) {
-            offset.x += (context.parent_size.x - cursor_pos.x) * 0.5;
-            offset.y += (context.parent_size.y - self.font_size) * 0.5;
+        let mut offset = context.child_start_pos;
+        if self.align.is_horizontal_centered() {
+            offset.x += (context.available_size.x - cursor_pos.x) * 0.5;
+        }
+
+        if self.align.is_vertical_centered() {
+            offset.y += (context.available_size.y - self.font_size) * 0.5;
         }
 
         for i in &mut self.font_instances {
             i.pos += offset
         }
     }
-
-    fn instance(&self, _element: &UiElement) -> UiInstance {
-        unreachable!()
-    }
-
-    fn childs(&mut self) -> &mut [UiElement] {
-        &mut []
-    }
-
-    fn add_child(&mut self, _child: UiElement) {}
 }
 
 impl ElementBuild for Text {
@@ -126,7 +125,7 @@ impl Default for Text {
             text: "Default".to_string(),
             font_size: 16.0,
             font_instances: Vec::new(),
-            align: Align::Top,
+            align: Align::Left,
             line_spacing: 8.0,
             wrap: WrapMode::default(),
             dirty_flags: TextDirtyFlags::TextChanged,

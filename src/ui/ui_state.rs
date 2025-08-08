@@ -59,9 +59,10 @@ impl UiState {
         }
     }
 
-    pub fn add_element<T: Element + TypeConst + 'static>(&mut self, element: T) {
+    pub fn add_element<T: Element + TypeConst + 'static>(&mut self, element: T) -> u32 {
+        let id = self.get_id();
         let mut element = UiElement {
-            id: self.get_id(),
+            id,
             typ: T::ELEMENT_TYPE,
             dirty: true,
             visible: true,
@@ -72,9 +73,33 @@ impl UiState {
             z_index: 0.01,
         };
 
-
         element.init();
         self.elements.push(element);
+        id
+    }
+
+    pub fn add_child_to<T: Element + TypeConst + 'static>(
+        &mut self,
+        child: T,
+        element: u32,
+    ) -> u32 {
+        let id = self.get_id();
+        let element = self.get_element(element).unwrap();
+        let mut child = UiElement {
+            id,
+            typ: T::ELEMENT_TYPE,
+            dirty: true,
+            visible: true,
+            size: Vec2::default(),
+            pos: Vec2::default(),
+            parent: null_mut(),
+            element: Box::new(child),
+            z_index: element.z_index + 0.01,
+        };
+
+        child.init();
+        element.add_child(child);
+        id
     }
 
     pub fn get_id(&self) -> u32 {
@@ -149,7 +174,11 @@ impl UiState {
     pub fn get_element_mut(&mut self, root: Vec<usize>) -> Option<&mut UiElement> {
         let mut h = self.elements.get_mut(*root.first()?)?;
         for i in 1..root.len() {
-            h = h.element.childs().get_mut(*root.get(i)?)?;
+            if let Some(childs) = h.element.childs() {
+                h = childs.get_mut(*root.get(i)?)?;
+            } else {
+                return None;
+            }
         }
 
         Some(h)
@@ -197,44 +226,51 @@ impl UiState {
             self.dirty = DirtyFlags::None;
             self.build();
             let ui_instances = self.get_instaces();
-            if ui_instances.is_empty() {
-                return;
+            if !ui_instances.is_empty() && !self.texts.is_empty() {
+                unsafe { base.device.queue_wait_idle(base.queue).unwrap() };
+            }
+            if !ui_instances.is_empty() {
+                self.instance_buffer.destroy(&base.device);
+                self.instance_buffer = Buffer::device_local_slow(
+                    &base,
+                    command_pool,
+                    &ui_instances,
+                    vk::BufferUsageFlags::VERTEX_BUFFER,
+                );
             }
 
-            unsafe { base.device.queue_wait_idle(base.queue).unwrap() };
-            self.instance_buffer.destroy(&base.device);
-            self.font_instance_buffer.destroy(&base.device);
+            if !self.texts.is_empty() {
+                self.font_instance_buffer.destroy(&base.device);
 
-            self.font_instance_buffer = Buffer::device_local_slow(
-                &base,
-                command_pool,
-                &self.texts,
-                vk::BufferUsageFlags::VERTEX_BUFFER,
-            );
-            self.instance_buffer = Buffer::device_local_slow(
-                &base,
-                command_pool,
-                &ui_instances,
-                vk::BufferUsageFlags::VERTEX_BUFFER,
-            );
+                self.font_instance_buffer = Buffer::device_local_slow(
+                    &base,
+                    command_pool,
+                    &self.texts,
+                    vk::BufferUsageFlags::VERTEX_BUFFER,
+                );
+            }
         } else if matches!(self.dirty, DirtyFlags::Color | DirtyFlags::Size) {
             let ui_instances = self.get_instaces();
 
-            self.instance_buffer.destroy(&base.device);
-            self.instance_buffer = Buffer::device_local_slow(
-                &base,
-                command_pool,
-                &ui_instances,
-                vk::BufferUsageFlags::VERTEX_BUFFER,
-            );
+            if !ui_instances.is_empty() {
+                self.instance_buffer.destroy(&base.device);
+                self.instance_buffer = Buffer::device_local_slow(
+                    &base,
+                    command_pool,
+                    &ui_instances,
+                    vk::BufferUsageFlags::VERTEX_BUFFER,
+                );
+            }
 
-            self.font_instance_buffer.destroy(&base.device);
-            self.font_instance_buffer = Buffer::device_local_slow(
-                &base,
-                command_pool,
-                &self.texts,
-                vk::BufferUsageFlags::VERTEX_BUFFER,
-            );
+            if !self.texts.is_empty() {
+                self.font_instance_buffer.destroy(&base.device);
+                self.font_instance_buffer = Buffer::device_local_slow(
+                    &base,
+                    command_pool,
+                    &self.texts,
+                    vk::BufferUsageFlags::VERTEX_BUFFER,
+                );
+            }
         }
     }
 
