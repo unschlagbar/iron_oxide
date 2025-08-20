@@ -109,7 +109,7 @@ impl<T> FixedVec<T> {
 
     #[inline]
     ///slice should be no longer used
-    pub unsafe fn from_slice(slice: &[T]) -> Self {
+    pub fn from_slice(slice: &[T]) -> Self {
         let len = slice.len();
         let layout = Layout::array::<T>(len).expect("Ungültiges Layout");
         let data = unsafe {
@@ -132,6 +132,8 @@ impl<T> FixedVec<T> {
     }
 
     #[inline]
+    /// # Safety
+    /// zero
     pub unsafe fn from_raw_parts(ptr: *mut T, len: usize) -> Self {
         debug_assert!(len > 0, "Len must not be 0");
 
@@ -267,7 +269,7 @@ impl<T: Copy> FixedVec<T> {
 
 impl<T: Copy> From<&[T]> for FixedVec<T> {
     fn from(slice: &[T]) -> Self {
-        unsafe { FixedVec::from_slice(slice) }
+        FixedVec::from_slice(slice)
     }
 }
 
@@ -305,7 +307,7 @@ impl<T: Copy> From<FixedVec<T>> for Vec<T> {
 // Implementierung für `From<&[T; N]>` für statische Arrays
 impl<T: Copy, const N: usize> From<&[T; N]> for FixedVec<T> {
     fn from(array: &[T; N]) -> Self {
-        unsafe { FixedVec::from_slice(array) }
+        FixedVec::from_slice(array)
     }
 }
 

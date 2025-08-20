@@ -13,7 +13,8 @@ use super::{
 };
 use crate::{
     graphics::{Buffer, FontInstance, UiInstance, VkBase},
-    primitives::Vec2, ui::ElementType,
+    primitives::Vec2,
+    ui::ElementType,
 };
 
 #[derive(Debug)]
@@ -63,6 +64,11 @@ impl UiState {
 
     pub fn add_element<T: Element + TypeConst + 'static>(&mut self, element: T) -> u32 {
         let id = self.get_id();
+        let z_index = if matches!(T::ELEMENT_TYPE, ElementType::AbsoluteLayout) {
+            0.5
+        } else {
+            0.01
+        };
         let mut element = UiElement {
             id,
             typ: T::ELEMENT_TYPE,
@@ -72,11 +78,12 @@ impl UiState {
             pos: Vec2::default(),
             parent: null_mut(),
             element: Box::new(element),
-            z_index: 0.01,
+            z_index,
         };
 
         element.init();
         self.elements.push(element);
+        self.dirty = DirtyFlags::Resize;
         id
     }
 
@@ -84,9 +91,9 @@ impl UiState {
         &mut self,
         child: T,
         element: u32,
-    ) -> u32 {
+    ) -> Option<u32> {
         let id = self.get_id();
-        let element = self.get_element(element).unwrap();
+        let element = self.get_element(element)?;
         let mut child = UiElement {
             id,
             typ: T::ELEMENT_TYPE,
@@ -102,7 +109,7 @@ impl UiState {
         child.init();
         element.add_child(child);
         self.dirty = DirtyFlags::Resize;
-        id
+        Some(id)
     }
 
     pub fn get_id(&self) -> u32 {
@@ -423,7 +430,6 @@ impl Default for Selected {
     }
 }
 
-
 #[derive(Debug)]
 pub struct QueuedEvent {
     pub element_id: u32,
@@ -434,6 +440,11 @@ pub struct QueuedEvent {
 
 impl QueuedEvent {
     pub fn new(element: &UiElement, event: UiEvent, message: u16) -> Self {
-        Self { element_id: element.id, element_type: element.typ, event, message }
+        Self {
+            element_id: element.id,
+            element_type: element.typ,
+            event,
+            message,
+        }
     }
 }

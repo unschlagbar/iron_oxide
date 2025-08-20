@@ -217,10 +217,6 @@ impl ByteWriter {
         self.buf
     }
 
-    pub fn as_mut(&mut self) -> &mut Vec<u8> {
-        &mut self.buf
-    }
-
     pub fn write_byte(&mut self, byte: u8) {
         self.buf.push(byte);
     }

@@ -18,33 +18,33 @@ pub enum UiUnit {
 
 impl UiUnit {
     #[inline]
-    pub fn pixelx(&self, parent_size: Vec2) -> f32 {
+    pub fn pixelx(&self, space: Vec2) -> f32 {
         match self {
             Self::Zero => 0.0,
             Self::Undefined => 100.0,
             Self::Auto => 100.0,
             Self::Fill => 1.77,
             Self::Px(pixel) => *pixel,
-            Self::Relative(percent) | Self::RelativeWidth(percent) => parent_size.x * percent,
-            Self::RelativeHeight(percent) => parent_size.y * percent,
-            Self::RelativeMax(percent) => parent_size.max() * percent,
-            Self::RelativeMin(percent) => parent_size.min() * percent,
+            Self::Relative(percent) | Self::RelativeWidth(percent) => space.x * percent,
+            Self::RelativeHeight(percent) => space.y * percent,
+            Self::RelativeMax(percent) => space.max() * percent,
+            Self::RelativeMin(percent) => space.min() * percent,
             Self::Rem(rem) => *rem,
         }
     }
 
     #[inline]
-    pub fn pixely(&self, parent_size: Vec2) -> f32 {
+    pub fn pixely(&self, space: Vec2) -> f32 {
         match self {
             Self::Zero => 0.0,
             Self::Undefined => 100.0,
             Self::Auto => 100.0,
             Self::Fill => 1.77,
             Self::Px(pixel) => *pixel,
-            Self::Relative(percent) | Self::RelativeHeight(percent) => parent_size.y * percent,
-            Self::RelativeWidth(percent) => parent_size.x * percent,
-            Self::RelativeMax(percent) => parent_size.max() * percent,
-            Self::RelativeMin(percent) => parent_size.min() * percent,
+            Self::Relative(percent) | Self::RelativeHeight(percent) => space.y * percent,
+            Self::RelativeWidth(percent) => space.x * percent,
+            Self::RelativeMax(percent) => space.max() * percent,
+            Self::RelativeMin(percent) => space.min() * percent,
             Self::Rem(rem) => *rem,
         }
     }

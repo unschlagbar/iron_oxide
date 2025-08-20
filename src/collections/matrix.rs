@@ -136,19 +136,20 @@ impl Matrix {
         }
     }
 
-    /// Konvertiert die Matrix in einen Vec
+    /// Clone the Matrix to a Vec
     pub fn to_vec(&self) -> Vec<f32> {
         #[allow(clippy::uninit_vec)]
-        let mut vec = Vec::with_capacity(self.flat_len());
+        {
+            let mut vec = Vec::with_capacity(self.flat_len());
 
-        unsafe {
-            vec.set_len(self.flat_len());
-            self.data
-                .as_ptr()
-                .copy_to_nonoverlapping(vec.as_mut_ptr(), self.flat_len());
+            unsafe {
+                vec.set_len(self.flat_len());
+                self.data
+                    .as_ptr()
+                    .copy_to_nonoverlapping(vec.as_mut_ptr(), self.flat_len());
+            }
+            vec
         }
-
-        vec
     }
 
     #[inline]

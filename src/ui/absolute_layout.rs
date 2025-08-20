@@ -25,17 +25,29 @@ pub struct AbsoluteLayout {
 
 impl Element for AbsoluteLayout {
     fn build(&mut self, context: &mut BuildContext, _: &UiElement) {
+        let space = context.available_size;
+
+        let width = if matches!(self.width, UiUnit::Auto) {
+            0.0
+        } else {
+            self.width.pixelx(space)
+        };
+        let height = if matches!(self.height, UiUnit::Auto) {
+            0.0
+        } else {
+            self.height.pixely(space)
+        };
         let mut size = Vec2::new(
-            self.width.pixelx(context.available_size),
-            self.height.pixely(context.available_size),
+            width,
+            height
         );
 
         let mut pos = self.align.get_pos(
-            context.available_size,
+            space,
             size,
             Vec2::new(
-                self.x.pixelx(context.available_size),
-                self.y.pixely(context.available_size),
+                self.x.pixelx(space),
+                self.y.pixely(space),
             ),
         );
 
@@ -51,7 +63,7 @@ impl Element for AbsoluteLayout {
             size,
             pos + self.padding.start(size),
             &comp,
-            FlexDirection::Horizontal,
+            FlexDirection::Vertical,
         );
 
         size.x += self.padding.x(child_context.available_size);
@@ -63,6 +75,17 @@ impl Element for AbsoluteLayout {
         for element in self.childs.iter_mut() {
             element.build(&mut child_context);
             child_context.order += 1;
+        }
+
+        if matches!(self.width, UiUnit::Auto) {
+            size.x = child_context.start_pos.x;
+            dbg!(child_context.start_pos.x);
+        }
+
+        if matches!(self.height, UiUnit::Auto) {
+            size.y = child_context.start_pos.y;
+            dbg!(child_context.start_pos.y);
+
         }
 
         context.apply_data(pos, size);
@@ -99,7 +122,7 @@ impl Default for AbsoluteLayout {
         Self {
             comp: Default::default(),
             childs: Default::default(),
-            align: Align::Center,
+            align: Align::TopLeft,
             x: UiUnit::Px(10.0),
             y: UiUnit::Px(10.0),
             width: UiUnit::Px(100.0),

@@ -44,8 +44,8 @@ pub use r#type::ElementType;
 pub use ui_element::ElementBuild;
 pub use ui_element::UiElement;
 pub use ui_state::DirtyFlags;
-pub use ui_state::UiState;
 pub use ui_state::QueuedEvent;
+pub use ui_state::UiState;
 pub use ui_unit::Align;
 pub use ui_unit::UiUnit;
 

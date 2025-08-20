@@ -5,7 +5,7 @@ use super::{
 use crate::{
     graphics::formats::Color,
     primitives::Vec2,
-    ui::{ui_state::EventResult, CallContext, FlexDirection, QueuedEvent, UiEvent, UiState},
+    ui::{CallContext, FlexDirection, QueuedEvent, UiEvent, UiState, ui_state::EventResult},
 };
 
 pub struct Button {

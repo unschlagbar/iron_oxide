@@ -208,21 +208,22 @@ impl WebSocket {
                             );
                             bytes_processed += bytes_to_add;
 
-                            if let Some(len) = required_length {
-                                if incomplete_message.len() >= len {
-                                    Self::process_message(
-                                        &incomplete_message,
-                                        &mut is_fragmented,
-                                        &mut message_buffer,
-                                        &mut expected_fragment_type,
-                                        ws_interface.clone(),
-                                        &mut stream,
-                                        ip,
-                                    );
-                                    incomplete_message.clear();
-                                    required_length = None;
-                                }
+                            if let Some(len) = required_length
+                                && incomplete_message.len() >= len
+                            {
+                                Self::process_message(
+                                    &incomplete_message,
+                                    &mut is_fragmented,
+                                    &mut message_buffer,
+                                    &mut expected_fragment_type,
+                                    ws_interface.clone(),
+                                    &mut stream,
+                                    ip,
+                                );
+                                incomplete_message.clear();
+                                required_length = None;
                             }
+
                             continue;
                         }
 
