@@ -1,12 +1,14 @@
 #![allow(dead_code)]
 
 use std::{
-    alloc::{Layout, alloc, dealloc},
-    fmt::{Debug, Formatter},
+    alloc::{alloc, dealloc, Layout},
+    fmt::{Debug, Formatter, Write},
     mem::forget,
-    ops::{Index, IndexMut, Mul},
-    ptr::NonNull,
+    ops::{Index, IndexMut},
+    ptr::NonNull, slice,
 };
+
+use rand;
 
 pub struct Matrix {
     data: NonNull<f32>, // Rohspeicher für die Matrixdaten
@@ -15,7 +17,8 @@ pub struct Matrix {
 }
 
 impl Matrix {
-    pub fn new(rows: usize, cols: usize) -> Self {
+    #[track_caller]
+    pub fn uninit(rows: usize, cols: usize) -> Self {
         let size = rows * cols;
         let layout = unsafe { Layout::array::<f32>(size).unwrap_unchecked() };
 
@@ -32,7 +35,8 @@ impl Matrix {
         Matrix { data, rows, cols }
     }
 
-    pub fn zeroed(rows: usize, cols: usize) -> Self {
+    #[track_caller]
+    pub fn zeros(rows: usize, cols: usize) -> Self {
         let size = rows * cols;
         let layout = unsafe { Layout::array::<f32>(size).unwrap_unchecked() };
 
@@ -51,6 +55,16 @@ impl Matrix {
         Matrix { data, rows, cols }
     }
 
+    pub fn random(rows: usize, cols: usize, scale: f32) -> Self {
+        let mut this = Self::uninit(rows, cols);
+        for x in 0..this.rows {
+            for y in 0..this.cols {
+                this[x][y] = rand::random_range(-1.0..1.0) * scale;
+            }
+        }
+        this
+    }
+
     pub const fn rows(&self) -> usize {
         self.rows
     }
@@ -63,6 +77,7 @@ impl Matrix {
         self.rows * self.cols
     }
 
+    #[track_caller]
     pub fn set(&mut self, row: usize, col: usize, value: f32) {
         debug_assert!(row < self.rows && col < self.cols);
 
@@ -70,6 +85,7 @@ impl Matrix {
         unsafe { *self.data.as_ptr().add(index) = value };
     }
 
+    #[track_caller]
     pub fn get(&self, row: usize, col: usize) -> f32 {
         debug_assert!(row < self.rows && col < self.cols);
 
@@ -77,13 +93,14 @@ impl Matrix {
         unsafe { *self.data.as_ptr().add(index) }
     }
 
+    #[track_caller]
     pub fn from_slice(slice: &[f32], rows: usize, cols: usize) -> Self {
         debug_assert_eq!(
             slice.len(),
             rows * cols,
             "Slice-Länge stimmt nicht mit den Matrix-Dimensionen überein"
         );
-        let matrix = Matrix::new(rows, cols);
+        let matrix = Matrix::uninit(rows, cols);
 
         unsafe {
             slice
@@ -94,28 +111,17 @@ impl Matrix {
         matrix
     }
 
-    /// Erstellt eine Matrix aus einem Vec
-    pub fn from_vec(vec: Vec<f32>, rows: usize, cols: usize) -> Self {
-        debug_assert_eq!(
-            vec.len(),
-            rows * cols,
-            "Vec-Länge stimmt nicht mit den Matrix-Dimensionen überein"
-        );
-        let matrix = Matrix::new(rows, cols);
-
-        // Speicher direkt kopieren
-        unsafe {
-            vec.as_ptr()
-                .copy_to_nonoverlapping(matrix.data.as_ptr(), vec.len());
-        }
-
-        // Vec darf hiernach nicht mehr verwendet werden
-        std::mem::forget(vec);
-
-        matrix
+    pub fn as_slice(&self) -> &[f32] {
+        unsafe { slice::from_raw_parts(self.data.as_ptr(), self.flat_len()) }
     }
 
-    pub fn from_vec_no_copy(mut vec: Vec<f32>, rows: usize, cols: usize) -> Self {
+    pub fn as_slice_mut(&mut self) -> &mut [f32] {
+        unsafe { slice::from_raw_parts_mut(self.data.as_ptr(), self.flat_len()) }
+    }
+
+    #[track_caller]
+    /// Erstellt eine Matrix aus einem Vec
+    pub fn from_vec(mut vec: Vec<f32>, rows: usize, cols: usize) -> Self {
         debug_assert_eq!(
             vec.len(),
             rows * cols,
@@ -136,7 +142,31 @@ impl Matrix {
         }
     }
 
-    /// Clone the Matrix to a Vec
+    #[track_caller]
+    /// Erstellt eine Matrix aus einem Box
+    pub fn from_box(mut data: Box<[f32]>, rows: usize, cols: usize) -> Self {
+        debug_assert_eq!(
+            data.len(),
+            rows * cols,
+            "Vec-Länge stimmt nicht mit den Matrix-Dimensionen überein"
+        );
+
+        // Zeiger aus dem Vec extrahieren
+        let ptr = data.as_mut_ptr();
+
+        // Speicher darf nicht mehr vom Vec freigegeben werden
+        std::mem::forget(data);
+
+        // Rückgabe einer neuen Matrix mit demselben Speicher
+        Matrix {
+            data: unsafe { NonNull::new_unchecked(ptr) },
+            rows,
+            cols,
+        }
+    }
+
+    #[track_caller]
+    /// Konvertiert die Matrix in einen Vec
     pub fn to_vec(&self) -> Vec<f32> {
         #[allow(clippy::uninit_vec)]
         {
@@ -160,9 +190,186 @@ impl Matrix {
         out
     }
 
+    #[track_caller]
+    pub fn clear(&mut self) {
+        unsafe { self.data.write_bytes(0, self.flat_len()) };
+    }
+
+    #[track_caller]
+    pub fn scale(&mut self, scale: f32) {
+        self.as_slice_mut().iter_mut().for_each(|x| *x *= scale);
+    }
+
+    #[track_caller]
+    pub fn concat_horizontal(&self, other: &Matrix) -> Matrix {
+        assert_eq!(self.rows, other.rows);
+        let rows = self.rows;
+        let cols_left = self.cols;
+        let cols_right = other.cols;
+        let mut out = Matrix::uninit(rows, cols_left + cols_right);
+        for r in 0..rows {
+            out[r][0..cols_left].copy_from_slice(&self[r]);
+            out[r][cols_left..cols_left + cols_right].copy_from_slice(&other[r]);
+        }
+        out
+    }
+
     #[inline]
     pub fn zero(&mut self) {
         unsafe { self.data.write_bytes(0, self.flat_len()) };
+    }
+
+    #[track_caller]
+    pub fn hadamard(&self, b: &Self, out: &mut Self) {
+        assert_eq!(self.rows, b.rows);
+        assert_eq!(self.rows, out.rows);
+
+        assert_eq!(self.cols, b.cols);
+        assert_eq!(self.cols, out.cols);
+
+        let a = self.as_slice();
+        let b = b.as_slice();
+        let out = out.as_slice_mut();
+
+        for i in 0..self.flat_len() {
+           out[i] = a[i] * b[i] 
+        }
+    }
+
+    #[track_caller]
+    pub fn hadamard_new(&self, b: &Self) -> Self {
+        assert_eq!(self.rows, b.rows);
+        assert_eq!(self.cols, b.cols);
+
+        let mut output = Matrix::uninit(self.rows, self.cols);
+
+        let a = self.as_slice();
+        let b = b.as_slice();
+        let out = output.as_slice_mut();
+
+        for i in 0..self.flat_len() {
+           out[i] = a[i] * b[i] 
+        }
+        output
+    }
+
+    #[track_caller]
+    pub fn mul(&self, other: &Self) -> Self {
+        debug_assert_eq!(self.cols, other.rows);
+
+        let mut result = Matrix::uninit(self.rows, other.cols);
+
+        for i in 0..self.rows {
+            for j in 0..other.cols {
+                let mut sum = 0.0;
+                for k in 0..self.cols {
+                    sum += self[(i, k)] * other[(k, j)];
+                }
+                result.set(i, j, sum);
+            }
+        }
+
+        result
+    }
+
+    #[track_caller]
+    pub fn sigmoid(&self) -> Matrix {
+        let mut output = Matrix::uninit(self.rows(), self.cols());
+        let input_data = self.as_slice();
+        let output_data = output.as_slice_mut();
+
+        for i in 0..self.flat_len() {
+            output_data[i] = 1.0 / (1.0 + (-input_data[i]).exp());
+        }
+        output
+    }
+
+    #[track_caller]
+    /// Elementweise tanh-Aktivierung
+    pub fn tanh(&self) -> Matrix {
+        let mut output = Matrix::uninit(self.rows(), self.cols());
+        let input_data = self.as_slice();
+        let output_data = output.as_slice_mut();
+
+        for i in 0..self.flat_len() {
+            output_data[i] = input_data[i].tanh();
+        }
+        output
+    }
+
+    #[track_caller]
+    pub fn add_inplace_scaled(&mut self, other: &Matrix, scale: f32) {
+        assert_eq!(self.rows, other.rows);
+        assert_eq!(self.cols, other.cols);
+        let a = self.as_slice_mut();
+        let b = other.as_slice();
+        for i in 0..a.len() { a[i] += scale * b[i]; }
+    }
+
+    #[track_caller]
+    pub fn add_inplace(&mut self, other: &Matrix) {
+        assert_eq!(self.rows, other.rows, "rows do not match, {} to {}", self.rows, other.rows);
+        assert_eq!(self.cols, other.cols, "cols do not match, {} to {}", self.cols, other.cols);
+
+        let self_slice = self.as_slice_mut();
+        let other_slice = other.as_slice();
+
+        for i in 0..self_slice.len() {
+            self_slice[i] += other_slice[i];
+        }
+    }
+
+        #[track_caller]
+    pub fn sub_inplace(&mut self, other: &Matrix) {
+        assert_eq!(self.rows, other.rows, "rows do not match, {} to {}", self.rows, other.rows);
+        assert_eq!(self.cols, other.cols, "cols do not match, {} to {}", self.cols, other.cols);
+
+        let self_slice = self.as_slice_mut();
+        let other_slice = other.as_slice();
+
+        for i in 0..self_slice.len() {
+            self_slice[i] -= other_slice[i];
+        }
+    }
+
+    #[track_caller]
+    pub fn add(&self, other: &Self) -> Self {
+        assert_eq!(self.rows, other.rows);
+        assert_eq!(self.cols, other.cols);
+
+        let this = self.as_slice();
+        let other = other.as_slice();
+        let out: Box<[f32]>  = this.iter().zip(other).map(|(x, y)| x + y).collect();
+        Matrix::from_box(out, self.rows, self.cols)
+    }
+
+    #[track_caller]
+    pub fn transpose(&self) -> Matrix {
+        let mut out = Matrix::uninit(self.cols, self.rows);
+        for r in 0..self.rows {
+            for c in 0..self.cols {
+                out[(c, r)] = self[(r, c)];
+            }
+        }
+        out
+    }
+
+    #[track_caller]
+    pub fn clip(&mut self, min: f32, max: f32) {
+        self.as_slice_mut().iter_mut().for_each(|x| *x = x.clamp(min, max))
+    }
+
+    #[track_caller]
+    pub fn row_mul(&self, row: &[f32]) -> Vec<f32> {
+        assert_eq!(self.rows, row.len());
+
+        (0..self.cols).map(|j| {
+            let mut s = 0.0;
+            for i in 0..row.len() {
+                s += row[i] * self[i][j];
+            }
+            s
+        }).collect()
     }
 }
 
@@ -217,23 +424,37 @@ impl IndexMut<(usize, usize)> for Matrix {
 }
 
 impl Index<usize> for Matrix {
-    type Output = f32;
+    type Output = [f32];
 
     fn index(&self, index: usize) -> &Self::Output {
-        debug_assert!(self.rows * self.cols > index);
+        debug_assert!(
+            index < self.rows,
+            "Index {index} out of bounds for matrix with {} rows", self.rows
+        );
 
-        unsafe { &*self.data.as_ptr().add(index) }
+        let idx = index * self.cols;
+        unsafe {
+            let data = self.data.as_ptr().add(idx);
+            slice::from_raw_parts(data, self.cols) 
+        }
     }
 }
 
-// Implementierung von IndexMut, um das Schreiben über [] zu ermöglichen
 impl IndexMut<usize> for Matrix {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        debug_assert!(self.rows * self.cols > index);
+        debug_assert!(
+            index < self.rows,
+            "Index {index} out of bounds for matrix with {} rows", self.rows
+        );
 
-        unsafe { &mut *self.data.as_ptr().add(index) }
+        let idx = index * self.cols;
+        unsafe {
+            let data = self.data.as_ptr().add(idx);
+            slice::from_raw_parts_mut(data, self.cols) 
+        }
     }
 }
+
 
 impl Drop for Matrix {
     fn drop(&mut self) {
@@ -247,37 +468,18 @@ impl Drop for Matrix {
 
 impl Debug for Matrix {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_char('[')?;
         for i in 0..self.rows {
+            f.write_char('[')?;
             for j in 0..self.cols {
                 write!(f, "{:.5} ", self[(i, j)])?;
             }
-            writeln!(f)?;
-        }
-        Ok(())
-    }
-}
-
-impl Mul for Matrix {
-    type Output = Self;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        debug_assert_eq!(
-            self.cols, rhs.rows,
-            "Matrix-Dimensionen stimmen nicht überein"
-        );
-
-        let mut result = Matrix::new(self.rows, rhs.cols);
-
-        for i in 0..self.rows {
-            for j in 0..rhs.cols {
-                let mut sum = 0.0;
-                for k in 0..self.cols {
-                    sum += self[(i, k)] * rhs[(k, j)];
-                }
-                result.set(i, j, sum);
+            f.write_char(']')?;
+            if i != self.rows.wrapping_sub(1) {
+                f.write_str(", ")?;
             }
         }
-
-        result
+        f.write_char(']')?;
+        Ok(())
     }
 }
