@@ -311,11 +311,11 @@ impl Matrix {
         assert_eq!(self.rows, other.rows, "rows do not match, {} to {}", self.rows, other.rows);
         assert_eq!(self.cols, other.cols, "cols do not match, {} to {}", self.cols, other.cols);
 
-        let self_slice = self.as_slice_mut();
-        let other_slice = other.as_slice();
+        let a = self.as_slice_mut();
+        let b = other.as_slice();
 
-        for i in 0..self_slice.len() {
-            self_slice[i] += other_slice[i];
+        for i in 0..a.len() {
+            a[i] += b[i];
         }
     }
 
