@@ -2,7 +2,14 @@ use super::{
     BuildContext, ElementType, OutArea, Overflow, RawUiElement, UiElement, UiUnit,
     ui_element::{Element, ElementBuild, TypeConst},
 };
-use crate::{graphics::formats::Color, primitives::Vec2, ui::FlexDirection};
+use crate::{
+    graphics::formats::Color,
+    primitives::Vec2,
+    ui::{
+        FlexDirection,
+        draw_data::{DrawData, InstanceData},
+    },
+};
 
 pub struct Container {
     pub margin: OutArea,
@@ -78,9 +85,15 @@ impl Element for Container {
         (self.width, self.height)
     }
 
-    fn instance(&self, element: &UiElement) -> crate::graphics::UiInstance {
-        self.comp
-            .to_instance(self.color, self.border_color, element.z_index)
+    fn instance(&self, element: &UiElement, draw_data: &mut DrawData) {
+        if let InstanceData::Basic(vec) = draw_data.get_group(0, 0) {
+            vec.push(
+                self.comp
+                    .to_instance(self.color, self.border_color, element.z_index),
+            );
+        } else {
+            unreachable!()
+        }
     }
 
     fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {

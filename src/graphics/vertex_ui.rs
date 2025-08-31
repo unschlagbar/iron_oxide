@@ -6,15 +6,15 @@ use super::formats::Color;
 #[repr(C)]
 pub struct VertexUi;
 
-impl VertexUi {
-    pub const GET_BINDING_DESCRIPTION: [vk::VertexInputBindingDescription; 1] =
-        [vk::VertexInputBindingDescription {
+impl VertexDescription for VertexUi {
+    const GET_BINDING_DESCRIPTION: &[vk::VertexInputBindingDescription] =
+        &[vk::VertexInputBindingDescription {
             binding: 0,
             stride: std::mem::size_of::<UiInstance>() as _,
             input_rate: vk::VertexInputRate::INSTANCE,
         }];
 
-    pub const GET_ATTRIBUTE_DESCRIPTIONS: [vk::VertexInputAttributeDescription; 9] = [
+    const GET_ATTRIBUTE_DESCRIPTIONS: &[vk::VertexInputAttributeDescription] = &[
         vk::VertexInputAttributeDescription {
             binding: 0,
             location: 0,
@@ -99,4 +99,9 @@ impl Default for UiInstance {
             z_index: 0.0,
         }
     }
+}
+
+pub trait VertexDescription {
+    const GET_BINDING_DESCRIPTION: &[vk::VertexInputBindingDescription];
+    const GET_ATTRIBUTE_DESCRIPTIONS: &[vk::VertexInputAttributeDescription];
 }

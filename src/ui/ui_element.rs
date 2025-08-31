@@ -4,14 +4,17 @@ use super::{
     AbsoluteLayout, BuildContext, Button, ButtonState, CallContext, Container, ElementType, Text,
     UiEvent, UiState, ui_state::EventResult,
 };
-use crate::{graphics::UiInstance, primitives::Vec2, ui::UiUnit};
+use crate::{
+    primitives::Vec2,
+    ui::{UiUnit, draw_data::DrawData},
+};
 
 pub trait Element {
     fn build(&mut self, context: &mut BuildContext, element: &UiElement);
     fn get_size(&mut self) -> (UiUnit, UiUnit) {
         (UiUnit::Undefined, UiUnit::Undefined)
     }
-    fn instance(&self, _element: &UiElement) -> UiInstance {
+    fn instance(&self, _element: &UiElement, _draw_data: &mut DrawData) {
         unimplemented!()
     }
     fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
@@ -26,7 +29,6 @@ pub trait Element {
         &mut self,
         element: &mut UiElement,
         ui: &mut UiState,
-        curser_pos: Vec2,
         event: UiEvent,
     ) -> EventResult {
         EventResult::None
@@ -114,7 +116,7 @@ impl UiElement {
         }
     }
 
-    pub fn get_instances(&mut self, ui: &mut UiState, instances: &mut Vec<UiInstance>) {
+    pub fn get_instances(&mut self, ui: &mut UiState, instances: &mut DrawData) {
         if self.visible {
             if self.typ == ElementType::Text {
                 let size = self.parent().size;
@@ -123,7 +125,7 @@ impl UiElement {
                 let text = unsafe { self.downcast_mut::<Text>() };
                 text.get_font_instances(size, pos, ui, element);
             } else {
-                instances.push(self.element.instance(self));
+                self.element.instance(self, instances);
             }
         }
 
@@ -202,7 +204,6 @@ impl UiElement {
     pub fn update_cursor(
         &mut self,
         ui: &mut UiState,
-        cursor_pos: Vec2,
         event: UiEvent,
     ) -> EventResult {
         if !self.visible {
@@ -211,10 +212,10 @@ impl UiElement {
 
         let (size, pos) = (self.size, self.pos);
 
-        if self.is_in(cursor_pos) {
+        if self.is_in(ui.cursor_pos) {
             if let Some(childs) = self.element.childs_mut() {
                 for child in childs {
-                    let result = child.update_cursor(ui, cursor_pos, event);
+                    let result = child.update_cursor(ui, event);
                     if !result.is_none() {
                         return result;
                     };
@@ -226,7 +227,7 @@ impl UiElement {
 
             match self.typ {
                 ElementType::Button => {
-                    result = self.element.interaction(element, ui, cursor_pos, event);
+                    result = self.element.interaction(element, ui, event);
                 }
                 _ => (),
             }

@@ -8,13 +8,14 @@ use winit::dpi::PhysicalSize;
 use super::{
     BuildContext, Font, UiElement,
     raw_ui_element::UiEvent,
-    ui_element::{Element, TypeConst},
-    ui_pipeline,
+    ui_element::{Element, TypeConst}
 };
 use crate::{
-    graphics::{Buffer, FontInstance, UiInstance, VkBase},
+    graphics::{Buffer, FontInstance, TextureAtlas, UiInstance, VertexUi, VkBase},
     primitives::Vec2,
-    ui::ElementType,
+    ui::{
+        draw_data::{DrawData, InstanceData}, ui_pipeline::Pipeline, ElementType
+    },
 };
 
 #[derive(Debug)]
@@ -28,6 +29,7 @@ pub struct UiState {
     pub dirty: DirtyFlags,
     pub texts: Vec<FontInstance>,
     pub event: Option<QueuedEvent>,
+    pub texture_atlas: TextureAtlas,
     id_gen: AtomicU32,
 
     pipeline_layout: vk::PipelineLayout,
@@ -55,6 +57,7 @@ impl UiState {
             pipeline_layout: vk::PipelineLayout::null(),
             pipeline: vk::Pipeline::null(),
             instance_buffer: Buffer::null(),
+            texture_atlas: TextureAtlas::new((1024, 1024)),
 
             font_pipeline_layout: vk::PipelineLayout::null(),
             font_pipeline: vk::Pipeline::null(),
@@ -119,6 +122,7 @@ impl UiState {
     pub fn init_graphics(
         &mut self,
         base: &VkBase,
+        cmd_pool: vk::CommandPool,
         window_size: PhysicalSize<u32>,
         render_pass: vk::RenderPass,
         descriptor: vk::DescriptorSetLayout,
@@ -126,15 +130,23 @@ impl UiState {
         font_shader: (&[u8], &[u8]),
     ) {
         self.size = window_size.into();
-        (self.pipeline_layout, self.pipeline) =
-            ui_pipeline::basic_ui_pipeline(base, window_size, render_pass, descriptor, shaders);
-        (self.font_pipeline_layout, self.font_pipeline) = super::font_pipeline::font_pipeline(
+        (self.pipeline_layout, self.pipeline) = Pipeline::create_ui::<VertexUi>(
+            base,
+            window_size,
+            render_pass,
+            descriptor,
+            shaders,
+        );
+        (self.font_pipeline_layout, self.font_pipeline) = Pipeline::create_ui::<FontInstance>(
             base,
             window_size,
             render_pass,
             descriptor,
             font_shader,
-        )
+        );
+
+        self.texture_atlas
+            .load_directory("C:/Dev/home_storage_vulkan/textures", base, cmd_pool);
     }
 
     pub fn build(&mut self) {
@@ -148,17 +160,16 @@ impl UiState {
         }
     }
 
-    pub fn get_instaces(&mut self) -> Vec<UiInstance> {
+    pub fn get_instaces(&mut self) -> DrawData {
         self.dirty = DirtyFlags::None;
         self.texts.clear();
 
-        let mut instances = Vec::new();
-        let self_copy = unsafe { &mut *(self as *mut UiState) };
-
         if !self.visible || self.elements.len() == 0 {
-            instances.push(UiInstance::default());
-            return instances;
+            return DrawData::default();
         }
+
+        let mut instances = DrawData::default();
+        let self_copy = unsafe { &mut *(self as *mut UiState) };
 
         for raw_e in &mut self.elements {
             raw_e.get_instances(self_copy, &mut instances);
@@ -193,14 +204,15 @@ impl UiState {
 
         Some(h)
     }
-
+    
     pub fn update_cursor(&mut self, cursor_pos: Vec2, event: UiEvent) -> EventResult {
         //0 = no event
         //1 = no event break
         //2 = old event
         //3 = new event
-
+        
         //This is perfectly Safe dont worry
+        self.cursor_pos = cursor_pos;
         let self_clone = unsafe { &mut *(self as *mut UiState) };
         let mut result = EventResult::None;
 
@@ -210,21 +222,20 @@ impl UiState {
 
             let element_result = element
                 .element
-                .interaction(element2, self_clone, cursor_pos, event);
+                .interaction(element2, self_clone, event);
             if !element_result.is_none() {
                 return element_result;
             }
         }
 
         for element in &mut self.elements {
-            let r = element.update_cursor(self_clone, cursor_pos, event);
+            let r = element.update_cursor(self_clone, event);
             if !r.is_none() {
                 result = r;
                 break;
             }
         }
 
-        self.cursor_pos = cursor_pos;
         result
     }
 
@@ -235,20 +246,21 @@ impl UiState {
 
     pub fn update(&mut self, base: &VkBase, command_pool: vk::CommandPool) {
         if matches!(self.dirty, DirtyFlags::Resize) {
-            self.dirty = DirtyFlags::None;
             self.build();
             let ui_instances = self.get_instaces();
             if !ui_instances.is_empty() || !self.texts.is_empty() {
                 unsafe { base.device.queue_wait_idle(base.queue).unwrap() };
             }
-            if !ui_instances.is_empty() {
-                self.instance_buffer.destroy(&base.device);
-                self.instance_buffer = Buffer::device_local_slow(
-                    &base,
-                    command_pool,
-                    &ui_instances,
-                    vk::BufferUsageFlags::VERTEX_BUFFER,
-                );
+            for draw in ui_instances.groups {
+                if let InstanceData::Basic(data) = draw.data {
+                    self.instance_buffer.destroy(&base.device);
+                    self.instance_buffer = Buffer::device_local_slow(
+                        &base,
+                        command_pool,
+                        &data,
+                        vk::BufferUsageFlags::VERTEX_BUFFER,
+                    );
+                }
             }
 
             if !self.texts.is_empty() {
@@ -264,14 +276,16 @@ impl UiState {
         } else if matches!(self.dirty, DirtyFlags::Color | DirtyFlags::Size) {
             let ui_instances = self.get_instaces();
 
-            if !ui_instances.is_empty() {
-                self.instance_buffer.destroy(&base.device);
-                self.instance_buffer = Buffer::device_local_slow(
-                    &base,
-                    command_pool,
-                    &ui_instances,
-                    vk::BufferUsageFlags::VERTEX_BUFFER,
-                );
+            for draw in ui_instances.groups {
+                if let InstanceData::Basic(data) = draw.data {
+                    self.instance_buffer.destroy(&base.device);
+                    self.instance_buffer = Buffer::device_local_slow(
+                        &base,
+                        command_pool,
+                        &data,
+                        vk::BufferUsageFlags::VERTEX_BUFFER,
+                    );
+                }
             }
 
             if !self.texts.is_empty() {
@@ -340,6 +354,7 @@ impl UiState {
             device.free_memory(self.font_instance_buffer.mem, None);
             device.destroy_buffer(self.font_instance_buffer.inner, None);
         }
+        self.texture_atlas.destroy(device);
     }
 }
 

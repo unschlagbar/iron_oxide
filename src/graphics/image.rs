@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Formatter};
+
 use ash::vk::{self, ImageView};
 
 use super::{Buffer, VkBase};
@@ -226,5 +228,15 @@ impl Image {
             device.destroy_image(self.inner, None);
             device.free_memory(self.mem, None);
         }
+    }
+}
+
+impl Debug for Image {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Image {{ format: {:?}, layout: {:?} }}",
+            self.format, self.layout
+        )
     }
 }

@@ -1,11 +1,12 @@
 #![allow(dead_code)]
 
 use std::{
-    alloc::{alloc, dealloc, Layout},
+    alloc::{Layout, alloc, dealloc},
     fmt::{Debug, Formatter, Write},
     mem::forget,
     ops::{Index, IndexMut},
-    ptr::NonNull, slice,
+    ptr::NonNull,
+    slice,
 };
 
 use rand;
@@ -190,6 +191,21 @@ impl Matrix {
         out
     }
 
+    pub fn split_at_owned(mut self, index: usize) -> (Self, Self) {
+        assert!(self.rows > index);
+        assert!(index != 0);
+
+        let second = Self {
+            data: unsafe { self.data.add(index * self.cols) },
+            rows: self.rows - index,
+            cols: self.cols,
+        };
+
+        self.rows = index;
+
+        (self, second)
+    }
+
     #[track_caller]
     pub fn clear(&mut self) {
         unsafe { self.data.write_bytes(0, self.flat_len()) };
@@ -232,7 +248,7 @@ impl Matrix {
         let out = out.as_slice_mut();
 
         for i in 0..self.flat_len() {
-           out[i] = a[i] * b[i] 
+            out[i] = a[i] * b[i]
         }
     }
 
@@ -248,7 +264,7 @@ impl Matrix {
         let out = output.as_slice_mut();
 
         for i in 0..self.flat_len() {
-           out[i] = a[i] * b[i] 
+            out[i] = a[i] * b[i]
         }
         output
     }
@@ -303,13 +319,23 @@ impl Matrix {
         assert_eq!(self.cols, other.cols);
         let a = self.as_slice_mut();
         let b = other.as_slice();
-        for i in 0..a.len() { a[i] += scale * b[i]; }
+        for i in 0..a.len() {
+            a[i] += scale * b[i];
+        }
     }
 
     #[track_caller]
     pub fn add_inplace(&mut self, other: &Matrix) {
-        assert_eq!(self.rows, other.rows, "rows do not match, {} to {}", self.rows, other.rows);
-        assert_eq!(self.cols, other.cols, "cols do not match, {} to {}", self.cols, other.cols);
+        assert_eq!(
+            self.rows, other.rows,
+            "rows do not match, {} to {}",
+            self.rows, other.rows
+        );
+        assert_eq!(
+            self.cols, other.cols,
+            "cols do not match, {} to {}",
+            self.cols, other.cols
+        );
 
         let a = self.as_slice_mut();
         let b = other.as_slice();
@@ -319,10 +345,18 @@ impl Matrix {
         }
     }
 
-        #[track_caller]
+    #[track_caller]
     pub fn sub_inplace(&mut self, other: &Matrix) {
-        assert_eq!(self.rows, other.rows, "rows do not match, {} to {}", self.rows, other.rows);
-        assert_eq!(self.cols, other.cols, "cols do not match, {} to {}", self.cols, other.cols);
+        assert_eq!(
+            self.rows, other.rows,
+            "rows do not match, {} to {}",
+            self.rows, other.rows
+        );
+        assert_eq!(
+            self.cols, other.cols,
+            "cols do not match, {} to {}",
+            self.cols, other.cols
+        );
 
         let self_slice = self.as_slice_mut();
         let other_slice = other.as_slice();
@@ -339,7 +373,7 @@ impl Matrix {
 
         let this = self.as_slice();
         let other = other.as_slice();
-        let out: Box<[f32]>  = this.iter().zip(other).map(|(x, y)| x + y).collect();
+        let out: Box<[f32]> = this.iter().zip(other).map(|(x, y)| x + y).collect();
         Matrix::from_box(out, self.rows, self.cols)
     }
 
@@ -356,20 +390,24 @@ impl Matrix {
 
     #[track_caller]
     pub fn clip(&mut self, min: f32, max: f32) {
-        self.as_slice_mut().iter_mut().for_each(|x| *x = x.clamp(min, max))
+        self.as_slice_mut()
+            .iter_mut()
+            .for_each(|x| *x = x.clamp(min, max))
     }
 
     #[track_caller]
     pub fn row_mul(&self, row: &[f32]) -> Vec<f32> {
         assert_eq!(self.rows, row.len());
 
-        (0..self.cols).map(|j| {
-            let mut s = 0.0;
-            for i in 0..row.len() {
-                s += row[i] * self[i][j];
-            }
-            s
-        }).collect()
+        (0..self.cols)
+            .map(|j| {
+                let mut s = 0.0;
+                for i in 0..row.len() {
+                    s += row[i] * self[i][j];
+                }
+                s
+            })
+            .collect()
     }
 }
 
@@ -429,13 +467,14 @@ impl Index<usize> for Matrix {
     fn index(&self, index: usize) -> &Self::Output {
         debug_assert!(
             index < self.rows,
-            "Index {index} out of bounds for matrix with {} rows", self.rows
+            "Index {index} out of bounds for matrix with {} rows",
+            self.rows
         );
 
         let idx = index * self.cols;
         unsafe {
             let data = self.data.as_ptr().add(idx);
-            slice::from_raw_parts(data, self.cols) 
+            slice::from_raw_parts(data, self.cols)
         }
     }
 }
@@ -444,17 +483,17 @@ impl IndexMut<usize> for Matrix {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         debug_assert!(
             index < self.rows,
-            "Index {index} out of bounds for matrix with {} rows", self.rows
+            "Index {index} out of bounds for matrix with {} rows",
+            self.rows
         );
 
         let idx = index * self.cols;
         unsafe {
             let data = self.data.as_ptr().add(idx);
-            slice::from_raw_parts_mut(data, self.cols) 
+            slice::from_raw_parts_mut(data, self.cols)
         }
     }
 }
-
 
 impl Drop for Matrix {
     fn drop(&mut self) {

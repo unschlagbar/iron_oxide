@@ -3,9 +3,12 @@ use super::{
     ui_element::{Element, TypeConst},
 };
 use crate::{
-    graphics::{UiInstance, formats::Color},
+    graphics::formats::Color,
     primitives::Vec2,
-    ui::FlexDirection,
+    ui::{
+        FlexDirection,
+        draw_data::{DrawData, InstanceData},
+    },
 };
 
 pub struct AbsoluteLayout {
@@ -37,18 +40,12 @@ impl Element for AbsoluteLayout {
         } else {
             self.height.pixely(space)
         };
-        let mut size = Vec2::new(
-            width,
-            height
-        );
+        let mut size = Vec2::new(width, height);
 
         let mut pos = self.align.get_pos(
             space,
             size,
-            Vec2::new(
-                self.x.pixelx(space),
-                self.y.pixely(space),
-            ),
+            Vec2::new(self.x.pixelx(space), self.y.pixely(space)),
         );
 
         let comp = &mut self.comp;
@@ -85,7 +82,6 @@ impl Element for AbsoluteLayout {
         if matches!(self.height, UiUnit::Auto) {
             size.y = child_context.start_pos.y;
             dbg!(child_context.start_pos.y);
-
         }
 
         context.apply_data(pos, size);
@@ -95,9 +91,15 @@ impl Element for AbsoluteLayout {
         (self.width, self.height)
     }
 
-    fn instance(&self, element: &UiElement) -> UiInstance {
-        self.comp
-            .to_instance(self.color, self.border_color, element.z_index)
+    fn instance(&self, element: &UiElement, draw_data: &mut DrawData) {
+        if let InstanceData::Basic(vec) = draw_data.get_group(0, 0) {
+            vec.push(
+                self.comp
+                    .to_instance(self.color, self.border_color, element.z_index),
+            );
+        } else {
+            unreachable!()
+        }
     }
 
     fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {

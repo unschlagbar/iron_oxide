@@ -5,7 +5,11 @@ use super::{
 use crate::{
     graphics::formats::Color,
     primitives::Vec2,
-    ui::{CallContext, FlexDirection, QueuedEvent, UiEvent, UiState, ui_state::EventResult},
+    ui::{
+        CallContext, FlexDirection, QueuedEvent, UiEvent, UiState,
+        draw_data::{DrawData, InstanceData},
+        ui_state::EventResult,
+    },
 };
 
 pub struct Button {
@@ -85,9 +89,15 @@ impl Element for Button {
         (self.width, self.height)
     }
 
-    fn instance(&self, element: &UiElement) -> crate::graphics::UiInstance {
-        self.comp
-            .to_instance(self.color, self.border_color, element.z_index)
+    fn instance(&self, element: &UiElement, draw_data: &mut DrawData) {
+        if let InstanceData::Basic(vec) = draw_data.get_group(0, 0) {
+            vec.push(
+                self.comp
+                    .to_instance(self.color, self.border_color, element.z_index),
+            );
+        } else {
+            unreachable!()
+        }
     }
 
     fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
@@ -106,7 +116,6 @@ impl Element for Button {
         &mut self,
         element: &mut UiElement,
         ui: &mut UiState,
-        cursor_pos: Vec2,
         event: UiEvent,
     ) -> EventResult {
         let button: &mut Button = self;
@@ -126,7 +135,7 @@ impl Element for Button {
                 ui.selected.set_pressed(element as _);
             }
             UiEvent::Release => {
-                if element.is_in(cursor_pos) {
+                if element.is_in(ui.cursor_pos) {
                     button.state = ButtonState::Hovered;
                     ui.selected.set_selected(element);
                 } else {
@@ -137,7 +146,7 @@ impl Element for Button {
             }
             UiEvent::Move => {
                 if !matches!(button.state, ButtonState::Pressed) {
-                    if matches!(result, EventResult::New) || element.is_in(cursor_pos) {
+                    if matches!(result, EventResult::New) || element.is_in(ui.cursor_pos) {
                         button.state = ButtonState::Hovered;
                         ui.selected.set_selected(element);
                     } else {
