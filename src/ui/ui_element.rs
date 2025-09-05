@@ -201,11 +201,7 @@ impl UiElement {
     }
 
     #[allow(unused)]
-    pub fn update_cursor(
-        &mut self,
-        ui: &mut UiState,
-        event: UiEvent,
-    ) -> EventResult {
+    pub fn update_cursor(&mut self, ui: &mut UiState, event: UiEvent) -> EventResult {
         if !self.visible {
             return EventResult::None;
         }

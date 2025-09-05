@@ -33,7 +33,7 @@ impl Matrix {
             NonNull::new_unchecked(ptr)
         };
 
-        Matrix { data, rows, cols }
+        Self { data, rows, cols }
     }
 
     #[track_caller]
@@ -53,14 +53,14 @@ impl Matrix {
             NonNull::new_unchecked(ptr)
         };
 
-        Matrix { data, rows, cols }
+        Self { data, rows, cols }
     }
 
     pub fn random(rows: usize, cols: usize, scale: f32) -> Self {
         let mut this = Self::uninit(rows, cols);
         for x in 0..this.rows {
             for y in 0..this.cols {
-                this[x][y] = rand::random_range(-1.0..1.0) * scale;
+                this[x][y] = rand::random_range(-scale..scale);
             }
         }
         this
@@ -101,7 +101,7 @@ impl Matrix {
             rows * cols,
             "Slice-Länge stimmt nicht mit den Matrix-Dimensionen überein"
         );
-        let matrix = Matrix::uninit(rows, cols);
+        let matrix = Self::uninit(rows, cols);
 
         unsafe {
             slice
@@ -136,7 +136,7 @@ impl Matrix {
         std::mem::forget(vec);
 
         // Rückgabe einer neuen Matrix mit demselben Speicher
-        Matrix {
+        Self {
             data: unsafe { NonNull::new_unchecked(ptr) },
             rows,
             cols,
@@ -159,7 +159,7 @@ impl Matrix {
         std::mem::forget(data);
 
         // Rückgabe einer neuen Matrix mit demselben Speicher
-        Matrix {
+        Self {
             data: unsafe { NonNull::new_unchecked(ptr) },
             rows,
             cols,
@@ -217,22 +217,17 @@ impl Matrix {
     }
 
     #[track_caller]
-    pub fn concat_horizontal(&self, other: &Matrix) -> Matrix {
+    pub fn concat_horizontal(&self, other: &Self) -> Self {
         assert_eq!(self.rows, other.rows);
         let rows = self.rows;
         let cols_left = self.cols;
         let cols_right = other.cols;
-        let mut out = Matrix::uninit(rows, cols_left + cols_right);
+        let mut out = Self::uninit(rows, cols_left + cols_right);
         for r in 0..rows {
             out[r][0..cols_left].copy_from_slice(&self[r]);
             out[r][cols_left..cols_left + cols_right].copy_from_slice(&other[r]);
         }
         out
-    }
-
-    #[inline]
-    pub fn zero(&mut self) {
-        unsafe { self.data.write_bytes(0, self.flat_len()) };
     }
 
     #[track_caller]
@@ -257,7 +252,7 @@ impl Matrix {
         assert_eq!(self.rows, b.rows);
         assert_eq!(self.cols, b.cols);
 
-        let mut output = Matrix::uninit(self.rows, self.cols);
+        let mut output = Self::uninit(self.rows, self.cols);
 
         let a = self.as_slice();
         let b = b.as_slice();
@@ -273,7 +268,7 @@ impl Matrix {
     pub fn mul(&self, other: &Self) -> Self {
         debug_assert_eq!(self.cols, other.rows);
 
-        let mut result = Matrix::uninit(self.rows, other.cols);
+        let mut result = Self::uninit(self.rows, other.cols);
 
         for i in 0..self.rows {
             for j in 0..other.cols {
@@ -289,8 +284,8 @@ impl Matrix {
     }
 
     #[track_caller]
-    pub fn sigmoid(&self) -> Matrix {
-        let mut output = Matrix::uninit(self.rows(), self.cols());
+    pub fn sigmoid(&self) -> Self {
+        let mut output = Self::uninit(self.rows(), self.cols());
         let input_data = self.as_slice();
         let output_data = output.as_slice_mut();
 
@@ -302,8 +297,8 @@ impl Matrix {
 
     #[track_caller]
     /// Elementweise tanh-Aktivierung
-    pub fn tanh(&self) -> Matrix {
-        let mut output = Matrix::uninit(self.rows(), self.cols());
+    pub fn tanh(&self) -> Self {
+        let mut output = Self::uninit(self.rows(), self.cols());
         let input_data = self.as_slice();
         let output_data = output.as_slice_mut();
 
@@ -314,7 +309,7 @@ impl Matrix {
     }
 
     #[track_caller]
-    pub fn add_inplace_scaled(&mut self, other: &Matrix, scale: f32) {
+    pub fn add_inplace_scaled(&mut self, other: &Self, scale: f32) {
         assert_eq!(self.rows, other.rows);
         assert_eq!(self.cols, other.cols);
         let a = self.as_slice_mut();
@@ -325,7 +320,7 @@ impl Matrix {
     }
 
     #[track_caller]
-    pub fn add_inplace(&mut self, other: &Matrix) {
+    pub fn add_inplace(&mut self, other: &Self) {
         assert_eq!(
             self.rows, other.rows,
             "rows do not match, {} to {}",
@@ -346,7 +341,7 @@ impl Matrix {
     }
 
     #[track_caller]
-    pub fn sub_inplace(&mut self, other: &Matrix) {
+    pub fn sub_inplace(&mut self, other: &Self) {
         assert_eq!(
             self.rows, other.rows,
             "rows do not match, {} to {}",
@@ -373,13 +368,13 @@ impl Matrix {
 
         let this = self.as_slice();
         let other = other.as_slice();
-        let out: Box<[f32]> = this.iter().zip(other).map(|(x, y)| x + y).collect();
-        Matrix::from_box(out, self.rows, self.cols)
+        let out = this.iter().zip(other).map(|(x, y)| x + y).collect();
+        Self::from_box(out, self.rows, self.cols)
     }
 
     #[track_caller]
-    pub fn transpose(&self) -> Matrix {
-        let mut out = Matrix::uninit(self.cols, self.rows);
+    pub fn transpose(&self) -> Self {
+        let mut out = Self::uninit(self.cols, self.rows);
         for r in 0..self.rows {
             for c in 0..self.cols {
                 out[(c, r)] = self[(r, c)];

@@ -17,5 +17,5 @@ pub use shader_modul::create_shader_modul;
 pub use single_time_commands::SinlgeTimeCommands;
 pub use texture_atlas::TextureAtlas;
 pub use vertex_ui::UiInstance;
+pub use vertex_ui::AtlasInstance;
 pub use vertex_ui::VertexDescription;
-pub use vertex_ui::VertexUi;

@@ -8,10 +8,10 @@ use winit::dpi::PhysicalSize;
 use super::{
     BuildContext, Font, UiElement,
     raw_ui_element::UiEvent,
-    ui_element::{Element, TypeConst}
+    ui_element::{Element, TypeConst},
 };
 use crate::{
-    graphics::{Buffer, FontInstance, TextureAtlas, UiInstance, VertexUi, VkBase},
+    graphics::{AtlasInstance, Buffer, FontInstance, TextureAtlas, UiInstance, VkBase},
     primitives::Vec2,
     ui::{
         draw_data::{DrawData, InstanceData}, ui_pipeline::Pipeline, ElementType
@@ -32,12 +32,11 @@ pub struct UiState {
     pub texture_atlas: TextureAtlas,
     id_gen: AtomicU32,
 
-    pipeline_layout: vk::PipelineLayout,
-    pipeline: vk::Pipeline,
+    base_pipeline: Pipeline,
+    font_pipeline: Pipeline,
+    atlas_pipeline: Pipeline,
+    
     instance_buffer: Buffer,
-
-    font_pipeline_layout: vk::PipelineLayout,
-    font_pipeline: vk::Pipeline,
     font_instance_buffer: Buffer,
 }
 
@@ -54,13 +53,13 @@ impl UiState {
             texts: Vec::new(),
             event: None,
             font: Font::parse_from_bytes(include_bytes!("../../font/std1.fef")),
-            pipeline_layout: vk::PipelineLayout::null(),
-            pipeline: vk::Pipeline::null(),
-            instance_buffer: Buffer::null(),
             texture_atlas: TextureAtlas::new((1024, 1024)),
 
-            font_pipeline_layout: vk::PipelineLayout::null(),
-            font_pipeline: vk::Pipeline::null(),
+            base_pipeline: Pipeline::null(),
+            font_pipeline: Pipeline::null(),
+            atlas_pipeline: Pipeline::null(),
+            
+            instance_buffer: Buffer::null(),
             font_instance_buffer: Buffer::null(),
         }
     }
@@ -126,24 +125,22 @@ impl UiState {
         window_size: PhysicalSize<u32>,
         render_pass: vk::RenderPass,
         descriptor: vk::DescriptorSetLayout,
-        shaders: (&[u8], &[u8]),
-        font_shader: (&[u8], &[u8]),
+        base_shaders: (&[u8], &[u8]),
+        font_shaders: (&[u8], &[u8]),
+        atlas_shaders: (&[u8], &[u8]),
     ) {
         self.size = window_size.into();
-        (self.pipeline_layout, self.pipeline) = Pipeline::create_ui::<VertexUi>(
+        self.base_pipeline =
+            Pipeline::create_ui::<UiInstance>(base, window_size, render_pass, descriptor, base_shaders);
+        self.font_pipeline = Pipeline::create_ui::<FontInstance>(
             base,
             window_size,
             render_pass,
             descriptor,
-            shaders,
+            font_shaders,
         );
-        (self.font_pipeline_layout, self.font_pipeline) = Pipeline::create_ui::<FontInstance>(
-            base,
-            window_size,
-            render_pass,
-            descriptor,
-            font_shader,
-        );
+
+        self.atlas_pipeline = Pipeline::create_ui::<AtlasInstance>(base, window_size, render_pass, descriptor, atlas_shaders);
 
         self.texture_atlas
             .load_directory("C:/Dev/home_storage_vulkan/textures", base, cmd_pool);
@@ -204,13 +201,13 @@ impl UiState {
 
         Some(h)
     }
-    
+
     pub fn update_cursor(&mut self, cursor_pos: Vec2, event: UiEvent) -> EventResult {
         //0 = no event
         //1 = no event break
         //2 = old event
         //3 = new event
-        
+
         //This is perfectly Safe dont worry
         self.cursor_pos = cursor_pos;
         let self_clone = unsafe { &mut *(self as *mut UiState) };
@@ -220,9 +217,7 @@ impl UiState {
             let element = unsafe { &mut *self.selected.ptr };
             let element2 = unsafe { &mut *self.selected.ptr };
 
-            let element_result = element
-                .element
-                .interaction(element2, self_clone, event);
+            let element_result = element.element.interaction(element2, self_clone, event);
             if !element_result.is_none() {
                 return element_result;
             }
@@ -311,12 +306,16 @@ impl UiState {
         descriptor_set: vk::DescriptorSet,
     ) {
         unsafe {
-            device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, self.pipeline);
+            device.cmd_bind_pipeline(
+                cmd,
+                vk::PipelineBindPoint::GRAPHICS,
+                self.base_pipeline.this,
+            );
             device.cmd_bind_vertex_buffers(cmd, 0, &[self.instance_buffer.inner], &[0]);
             device.cmd_bind_descriptor_sets(
                 cmd,
                 vk::PipelineBindPoint::GRAPHICS,
-                self.pipeline_layout,
+                self.base_pipeline.layout,
                 0,
                 &[descriptor_set],
                 &[],
@@ -330,7 +329,11 @@ impl UiState {
             );
 
             if !self.texts.is_empty() {
-                device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, self.font_pipeline);
+                device.cmd_bind_pipeline(
+                    cmd,
+                    vk::PipelineBindPoint::GRAPHICS,
+                    self.font_pipeline.this,
+                );
                 device.cmd_bind_vertex_buffers(cmd, 0, &[self.font_instance_buffer.inner], &[0]);
                 device.cmd_draw(
                     cmd,
@@ -345,12 +348,12 @@ impl UiState {
 
     pub fn destroy(&self, device: &ash::Device) {
         unsafe {
-            device.destroy_pipeline(self.pipeline, None);
-            device.destroy_pipeline_layout(self.pipeline_layout, None);
+            self.base_pipeline.destroy(device);
+            self.font_pipeline.destroy(device);
+            self.atlas_pipeline.destroy(device);
+            
             device.free_memory(self.instance_buffer.mem, None);
             device.destroy_buffer(self.instance_buffer.inner, None);
-            device.destroy_pipeline(self.font_pipeline, None);
-            device.destroy_pipeline_layout(self.font_pipeline_layout, None);
             device.free_memory(self.font_instance_buffer.mem, None);
             device.destroy_buffer(self.font_instance_buffer.inner, None);
         }

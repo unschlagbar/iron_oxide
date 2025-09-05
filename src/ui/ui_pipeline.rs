@@ -4,7 +4,11 @@ use winit::dpi::PhysicalSize;
 
 use graphics::create_shader_modul;
 
-pub struct Pipeline {}
+#[derive(Debug)]
+pub struct Pipeline {
+    pub this: vk::Pipeline,
+    pub layout: vk::PipelineLayout,
+}
 
 impl Pipeline {
     pub fn create_ui<T: VertexDescription>(
@@ -13,7 +17,7 @@ impl Pipeline {
         render_pass: vk::RenderPass,
         descriptor_set_layout: vk::DescriptorSetLayout,
         shaders: (&[u8], &[u8]),
-    ) -> (vk::PipelineLayout, vk::Pipeline) {
+    ) -> Self {
         let vertex_shader_buff = shaders.0;
         let fragment_shader_buff = shaders.1;
 
@@ -122,15 +126,15 @@ impl Pipeline {
             ..Default::default()
         };
 
-        let pipeline_layout_info = vk::PipelineLayoutCreateInfo {
+        let layout_info = vk::PipelineLayoutCreateInfo {
             set_layout_count: 1,
             p_set_layouts: &descriptor_set_layout,
             ..Default::default()
         };
 
-        let pipeline_layout = unsafe {
+        let layout = unsafe {
             base.device
-                .create_pipeline_layout(&pipeline_layout_info, None)
+                .create_pipeline_layout(&layout_info, None)
                 .unwrap()
         };
 
@@ -156,14 +160,14 @@ impl Pipeline {
             p_color_blend_state: &color_blending,
             p_depth_stencil_state: &depth_stencil,
             p_dynamic_state: &dynamic_state,
-            layout: pipeline_layout,
+            layout,
             render_pass,
             subpass: 0,
             base_pipeline_index: -1,
             ..Default::default()
         };
 
-        let pipelines = unsafe {
+        let this = unsafe {
             base.device
                 .create_graphics_pipelines(vk::PipelineCache::null(), &[main_create_info], None)
                 .unwrap()[0]
@@ -176,6 +180,20 @@ impl Pipeline {
                 .destroy_shader_module(fragment_shader_module, None);
         }
 
-        (pipeline_layout, pipelines)
+        Self { this, layout }
+    }
+
+    pub fn null() -> Self {
+        Self {
+            this: vk::Pipeline::null(),
+            layout: vk::PipelineLayout::null(),
+        }
+    }
+
+    pub fn destroy(&self, device: &ash::Device) {
+        unsafe {
+            device.destroy_pipeline(self.this, None);
+            device.destroy_pipeline_layout(self.layout, None);
+        }
     }
 }

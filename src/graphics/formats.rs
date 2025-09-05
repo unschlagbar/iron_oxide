@@ -162,7 +162,7 @@ impl RGBA {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Default)]
 pub struct Color {
     pub r: f32,
     pub g: f32,
