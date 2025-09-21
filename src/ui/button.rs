@@ -118,12 +118,12 @@ impl Element for Button {
         ui: &mut UiState,
         event: UiEvent,
     ) -> EventResult {
-        let button: &mut Button = self;
+        let this: &mut Self = self;
         let mut result;
 
-        ui.set_event(QueuedEvent::new(element, event, button.message));
+        ui.set_event(QueuedEvent::new(element, event, this.message));
 
-        if matches!(button.state, ButtonState::Normal | ButtonState::Disabled) {
+        if matches!(this.state, ButtonState::Normal | ButtonState::Disabled) {
             result = EventResult::New;
         } else {
             result = EventResult::Old;
@@ -131,36 +131,37 @@ impl Element for Button {
 
         match event {
             UiEvent::Press => {
-                button.state = ButtonState::Pressed;
+                this.state = ButtonState::Pressed;
                 ui.selected.set_pressed(element as _);
             }
             UiEvent::Release => {
                 if element.is_in(ui.cursor_pos) {
-                    button.state = ButtonState::Hovered;
+                    this.state = ButtonState::Hovered;
                     ui.selected.set_selected(element);
                 } else {
                     result = EventResult::None;
-                    button.state = ButtonState::Normal;
+                    this.state = ButtonState::Normal;
                     ui.selected.clear();
                 }
             }
             UiEvent::Move => {
-                if !matches!(button.state, ButtonState::Pressed) {
+                if !matches!(this.state, ButtonState::Pressed) {
                     if matches!(result, EventResult::New) || element.is_in(ui.cursor_pos) {
-                        button.state = ButtonState::Hovered;
+                        this.state = ButtonState::Hovered;
                         ui.selected.set_selected(element);
                     } else {
                         result = EventResult::None;
-                        button.state = ButtonState::Normal;
+                        this.state = ButtonState::Normal;
                         ui.selected.clear();
                     }
                 }
             }
+            _ => return EventResult::None,
         }
 
-        if !button.callback.is_null() {
+        if !this.callback.is_null() {
             let context = CallContext { ui, element, event };
-            button.callback.call(context);
+            this.callback.call(context);
         }
 
         result

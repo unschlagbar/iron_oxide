@@ -1,3 +1,5 @@
+use winit::event::MouseScrollDelta;
+
 use crate::{
     graphics::{UiInstance, formats::Color},
     primitives::Vec2,
@@ -56,4 +58,5 @@ pub enum UiEvent {
     Press,
     Release,
     Move,
+    Scroll(MouseScrollDelta),
 }

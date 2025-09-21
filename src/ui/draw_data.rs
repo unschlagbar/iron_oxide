@@ -10,7 +10,7 @@ impl DrawData {
         if let Some(idx) = self
             .groups
             .iter()
-            .position(|x| x.descriptor == descriptor && x.data.to_material_idx() == material)
+            .position(|x| x.descriptor == descriptor && x.data.material_idx() == material)
         {
             &mut self.groups[idx].data
         } else {
@@ -18,7 +18,7 @@ impl DrawData {
             let insert_pos = self
                 .groups
                 .iter()
-                .rposition(|x| x.data.to_material_idx() == material)
+                .rposition(|x| x.data.material_idx() == material)
                 .map(|idx| idx + 1)
                 .unwrap_or(0);
             self.groups.insert(
@@ -48,7 +48,7 @@ pub enum InstanceData {
 }
 
 impl InstanceData {
-    pub fn to_material_idx(&self) -> u32 {
+    pub fn material_idx(&self) -> u32 {
         match self {
             Self::Basic(_) => 0,
             Self::BasicCorner(_) => 1,

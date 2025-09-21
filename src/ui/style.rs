@@ -49,6 +49,10 @@ impl OutArea {
         Vec2::new(self.left.pixelx(space), self.top.pixely(space))
     }
 
+    pub fn end(&self, space: Vec2) -> Vec2 {
+        Vec2::new(self.right.pixelx(space), self.bottom.pixely(space))
+    }
+
     pub fn size(&self, space: Vec2) -> Vec2 {
         Vec2::new(
             self.left.pixelx(space) + self.right.pixelx(space),

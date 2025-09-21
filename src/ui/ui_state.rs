@@ -1,6 +1,6 @@
 use ash::vk;
 use std::{
-    ptr::null_mut,
+    ptr::{self, null_mut},
     sync::atomic::{AtomicU32, Ordering},
 };
 use winit::dpi::PhysicalSize;
@@ -210,7 +210,7 @@ impl UiState {
 
         //This is perfectly Safe dont worry
         self.cursor_pos = cursor_pos;
-        let self_clone = unsafe { &mut *(self as *mut UiState) };
+        let self_clone = unsafe { ptr::from_mut(self).as_mut().unwrap() };
         let mut result = EventResult::None;
 
         if !self.selected.is_none() {

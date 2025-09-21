@@ -1,4 +1,4 @@
-use std::{fmt::Debug, rc::Rc};
+use std::{fmt::Debug, ptr, rc::Rc};
 
 use super::{
     AbsoluteLayout, BuildContext, Button, ButtonState, CallContext, Container, ElementType, Text,
@@ -6,7 +6,7 @@ use super::{
 };
 use crate::{
     primitives::Vec2,
-    ui::{UiUnit, draw_data::DrawData},
+    ui::{draw_data::DrawData, ScrollPanel, UiUnit},
 };
 
 pub trait Element {
@@ -71,7 +71,7 @@ impl UiElement {
     }
 
     pub fn build(&mut self, context: &mut BuildContext) {
-        let element = unsafe { &*(self as *const UiElement) };
+        let element = unsafe { ptr::from_ref(self).as_ref().unwrap() };
         match &self.typ {
             ElementType::Block => {
                 let div: &mut Container = unsafe { self.downcast_mut() };
@@ -90,6 +90,11 @@ impl UiElement {
             }
             ElementType::Text => {
                 let div: &mut Text = unsafe { self.downcast_mut() };
+                div.build(context, element);
+                self.dirty = false;
+            }
+            ElementType::ScrollPanel => {
+                let div: &mut ScrollPanel = unsafe { self.downcast_mut() };
                 div.build(context, element);
                 self.dirty = false;
             }
@@ -219,10 +224,10 @@ impl UiElement {
             }
 
             let mut result = EventResult::None;
-            let element = unsafe { &mut *(self as *mut _) };
+            let element = unsafe { ptr::from_mut(self).as_mut().unwrap() };
 
             match self.typ {
-                ElementType::Button => {
+                ElementType::Button | ElementType::ScrollPanel => {
                     result = self.element.interaction(element, ui, event);
                 }
                 _ => (),

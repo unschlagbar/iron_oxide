@@ -18,6 +18,7 @@ mod absolute_layout;
 mod button;
 mod container;
 mod text;
+mod scroll_panel;
 
 pub use callback::CallContext;
 pub use callback::CallbackResult;
@@ -45,3 +46,4 @@ pub use button::Button;
 pub use button::ButtonState;
 pub use container::Container;
 pub use text::Text;
+pub use scroll_panel::ScrollPanel;
