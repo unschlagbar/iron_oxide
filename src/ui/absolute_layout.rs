@@ -1,13 +1,12 @@
 use super::{
-    Align, BuildContext, ElementType, OutArea, RawUiElement, UiElement, UiUnit,
+    Align, BuildContext, ElementType, OutArea, UiElement, UiUnit,
     ui_element::{Element, TypeConst},
 };
 use crate::{
-    graphics::formats::Color,
+    graphics::{formats::Color, UiInstance},
     primitives::Vec2,
     ui::{
-        FlexDirection,
-        draw_data::{DrawData, InstanceData},
+        draw_data::{DrawData, InstanceData}, FlexDirection
     },
 };
 
@@ -22,12 +21,11 @@ pub struct AbsoluteLayout {
     pub border: [f32; 4],
     pub corner: [UiUnit; 4],
     pub padding: OutArea,
-    pub comp: RawUiElement,
     pub childs: Vec<UiElement>,
 }
 
 impl Element for AbsoluteLayout {
-    fn build(&mut self, context: &mut BuildContext, _: &UiElement) {
+    fn build(&mut self, context: &mut BuildContext, element: &UiElement) {
         let space = context.available_size;
 
         let width = if matches!(self.width, UiUnit::Auto) {
@@ -48,26 +46,18 @@ impl Element for AbsoluteLayout {
             Vec2::new(self.x.pixelx(space), self.y.pixely(space)),
         );
 
-        let comp = &mut self.comp;
-
-        comp.border = self.border[0];
-        comp.corner = self.corner[0].pixelx(size);
-
         pos += context.child_start_pos;
 
         let mut child_context = BuildContext::new_from(
             context,
             size,
             pos + self.padding.start(size),
-            &comp,
+            element,
             FlexDirection::Vertical,
         );
 
         size.x += self.padding.x(child_context.available_size);
         size.y += self.padding.y(child_context.available_size);
-
-        comp.size = size;
-        comp.pos = pos;
 
         for element in self.childs.iter_mut() {
             element.build(&mut child_context);
@@ -94,8 +84,17 @@ impl Element for AbsoluteLayout {
     fn instance(&self, element: &UiElement, draw_data: &mut DrawData) {
         if let InstanceData::Basic(vec) = draw_data.get_group(0, 0) {
             vec.push(
-                self.comp
-                    .to_instance(self.color, self.border_color, element.z_index),
+                UiInstance {
+                color: self.color,
+                border_color: self.border_color,
+                border: self.border[0],
+                x: element.pos.x,
+                y: element.pos.y,
+                width: element.size.x,
+                height: element.size.y,
+                corner: self.corner[0].pixelx(element.size),
+                z_index: element.z_index,
+            }
             );
         } else {
             unreachable!()
@@ -122,7 +121,6 @@ impl TypeConst for AbsoluteLayout {
 impl Default for AbsoluteLayout {
     fn default() -> Self {
         Self {
-            comp: Default::default(),
             childs: Default::default(),
             align: Align::TopLeft,
             x: UiUnit::Px(10.0),

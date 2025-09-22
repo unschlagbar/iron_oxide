@@ -56,14 +56,22 @@ pub struct UiElement {
 }
 
 impl UiElement {
-    pub unsafe fn downcast<'a, T: Element>(&'a self) -> &'a T {
-        let raw: *const dyn Element = &*self.element as *const dyn Element;
-        unsafe { &*(raw as *const T) }
+    pub fn downcast<'a, T: Element + TypeConst>(&'a self) -> &'a T {
+        if T::ELEMENT_TYPE != self.typ {
+            panic!("Invalid downcast from {:?} to {:?}", self.typ, T::ELEMENT_TYPE);
+        } else {   
+            let raw: *const dyn Element = &*self.element as *const dyn Element;
+            unsafe { &*(raw as *const T) }
+        }
     }
 
-    pub unsafe fn downcast_mut<'a, T: Element>(&'a mut self) -> &'a mut T {
-        let raw: *mut dyn Element = &mut *self.element as *mut dyn Element;
-        unsafe { &mut *(raw as *mut T) }
+    pub fn downcast_mut<'a, T: Element + TypeConst>(&'a mut self) -> &'a mut T {
+        if T::ELEMENT_TYPE != self.typ {
+            panic!("Invalid downcast from {:?} to {:?}", self.typ, T::ELEMENT_TYPE);
+        } else {
+            let raw: *mut dyn Element = &mut *self.element as *mut dyn Element;
+            unsafe { &mut *(raw as *mut T) }
+        }
     }
 
     pub fn parent(&mut self) -> &mut UiElement {
@@ -74,27 +82,27 @@ impl UiElement {
         let element = unsafe { ptr::from_ref(self).as_ref().unwrap() };
         match &self.typ {
             ElementType::Block => {
-                let div: &mut Container = unsafe { self.downcast_mut() };
+                let div: &mut Container = self.downcast_mut();
                 div.build(context, element);
                 self.dirty = false;
             }
             ElementType::AbsoluteLayout => {
-                let div: &mut AbsoluteLayout = unsafe { self.downcast_mut() };
+                let div: &mut AbsoluteLayout = self.downcast_mut();
                 div.build(context, element);
                 self.dirty = false;
             }
             ElementType::Button => {
-                let div: &mut Button = unsafe { self.downcast_mut() };
+                let div: &mut Button = self.downcast_mut();
                 div.build(context, element);
                 self.dirty = false;
             }
             ElementType::Text => {
-                let div: &mut Text = unsafe { self.downcast_mut() };
+                let div: &mut Text = self.downcast_mut();
                 div.build(context, element);
                 self.dirty = false;
             }
             ElementType::ScrollPanel => {
-                let div: &mut ScrollPanel = unsafe { self.downcast_mut() };
+                let div: &mut ScrollPanel = self.downcast_mut();
                 div.build(context, element);
                 self.dirty = false;
             }
@@ -108,7 +116,7 @@ impl UiElement {
     pub fn end_selection(&mut self, ui: &mut UiState) {
         if self.typ == ElementType::Button {
             let element = unsafe { &mut *(self as *mut UiElement) };
-            let button: &mut Button = unsafe { self.downcast_mut() };
+            let button: &mut Button = self.downcast_mut();
             button.state = ButtonState::Normal;
             if !button.callback.is_null() {
                 let context = CallContext {
@@ -127,7 +135,7 @@ impl UiElement {
                 let size = self.parent().size;
                 let pos = self.parent().pos;
                 let element = unsafe { &*(self as *const UiElement) };
-                let text = unsafe { self.downcast_mut::<Text>() };
+                let text: &mut Text = self.downcast_mut();
                 text.get_font_instances(size, pos, ui, element);
             } else {
                 self.element.instance(self, instances);
@@ -201,7 +209,7 @@ impl UiElement {
         if !matches!(child.typ, ElementType::Text) {
             return None;
         }
-        let text_element: &Text = unsafe { child.downcast() };
+        let text_element: &Text = child.downcast();
         Some(&text_element.text)
     }
 

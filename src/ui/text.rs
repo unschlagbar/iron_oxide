@@ -102,7 +102,7 @@ impl ElementBuild for Text {
     fn wrap(self, ui_state: &super::UiState) -> UiElement {
         UiElement {
             id: ui_state.get_id(),
-            typ: ElementType::Text,
+            typ: Self::ELEMENT_TYPE,
             dirty: true,
             visible: true,
             size: Vec2::new(0.0, 0.0),

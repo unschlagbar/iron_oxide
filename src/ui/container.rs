@@ -1,20 +1,18 @@
 use super::{
-    BuildContext, ElementType, OutArea, Overflow, RawUiElement, UiElement, UiUnit,
+    BuildContext, ElementType, OutArea, UiElement, UiUnit,
     ui_element::{Element, ElementBuild, TypeConst},
 };
 use crate::{
-    graphics::formats::Color,
+    graphics::{formats::Color, UiInstance},
     primitives::Vec2,
     ui::{
-        FlexDirection,
-        draw_data::{DrawData, InstanceData},
+        draw_data::{DrawData, InstanceData}, FlexDirection
     },
 };
 
 pub struct Container {
     pub margin: OutArea,
     pub padding: OutArea,
-    pub overflow: Overflow,
     pub width: UiUnit,
     pub height: UiUnit,
     pub color: Color,
@@ -22,7 +20,6 @@ pub struct Container {
     pub flex_direction: FlexDirection,
     pub border: [f32; 4],
     pub corner: [UiUnit; 4],
-    pub comp: RawUiElement,
     pub childs: Vec<UiElement>,
 }
 
@@ -48,12 +45,6 @@ impl Element for Container {
 
         context.fits_in_line(&mut pos, outer_size);
 
-        let comp = &mut self.comp;
-        comp.border = self.border[0];
-        comp.corner = self.corner[0].pixelx(size);
-        comp.size = size;
-        comp.pos = pos;
-
         let available_size = size - self.padding.size(space);
         let child_start_pos = pos + self.padding.start(space);
 
@@ -61,7 +52,7 @@ impl Element for Container {
             context,
             available_size,
             child_start_pos,
-            &comp,
+            element,
             self.flex_direction,
         );
 
@@ -88,8 +79,17 @@ impl Element for Container {
     fn instance(&self, element: &UiElement, draw_data: &mut DrawData) {
         if let InstanceData::Basic(vec) = draw_data.get_group(0, 0) {
             vec.push(
-                self.comp
-                    .to_instance(self.color, self.border_color, element.z_index),
+                UiInstance {
+                color: self.color,
+                border_color: self.border_color,
+                border: self.border[0],
+                x: element.pos.x,
+                y: element.pos.y,
+                width: element.size.x,
+                height: element.size.y,
+                corner: self.corner[0].pixelx(element.size),
+                z_index: element.z_index,
+            }
             );
         } else {
             unreachable!()
@@ -114,7 +114,7 @@ impl ElementBuild for Container {
         let visible = self.color.a != 0.0;
         UiElement {
             id: ui_state.get_id(),
-            typ: ElementType::Block,
+            typ: Self::ELEMENT_TYPE,
             dirty: true,
             visible,
             size: Vec2::new(0.0, 0.0),
@@ -135,7 +135,6 @@ impl Default for Container {
         Self {
             margin: OutArea::default(),
             padding: OutArea::default(),
-            overflow: Overflow::hidden(),
             width: UiUnit::Px(100.0),
             height: UiUnit::Px(100.0),
             color: Color::DARKGREY,
@@ -143,7 +142,6 @@ impl Default for Container {
             flex_direction: FlexDirection::default(),
             border: [0.0; 4],
             corner: [UiUnit::Zero; 4],
-            comp: Default::default(),
             childs: Default::default(),
         }
     }

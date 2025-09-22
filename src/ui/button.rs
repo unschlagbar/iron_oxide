@@ -1,14 +1,14 @@
+use std::ptr;
+
 use super::{
-    BuildContext, ElementType, ErasedFnPointer, OutArea, Overflow, RawUiElement, UiElement, UiUnit,
+    BuildContext, ElementType, ErasedFnPointer, OutArea, Overflow, UiElement, UiUnit,
     ui_element::{Element, ElementBuild, TypeConst},
 };
 use crate::{
-    graphics::formats::Color,
+    graphics::{formats::Color, UiInstance},
     primitives::Vec2,
     ui::{
-        CallContext, FlexDirection, QueuedEvent, UiEvent, UiState,
-        draw_data::{DrawData, InstanceData},
-        ui_state::EventResult,
+        draw_data::{DrawData, InstanceData}, ui_state::EventResult, CallContext, FlexDirection, QueuedEvent, UiEvent, UiState
     },
 };
 
@@ -26,7 +26,6 @@ pub struct Button {
     pub state: ButtonState,
     pub callback: ErasedFnPointer,
     pub message: u16,
-    pub comp: RawUiElement,
     pub childs: Vec<UiElement>,
 }
 
@@ -52,12 +51,6 @@ impl Element for Button {
 
         context.fits_in_line(&mut pos, outer_size);
 
-        let comp = &mut self.comp;
-        comp.border = self.border[0];
-        comp.corner = self.corner[0].pixelx(size);
-        comp.size = size;
-        comp.pos = pos;
-
         let available_size = size - self.padding.size(space);
         let child_start_pos = pos + self.padding.start(space);
 
@@ -65,7 +58,7 @@ impl Element for Button {
             context,
             available_size,
             child_start_pos,
-            &comp,
+            element,
             self.flex_direction,
         );
 
@@ -92,14 +85,22 @@ impl Element for Button {
     fn instance(&self, element: &UiElement, draw_data: &mut DrawData) {
         if let InstanceData::Basic(vec) = draw_data.get_group(0, 0) {
             vec.push(
-                self.comp
-                    .to_instance(self.color, self.border_color, element.z_index),
+                UiInstance {
+                color: self.color,
+                border_color: self.border_color,
+                border: self.border[0],
+                x: element.pos.x,
+                y: element.pos.y,
+                width: element.size.x,
+                height: element.size.y,
+                corner: self.corner[0].pixelx(element.size),
+                z_index: element.z_index,
+            }
             );
         } else {
             unreachable!()
         }
     }
-
     fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
         Some(&mut self.childs)
     }
@@ -172,12 +173,12 @@ impl ElementBuild for Button {
     fn wrap(self, ui_state: &super::UiState) -> UiElement {
         UiElement {
             id: ui_state.get_id(),
-            typ: ElementType::Button,
+            typ: Self::ELEMENT_TYPE,
             dirty: true,
             visible: true,
-            size: Vec2::new(0.0, 0.0),
-            pos: Vec2::new(0.0, 0.0),
-            parent: std::ptr::null_mut(),
+            size: Vec2::zero(),
+            pos: Vec2::zero(),
+            parent: ptr::null_mut(),
             element: Box::new(self),
             z_index: 0.0,
         }
@@ -202,7 +203,6 @@ impl Default for Button {
             corner: [UiUnit::Px(5.0); 4],
             flex_direction: FlexDirection::Horizontal,
             state: ButtonState::Normal,
-            comp: Default::default(),
             childs: Default::default(),
             callback: ErasedFnPointer::null(),
             message: 0,

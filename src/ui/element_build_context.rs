@@ -1,8 +1,8 @@
-use std::ptr::null;
+use std::ptr::{self, null};
 
-use crate::{primitives::Vec2, ui::FlexDirection};
+use crate::{primitives::Vec2, ui::{FlexDirection, UiElement}};
 
-use super::{Font, RawUiElement};
+use super::Font;
 
 #[derive(Debug)]
 pub struct BuildContext {
@@ -13,7 +13,7 @@ pub struct BuildContext {
     pub line_offset: f32,
     pub start_pos: Vec2,
     pub flex_direction: FlexDirection,
-    pub parent: *const RawUiElement,
+    pub parent: *const UiElement,
     pub order: u16,
     font: *const Font,
 }
@@ -42,7 +42,7 @@ impl BuildContext {
         context: &Self,
         available_size: Vec2,
         child_start_pos: Vec2,
-        parent: &RawUiElement,
+        parent: &UiElement,
         flex_direction: FlexDirection,
     ) -> Self {
         Self {
@@ -53,7 +53,7 @@ impl BuildContext {
             line_offset: 0.0,
             start_pos: Vec2::default(),
             flex_direction,
-            parent: parent as *const RawUiElement,
+            parent: ptr::from_ref(parent),
             order: 0,
             font: context.font,
         }

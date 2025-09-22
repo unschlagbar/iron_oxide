@@ -7,7 +7,7 @@ use super::{
 use crate::{
     primitives::Vec2,
     ui::{
-        draw_data::DrawData, ui_state::EventResult, DirtyFlags, FlexDirection, OutArea, RawUiElement, UiEvent, UiState}
+        draw_data::DrawData, ui_state::EventResult, DirtyFlags, FlexDirection, OutArea,UiEvent, UiState}
     ,
 };
 
@@ -30,7 +30,7 @@ impl Element for ScrollPanel {
             context,
             Vec2::new(available_size.x, f32::MAX),
             child_start_pos + self.scroll_offset,
-            &RawUiElement::default(),
+            element,
             FlexDirection::Vertical,
         );
 
