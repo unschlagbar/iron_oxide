@@ -6,7 +6,7 @@ use super::{
 };
 use crate::{
     primitives::Vec2,
-    ui::{draw_data::DrawData, ScrollPanel, UiUnit},
+    ui::{ScrollPanel, UiUnit, draw_data::DrawData},
 };
 
 pub trait Element {
@@ -58,18 +58,26 @@ pub struct UiElement {
 impl UiElement {
     pub fn downcast<'a, T: Element + TypeConst>(&'a self) -> &'a T {
         if T::ELEMENT_TYPE != self.typ {
-            panic!("Invalid downcast from {:?} to {:?}", self.typ, T::ELEMENT_TYPE);
-        } else {   
-            let raw: *const dyn Element = &*self.element as *const dyn Element;
+            panic!(
+                "Invalid downcast from {:?} to {:?}",
+                self.typ,
+                T::ELEMENT_TYPE
+            );
+        } else {
+            let raw = ptr::from_ref(self.element.as_ref());
             unsafe { &*(raw as *const T) }
         }
     }
 
     pub fn downcast_mut<'a, T: Element + TypeConst>(&'a mut self) -> &'a mut T {
         if T::ELEMENT_TYPE != self.typ {
-            panic!("Invalid downcast from {:?} to {:?}", self.typ, T::ELEMENT_TYPE);
+            panic!(
+                "Invalid downcast from {:?} to {:?}",
+                self.typ,
+                T::ELEMENT_TYPE
+            );
         } else {
-            let raw: *mut dyn Element = &mut *self.element as *mut dyn Element;
+            let raw = ptr::from_mut(self.element.as_mut());
             unsafe { &mut *(raw as *mut T) }
         }
     }
@@ -247,7 +255,7 @@ impl UiElement {
     }
 
     pub fn add_to_parent(mut self, parent: &mut UiElement) {
-        self.parent = parent as *mut UiElement;
+        self.parent = ptr::from_mut(parent);
         parent.add_child(self);
     }
 
@@ -258,17 +266,12 @@ impl UiElement {
 
     #[inline]
     pub fn set_dirty(&self) {
-        unsafe {
-            (self as *const UiElement as *mut UiElement)
-                .as_mut()
-                .unwrap_unchecked()
-                .dirty = true
-        };
+        unsafe { (self as *const Self as *mut Self).as_mut().unwrap().dirty = true };
     }
 
     #[inline]
     pub fn add_child(&mut self, mut child: UiElement) {
-        child.parent = self as *mut UiElement;
+        child.parent = ptr::from_mut(self);
         self.element.add_child(child);
     }
 
@@ -279,7 +282,7 @@ impl UiElement {
     }
 
     pub fn init(&mut self) {
-        let parent = self as *mut UiElement;
+        let parent = ptr::from_mut(self);
         let z_index = self.z_index + 0.01;
         if let Some(childs) = self.element.childs_mut() {
             for child in childs {

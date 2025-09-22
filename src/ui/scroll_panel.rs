@@ -7,8 +7,9 @@ use super::{
 use crate::{
     primitives::Vec2,
     ui::{
-        draw_data::DrawData, ui_state::EventResult, DirtyFlags, FlexDirection, OutArea,UiEvent, UiState}
-    ,
+        DirtyFlags, FlexDirection, OutArea, UiEvent, UiState, draw_data::DrawData,
+        ui_state::EventResult,
+    },
 };
 
 #[derive(Default)]
@@ -16,12 +17,24 @@ pub struct ScrollPanel {
     pub scroll_offset: Vec2,
     pub size: Vec2,
     pub padding: OutArea,
+    pub child_hash: u32,
     pub childs: Vec<UiElement>,
 }
 
 impl Element for ScrollPanel {
     fn build(&mut self, context: &mut BuildContext, element: &UiElement) {
         let space = context.available_size;
+
+        let child_hash: u32 = if let Some(child) = self.childs.first() {
+            child.id
+        } else {
+            0
+        };
+
+        if child_hash != self.child_hash {
+            self.scroll_offset.y = 0.0;
+            self.child_hash = child_hash;
+        }
 
         let available_size = element.size - self.padding.size(space);
         let child_start_pos = context.child_start_pos + self.padding.start(space);
@@ -53,12 +66,8 @@ impl Element for ScrollPanel {
         match event {
             UiEvent::Scroll(delta) => {
                 let delta = match delta {
-                    MouseScrollDelta::LineDelta(_, y) => {
-                        y * 50.0
-                    }
-                    MouseScrollDelta::PixelDelta(pos) => {
-                        pos.y as f32
-                    }
+                    MouseScrollDelta::LineDelta(_, y) => y * 50.0,
+                    MouseScrollDelta::PixelDelta(pos) => pos.y as f32,
                 };
                 let old_offset = self.scroll_offset.y;
                 let min = (element.size.y - self.size.y).min(0.0);
@@ -67,12 +76,12 @@ impl Element for ScrollPanel {
                 self.scroll_offset.y = self.scroll_offset.y.clamp(min, 0.0);
 
                 if old_offset != self.scroll_offset.y {
-                    ui.selected.clear();
                     //ui.update_cursor(ui.cursor_pos, UiEvent::Move);
                     ui.dirty = DirtyFlags::Resize;
+                    element.dirty = true;
                 }
             }
-            _ => return EventResult::None
+            _ => return EventResult::None,
         }
 
         EventResult::New
@@ -103,7 +112,7 @@ impl ElementBuild for ScrollPanel {
     fn wrap(self, ui_state: &super::UiState) -> UiElement {
         UiElement {
             id: ui_state.get_id(),
-            typ: ElementType::ScrollPanel,
+            typ: Self::ELEMENT_TYPE,
             dirty: true,
             visible: false,
             size: Vec2::new(0.0, 0.0),

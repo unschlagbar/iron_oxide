@@ -14,7 +14,9 @@ use crate::{
     graphics::{AtlasInstance, Buffer, FontInstance, TextureAtlas, UiInstance, VkBase},
     primitives::Vec2,
     ui::{
-        draw_data::{DrawData, InstanceData}, ui_pipeline::Pipeline, ElementType
+        ElementType,
+        draw_data::{DrawData, InstanceData},
+        ui_pipeline::Pipeline,
     },
 };
 
@@ -35,7 +37,7 @@ pub struct UiState {
     base_pipeline: Pipeline,
     font_pipeline: Pipeline,
     atlas_pipeline: Pipeline,
-    
+
     instance_buffer: Buffer,
     font_instance_buffer: Buffer,
 }
@@ -58,7 +60,7 @@ impl UiState {
             base_pipeline: Pipeline::null(),
             font_pipeline: Pipeline::null(),
             atlas_pipeline: Pipeline::null(),
-            
+
             instance_buffer: Buffer::null(),
             font_instance_buffer: Buffer::null(),
         }
@@ -130,8 +132,13 @@ impl UiState {
         atlas_shaders: (&[u8], &[u8]),
     ) {
         self.size = window_size.into();
-        self.base_pipeline =
-            Pipeline::create_ui::<UiInstance>(base, window_size, render_pass, descriptor, base_shaders);
+        self.base_pipeline = Pipeline::create_ui::<UiInstance>(
+            base,
+            window_size,
+            render_pass,
+            descriptor,
+            base_shaders,
+        );
         self.font_pipeline = Pipeline::create_ui::<FontInstance>(
             base,
             window_size,
@@ -140,7 +147,13 @@ impl UiState {
             font_shaders,
         );
 
-        self.atlas_pipeline = Pipeline::create_ui::<AtlasInstance>(base, window_size, render_pass, descriptor, atlas_shaders);
+        self.atlas_pipeline = Pipeline::create_ui::<AtlasInstance>(
+            base,
+            window_size,
+            render_pass,
+            descriptor,
+            atlas_shaders,
+        );
 
         self.texture_atlas
             .load_directory("C:/Dev/home_storage_vulkan/textures", base, cmd_pool);
@@ -166,7 +179,7 @@ impl UiState {
         }
 
         let mut instances = DrawData::default();
-        let self_copy = unsafe { &mut *(self as *mut UiState) };
+        let self_copy = unsafe { &mut *ptr::from_mut(self) };
 
         for raw_e in &mut self.elements {
             raw_e.get_instances(self_copy, &mut instances);
@@ -351,7 +364,7 @@ impl UiState {
             self.base_pipeline.destroy(device);
             self.font_pipeline.destroy(device);
             self.atlas_pipeline.destroy(device);
-            
+
             device.free_memory(self.instance_buffer.mem, None);
             device.destroy_buffer(self.instance_buffer.inner, None);
             device.free_memory(self.font_instance_buffer.mem, None);

@@ -6,5 +6,5 @@ pub enum ElementType {
     AbsoluteLayout,
     Button,
     Text,
-    ScrollPanel
+    ScrollPanel,
 }

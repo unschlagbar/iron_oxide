@@ -1,6 +1,9 @@
 use std::ptr::{self, null};
 
-use crate::{primitives::Vec2, ui::{FlexDirection, UiElement}};
+use crate::{
+    primitives::Vec2,
+    ui::{FlexDirection, UiElement},
+};
 
 use super::Font;
 

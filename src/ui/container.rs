@@ -3,10 +3,11 @@ use super::{
     ui_element::{Element, ElementBuild, TypeConst},
 };
 use crate::{
-    graphics::{formats::Color, UiInstance},
+    graphics::{UiInstance, formats::Color},
     primitives::Vec2,
     ui::{
-        draw_data::{DrawData, InstanceData}, FlexDirection
+        FlexDirection,
+        draw_data::{DrawData, InstanceData},
     },
 };
 
@@ -78,8 +79,7 @@ impl Element for Container {
 
     fn instance(&self, element: &UiElement, draw_data: &mut DrawData) {
         if let InstanceData::Basic(vec) = draw_data.get_group(0, 0) {
-            vec.push(
-                UiInstance {
+            vec.push(UiInstance {
                 color: self.color,
                 border_color: self.border_color,
                 border: self.border[0],
@@ -89,8 +89,7 @@ impl Element for Container {
                 height: element.size.y,
                 corner: self.corner[0].pixelx(element.size),
                 z_index: element.z_index,
-            }
-            );
+            });
         } else {
             unreachable!()
         }
