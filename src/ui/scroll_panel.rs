@@ -76,9 +76,23 @@ impl Element for ScrollPanel {
                 self.scroll_offset.y = self.scroll_offset.y.clamp(min, 0.0);
 
                 if old_offset != self.scroll_offset.y {
-                    //ui.update_cursor(ui.cursor_pos, UiEvent::Move);
-                    ui.dirty = DirtyFlags::Resize;
-                    element.dirty = true;
+                    ui.dirty = DirtyFlags::Color;
+
+                    for element in &mut self.childs {
+                        element.move_element(Vec2::new(0.0, self.scroll_offset.y - old_offset));
+                    }
+                    
+                    let result = ui.check_selected(UiEvent::Move);
+                    if !result.is_none() {
+                        return EventResult::New;
+                    }
+                    
+                    for element in &mut self.childs {
+                        let r = element.update_cursor(ui, UiEvent::Move);
+                        if !r.is_none() {
+                            break;
+                        }
+                    }
                 }
             }
             _ => return EventResult::None,

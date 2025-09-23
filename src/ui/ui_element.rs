@@ -6,7 +6,7 @@ use super::{
 };
 use crate::{
     primitives::Vec2,
-    ui::{ScrollPanel, UiUnit, draw_data::DrawData},
+    ui::{draw_data::DrawData, ScrollPanel, UiUnit},
 };
 
 pub trait Element {
@@ -175,20 +175,19 @@ impl UiElement {
     }
 
     #[inline(always)]
-    pub fn move_computed(&mut self, amount: Vec2) {
+    pub fn move_element(&mut self, amount: Vec2) {
         if let Some(childs) = self.element.childs_mut() {
             for child in childs {
-                child.move_computed(amount);
+                child.move_element(amount);
             }
         }
         self.pos += amount;
 
         if self.typ == ElementType::Text {
-            todo!()
-            //for raw in &mut text.comp_text {
-            //    raw.x += amount.x;
-            //    raw.y += amount.y;
-            //}
+            let text: &mut Text = self.downcast_mut();
+            for i in &mut text.font_instances {
+                i.pos += amount;
+            }
         }
     }
 

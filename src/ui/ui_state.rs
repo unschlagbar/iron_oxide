@@ -215,14 +215,7 @@ impl UiState {
         Some(h)
     }
 
-    pub fn update_cursor(&mut self, cursor_pos: Vec2, event: UiEvent) -> EventResult {
-        //0 = no event
-        //1 = no event break
-        //2 = old event
-        //3 = new event
-
-        //This is perfectly Safe dont worry
-        self.cursor_pos = cursor_pos;
+    pub fn check_selected(&mut self, event: UiEvent) -> EventResult {
         let self_clone = unsafe { ptr::from_mut(self).as_mut().unwrap() };
         let mut result = EventResult::None;
 
@@ -230,10 +223,18 @@ impl UiState {
             let element = unsafe { &mut *self.selected.ptr };
             let element2 = unsafe { &mut *self.selected.ptr };
 
-            let element_result = element.element.interaction(element2, self_clone, event);
-            if !element_result.is_none() {
-                return element_result;
-            }
+            result = element.element.interaction(element2, self_clone, event);
+        }
+        result
+    }
+
+    pub fn update_cursor(&mut self, cursor_pos: Vec2, event: UiEvent) -> EventResult {
+        let self_clone = unsafe { ptr::from_mut(self).as_mut().unwrap() };
+        self.cursor_pos = cursor_pos;
+
+        let mut result = self.check_selected(event);
+        if !result.is_none() {
+            return result;
         }
 
         for element in &mut self.elements {
