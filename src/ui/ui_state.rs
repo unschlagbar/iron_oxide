@@ -40,6 +40,8 @@ pub struct UiState {
 
     instance_buffer: Buffer,
     font_instance_buffer: Buffer,
+
+    draw_batches: Vec<(u32, u32, u32, Option<vk::Rect2D>)>, // (material_idx, offset, size, clip)
 }
 
 impl UiState {
@@ -63,6 +65,8 @@ impl UiState {
 
             instance_buffer: Buffer::null(),
             font_instance_buffer: Buffer::null(),
+
+            draw_batches: Vec::new(),
         }
     }
 
@@ -182,7 +186,7 @@ impl UiState {
         let self_copy = unsafe { &mut *ptr::from_mut(self) };
 
         for raw_e in &mut self.elements {
-            raw_e.get_instances(self_copy, &mut instances);
+            raw_e.get_instances(self_copy, &mut instances, None);
         }
 
         instances
@@ -254,63 +258,78 @@ impl UiState {
     }
 
     pub fn update(&mut self, base: &VkBase, command_pool: vk::CommandPool) {
+        self.draw_batches.clear();
+
         if matches!(self.dirty, DirtyFlags::Resize) {
             self.build();
-            let ui_instances = self.get_instaces();
-            if !ui_instances.is_empty() || !self.texts.is_empty() {
-                unsafe { base.device.queue_wait_idle(base.queue).unwrap() };
-            }
-            for draw in ui_instances.groups {
-                if let InstanceData::Basic(data) = draw.data {
+        }
+
+        let ui_instances = self.get_instaces();
+        //if !ui_instances.is_empty() || !self.texts.is_empty() {
+        //    unsafe { base.device.queue_wait_idle(base.queue).unwrap() };
+        //}
+
+        let mut mat_index = 0;
+        let mut data_buf = Vec::new();
+
+        for draw in ui_instances.groups {
+            let this_mat = draw.data.material_idx();
+            if let InstanceData::Basic(data) = draw.data {
+                if this_mat == mat_index {
+                    self.draw_batches.push((
+                        this_mat,
+                        data_buf.len() as u32,
+                        data.len() as u32,
+                        draw.clip,
+                    ));
+                    data_buf.extend(data);
+                } else {
+                    println!("2. Mat");
+                    mat_index = this_mat;
+
                     self.instance_buffer.destroy(&base.device);
                     self.instance_buffer = Buffer::device_local_slow(
                         &base,
                         command_pool,
-                        &data,
+                        &data_buf,
                         vk::BufferUsageFlags::VERTEX_BUFFER,
                     );
+                    data_buf.clear();
+                    self.draw_batches
+                        .push((this_mat, 0, data.len() as u32, draw.clip));
+                    data_buf.extend(data);
                 }
             }
+        }
+        self.instance_buffer.destroy(&base.device);
+        self.instance_buffer = Buffer::device_local_slow(
+            &base,
+            command_pool,
+            &data_buf,
+            vk::BufferUsageFlags::VERTEX_BUFFER,
+        );
 
-            if !self.texts.is_empty() {
-                self.font_instance_buffer.destroy(&base.device);
+        if !self.texts.is_empty() {
+            self.font_instance_buffer.destroy(&base.device);
 
-                self.font_instance_buffer = Buffer::device_local_slow(
-                    &base,
-                    command_pool,
-                    &self.texts,
-                    vk::BufferUsageFlags::VERTEX_BUFFER,
-                );
-            }
-        } else if matches!(self.dirty, DirtyFlags::Color | DirtyFlags::Size) {
-            let ui_instances = self.get_instaces();
-
-            for draw in ui_instances.groups {
-                if let InstanceData::Basic(data) = draw.data {
-                    self.instance_buffer.destroy(&base.device);
-                    self.instance_buffer = Buffer::device_local_slow(
-                        &base,
-                        command_pool,
-                        &data,
-                        vk::BufferUsageFlags::VERTEX_BUFFER,
-                    );
-                }
-            }
-
-            if !self.texts.is_empty() {
-                self.font_instance_buffer.destroy(&base.device);
-                self.font_instance_buffer = Buffer::device_local_slow(
-                    &base,
-                    command_pool,
-                    &self.texts,
-                    vk::BufferUsageFlags::VERTEX_BUFFER,
-                );
-            }
+            self.font_instance_buffer = Buffer::device_local_slow(
+                &base,
+                command_pool,
+                &self.texts,
+                vk::BufferUsageFlags::VERTEX_BUFFER,
+            );
         }
     }
 
     pub fn set_event(&mut self, event: QueuedEvent) {
         self.event = Some(event);
+    }
+
+    fn mat_pipe(&self, mat_idx: u32) -> (&Pipeline, &Buffer) {
+        match mat_idx {
+            0 => (&self.base_pipeline, &self.instance_buffer),
+            _ => unimplemented!(),
+        }
     }
 
     pub fn draw(
@@ -320,12 +339,7 @@ impl UiState {
         descriptor_set: vk::DescriptorSet,
     ) {
         unsafe {
-            device.cmd_bind_pipeline(
-                cmd,
-                vk::PipelineBindPoint::GRAPHICS,
-                self.base_pipeline.this,
-            );
-            device.cmd_bind_vertex_buffers(cmd, 0, &[self.instance_buffer.inner], &[0]);
+            let mut last_mat = u32::MAX;
             device.cmd_bind_descriptor_sets(
                 cmd,
                 vk::PipelineBindPoint::GRAPHICS,
@@ -334,13 +348,20 @@ impl UiState {
                 &[descriptor_set],
                 &[],
             );
-            device.cmd_draw(
-                cmd,
-                4,
-                self.instance_buffer.size as u32 / size_of::<UiInstance>() as u32,
-                0,
-                0,
-            );
+            for (mat, offset, size, clip) in &self.draw_batches {
+                if last_mat != *mat {
+                    last_mat = *mat;
+                    let (pipeline, buffer) = self.mat_pipe(*mat);
+
+                    
+                    device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, pipeline.this);
+                    device.cmd_bind_vertex_buffers(cmd, 0, &[buffer.inner], &[0]);
+                }
+                if let Some(clip) = clip {
+                    device.cmd_set_scissor(cmd, 0, &[*clip]);
+                }
+                device.cmd_draw(cmd, 4, *size, 0, *offset);
+            }
 
             if !self.texts.is_empty() {
                 device.cmd_bind_pipeline(

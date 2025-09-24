@@ -84,8 +84,13 @@ impl Element for Button {
         (self.width, self.height)
     }
 
-    fn instance(&self, element: &UiElement, draw_data: &mut DrawData) {
-        if let InstanceData::Basic(vec) = draw_data.get_group(0, 0) {
+    fn instance(
+        &self,
+        element: &UiElement,
+        draw_data: &mut DrawData,
+        clip: Option<ash::vk::Rect2D>,
+    ) {
+        if let InstanceData::Basic(vec) = draw_data.get_group(0, 0, clip) {
             vec.push(UiInstance {
                 color: self.color,
                 border_color: self.border_color,

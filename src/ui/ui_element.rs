@@ -1,12 +1,14 @@
 use std::{fmt::Debug, ptr, rc::Rc};
 
+use ash::vk;
+
 use super::{
     AbsoluteLayout, BuildContext, Button, ButtonState, CallContext, Container, ElementType, Text,
     UiEvent, UiState, ui_state::EventResult,
 };
 use crate::{
     primitives::Vec2,
-    ui::{draw_data::DrawData, ScrollPanel, UiUnit},
+    ui::{ScrollPanel, UiUnit, draw_data::DrawData},
 };
 
 pub trait Element {
@@ -14,7 +16,7 @@ pub trait Element {
     fn get_size(&mut self) -> (UiUnit, UiUnit) {
         (UiUnit::Undefined, UiUnit::Undefined)
     }
-    fn instance(&self, _element: &UiElement, _draw_data: &mut DrawData) {
+    fn instance(&self, _: &UiElement, _: &mut DrawData, _: Option<ash::vk::Rect2D>) {
         unimplemented!()
     }
     fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
@@ -137,22 +139,45 @@ impl UiElement {
         }
     }
 
-    pub fn get_instances(&mut self, ui: &mut UiState, instances: &mut DrawData) {
+    pub fn get_instances(
+        &mut self,
+        ui: &mut UiState,
+        instances: &mut DrawData,
+        clip: Option<vk::Rect2D>,
+    ) {
         if self.visible {
             if self.typ == ElementType::Text {
                 let size = self.parent().size;
                 let pos = self.parent().pos;
-                let element = unsafe { &*(self as *const UiElement) };
+                let element = unsafe { &*ptr::from_mut(self) };
                 let text: &mut Text = self.downcast_mut();
                 text.get_font_instances(size, pos, ui, element);
             } else {
-                self.element.instance(self, instances);
+                self.element.instance(self, instances, clip);
             }
         }
 
+        let clip = if self.typ == ElementType::ScrollPanel {
+            if clip.is_some() {
+                panic!("Nested scroll panels are not supported");
+            }
+            Some(vk::Rect2D {
+                offset: vk::Offset2D {
+                    x: self.pos.x as _,
+                    y: self.pos.y as _,
+                },
+                extent: vk::Extent2D {
+                    width: self.size.x as _,
+                    height: self.size.y as _,
+                },
+            })
+        } else {
+            clip
+        };
+
         if let Some(childs) = self.element.childs_mut() {
             for child in childs {
-                child.get_instances(ui, instances);
+                child.get_instances(ui, instances, clip);
             }
         }
     }

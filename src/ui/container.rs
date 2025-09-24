@@ -77,8 +77,13 @@ impl Element for Container {
         (self.width, self.height)
     }
 
-    fn instance(&self, element: &UiElement, draw_data: &mut DrawData) {
-        if let InstanceData::Basic(vec) = draw_data.get_group(0, 0) {
+    fn instance(
+        &self,
+        element: &UiElement,
+        draw_data: &mut DrawData,
+        clip: Option<ash::vk::Rect2D>,
+    ) {
+        if let InstanceData::Basic(vec) = draw_data.get_group(0, 0, clip) {
             vec.push(UiInstance {
                 color: self.color,
                 border_color: self.border_color,
@@ -116,8 +121,8 @@ impl ElementBuild for Container {
             typ: Self::ELEMENT_TYPE,
             dirty: true,
             visible,
-            size: Vec2::new(0.0, 0.0),
-            pos: Vec2::new(0.0, 0.0),
+            size: Vec2::zero(),
+            pos: Vec2::zero(),
             parent: std::ptr::null_mut(),
             element: Box::new(self),
             z_index: 0.0,

@@ -54,6 +54,11 @@ impl Element for ScrollPanel {
 
         self.size.y = child_context.start_pos.y + self.padding.size(space).y;
 
+        // if we resize the element we dont want the scroll offset to be larger it should be
+        if element.size.y < self.size.y {
+            self.scroll_offset.y = self.scroll_offset.y.max(element.size.y - self.size.y);
+        }
+
         context.apply_data(context.child_start_pos, element.size);
     }
 
@@ -81,32 +86,33 @@ impl Element for ScrollPanel {
                     for element in &mut self.childs {
                         element.move_element(Vec2::new(0.0, self.scroll_offset.y - old_offset));
                     }
-                    
+
                     let result = ui.check_selected(UiEvent::Move);
                     if !result.is_none() {
                         return EventResult::New;
                     }
-                    
+
                     for element in &mut self.childs {
                         let r = element.update_cursor(ui, UiEvent::Move);
                         if !r.is_none() {
                             break;
                         }
                     }
+                    EventResult::New
+                } else {
+                    EventResult::None
                 }
             }
-            _ => return EventResult::None,
+            _ => EventResult::None,
         }
-
-        EventResult::New
     }
 
     fn get_size(&mut self) -> (UiUnit, UiUnit) {
         (UiUnit::Fill, UiUnit::Fill)
     }
 
-    fn instance(&self, _: &UiElement, _: &mut DrawData) {
-        ()
+    fn instance(&self, _: &UiElement, _: &mut DrawData, _: Option<ash::vk::Rect2D>) {
+        // ScrollPanel itself does not render anything
     }
 
     fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
@@ -129,8 +135,8 @@ impl ElementBuild for ScrollPanel {
             typ: Self::ELEMENT_TYPE,
             dirty: true,
             visible: false,
-            size: Vec2::new(0.0, 0.0),
-            pos: Vec2::new(0.0, 0.0),
+            size: Vec2::zero(),
+            pos: Vec2::zero(),
             parent: std::ptr::null_mut(),
             element: Box::new(self),
             z_index: 0.0,

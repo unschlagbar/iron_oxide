@@ -1,3 +1,5 @@
+use ash::vk::Rect2D;
+
 use crate::graphics::UiInstance;
 
 #[derive(Default)]
@@ -6,12 +8,15 @@ pub struct DrawData {
 }
 
 impl DrawData {
-    pub fn get_group(&mut self, descriptor: u32, material: u32) -> &mut InstanceData {
-        if let Some(idx) = self
-            .groups
-            .iter()
-            .position(|x| x.descriptor == descriptor && x.data.material_idx() == material)
-        {
+    pub fn get_group(
+        &mut self,
+        descriptor: u32,
+        material: u32,
+        clip: Option<Rect2D>,
+    ) -> &mut InstanceData {
+        if let Some(idx) = self.groups.iter().position(|x| {
+            x.descriptor == descriptor && x.data.material_idx() == material && x.clip == clip
+        }) {
             &mut self.groups[idx].data
         } else {
             // Find the last group with the same material
@@ -24,6 +29,7 @@ impl DrawData {
             self.groups.insert(
                 insert_pos,
                 DrawGroup {
+                    clip,
                     descriptor,
                     data: InstanceData::from_idx(material),
                 },
@@ -39,6 +45,7 @@ impl DrawData {
 
 pub struct DrawGroup {
     pub descriptor: u32,
+    pub clip: Option<Rect2D>,
     pub data: InstanceData,
 }
 
