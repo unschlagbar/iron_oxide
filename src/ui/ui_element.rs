@@ -308,23 +308,22 @@ impl UiElement {
         }
     }
 
-    pub fn remove_child(&mut self, id: u32, ui: &mut UiState) -> Option<UiElement> {
-        if let Some(childs) = self.element.childs_mut() {
-            if let Some(pos) = childs.iter().position(|c| c.id == id) {
-                ui.remove_tick(id, 0);
-                return Some(childs.remove(pos));
-            }
-        }
+    pub fn remove_self(&mut self, ui: &mut UiState) -> Option<UiElement> {
+        self.remove_tick(ui);
+        ui.remove_element(self.parent, self.id);
+
         None
     }
 
-    pub fn remove_self(&mut self, ui: &mut UiState) -> Option<UiElement> {
-        if self.parent.is_null() {
-            ui.remove_element(self.id)
-        } else {
-            let id = self.id;
-            self.parent().remove_child(id, ui)
+    pub fn remove_tick(&mut self, ui: &mut UiState) -> Option<UiElement> {
+        ui.remove_tick(self.id);
+
+        if let Some(childs) = self.element.childs_mut() {
+            for child in childs {
+                child.remove_tick(ui);
+            }
         }
+        None
     }
 
     pub fn init(&mut self) {

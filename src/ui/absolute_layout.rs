@@ -67,12 +67,12 @@ impl Element for AbsoluteLayout {
 
         if matches!(self.width, UiUnit::Auto) {
             size.x = child_context.start_pos.x;
-            dbg!(child_context.start_pos.x);
+            //dbg!(child_context.start_pos.x);
         }
 
         if matches!(self.height, UiUnit::Auto) {
             size.y = child_context.start_pos.y;
-            dbg!(child_context.start_pos.y);
+            //dbg!(child_context.start_pos.y);
         }
 
         context.apply_data(pos, size);

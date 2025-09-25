@@ -6,8 +6,7 @@ use std::{
 use winit::dpi::PhysicalSize;
 
 use super::{
-    BuildContext, Font, UiElement,
-    UiEvent,
+    BuildContext, Font, UiElement, UiEvent,
     ui_element::{Element, TypeConst},
 };
 use crate::{
@@ -33,6 +32,7 @@ pub struct UiState {
 
     pub event: Option<QueuedEvent>,
     pub tick_queue: Vec<TickEvent>,
+    pub elements_to_remove: Vec<(*mut UiElement, u32)>,
 
     pub texture_atlas: TextureAtlas,
     id_gen: AtomicU32,
@@ -61,6 +61,7 @@ impl UiState {
 
             event: None,
             tick_queue: Vec::new(),
+            elements_to_remove: Vec::new(),
 
             font: Font::parse_from_bytes(include_bytes!("../../font/std1.fef")),
             texture_atlas: TextureAtlas::new((1024, 1024)),
@@ -97,11 +98,9 @@ impl UiState {
 
         element.init();
         self.elements.push(element);
-        if T::DEFAULT_TICKING
-            && let Some(child) = self.elements.last_mut()
-        {
-            let child = ptr::from_mut(child);
-            self.set_ticking(child, 0);
+        if T::DEFAULT_TICKING {
+            let child = ptr::from_mut(self.elements.last_mut().unwrap());
+            self.set_ticking(child);
         }
         self.dirty = DirtyFlags::Resize;
         id
@@ -129,22 +128,31 @@ impl UiState {
             && let Some(child) = child
         {
             let child = ptr::from_mut(child);
-            self.set_ticking(child, 0);
+            self.set_ticking(child);
         }
 
         self.dirty = DirtyFlags::Resize;
         Some(id)
     }
 
-    pub fn remove_element(&mut self, id: u32) -> Option<UiElement> {
-        if let Some(pos) = self.elements.iter().position(|x| x.id == id) {
-            self.dirty = DirtyFlags::Resize;
-            self.remove_tick(id, 0);
-            Some(self.elements.remove(pos))
+    pub fn remove_element(&mut self, parent: *mut UiElement, id: u32) -> Option<UiElement> {
+        if parent.is_null() {
+            if let Some(pos) = self.elements.iter().position(|c| c.id == id) {
+                self.elements.remove(pos);
+            } else {
+                println!("Child to remove not found: {id}");
+            }
         } else {
-            println!("Element with id {id} not found");
-            None
+            let parent = unsafe { &mut *parent };
+            if let Some(childs) = parent.element.childs_mut() {
+                if let Some(pos) = childs.iter().position(|c| c.id == id) {
+                    childs.remove(pos);
+                } else {
+                    println!("Child to remove not found: {id}");
+                }
+            }
         }
+        None
     }
 
     pub fn get_id(&self) -> u32 {
@@ -418,25 +426,36 @@ impl UiState {
         self.texture_atlas.destroy(device);
     }
 
-    pub fn set_ticking(&mut self, element: *mut UiElement, message: u16) {
-        self.tick_queue.push(TickEvent::new(element, message));
+    pub fn set_ticking(&mut self, element: *mut UiElement) {
+        self.tick_queue.push(TickEvent::new(element));
     }
 
     pub fn process_ticks(&mut self) {
         let ui = unsafe { &mut *ptr::from_mut(self) };
+        let ui2 = unsafe { &mut *ptr::from_mut(self) };
+
         for tick in &self.tick_queue {
-            let element = tick.element();
-            element.element.tick(tick.element(), ui);
+            if !tick.done {
+                let id = tick.element_id;
+                let element = if let Some(element) = ui.get_element(id) {
+                    element
+                } else {
+                    println!("Tick element not found: {}", id);
+                    continue;
+                };
+                let element2 = unsafe { &mut *ptr::from_mut(element) };
+
+                element.element.tick(element2, ui2);
+            } else {
+                println!("Tick done: {}", tick.element_id);
+            }
         }
+        self.tick_queue.retain(|x| !x.done);
     }
 
-    pub fn remove_tick(&mut self, element_id: u32, message: u16) {
-        if let Some(pos) = self
-            .tick_queue
-            .iter()
-            .position(|x| x.element_id == element_id && x.message == message)
-        {
-            self.tick_queue.swap_remove(pos);
+    pub fn remove_tick(&mut self, id: u32) {
+        if let Some(pos) = self.tick_queue.iter().position(|x| x.element_id == id) {
+            self.tick_queue[pos].done = true;
         }
     }
 
@@ -535,17 +554,17 @@ impl Default for Selected {
 #[derive(Debug)]
 pub struct TickEvent {
     pub element_id: u32,
+    pub done: bool,
     element: *mut UiElement,
-    pub message: u16,
 }
 
 impl TickEvent {
-    pub fn new(element: *mut UiElement, message: u16) -> Self {
+    pub fn new(element: *mut UiElement) -> Self {
         let element_id = unsafe { (*element).id };
         Self {
             element_id,
-            element: element,
-            message,
+            done: false,
+            element,
         }
     }
 
