@@ -1,5 +1,5 @@
 use super::{
-    Align, BuildContext, ElementBuild, ElementType, UiElement, UiState,
+    Align, BuildContext, ElementType, UiElement, UiState,
     ui_element::{Element, TypeConst},
 };
 use crate::{
@@ -94,22 +94,6 @@ impl Element for Text {
 
         for i in &mut self.font_instances {
             i.pos += offset
-        }
-    }
-}
-
-impl ElementBuild for Text {
-    fn wrap(self, ui_state: &super::UiState) -> UiElement {
-        UiElement {
-            id: ui_state.get_id(),
-            typ: Self::ELEMENT_TYPE,
-            dirty: true,
-            visible: true,
-            size: Vec2::zero(),
-            pos: Vec2::zero(),
-            parent: std::ptr::null_mut(),
-            element: Box::new(self),
-            z_index: 0.0,
         }
     }
 }

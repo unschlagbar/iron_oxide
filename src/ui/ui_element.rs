@@ -16,33 +16,45 @@ pub trait Element {
     fn get_size(&mut self) -> (UiUnit, UiUnit) {
         (UiUnit::Undefined, UiUnit::Undefined)
     }
-    fn instance(&self, _: &UiElement, _: &mut DrawData, _: Option<ash::vk::Rect2D>) {
-        unimplemented!()
-    }
+    fn instance(&self, _: &UiElement, _: &mut DrawData, _: Option<ash::vk::Rect2D>) {}
     fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
         None
     }
     fn childs(&self) -> &[UiElement] {
         &[]
     }
-    fn add_child(&mut self, _child: UiElement) {}
-    #[allow(unused)]
-    fn interaction(
-        &mut self,
-        element: &mut UiElement,
-        ui: &mut UiState,
-        event: UiEvent,
-    ) -> EventResult {
+    fn add_child(&mut self, child: UiElement) -> Option<&mut UiElement> {
+        let childs = self.childs_mut()?;
+        childs.push(child);
+        childs.last_mut()
+    }
+
+    fn interaction(&mut self, _: &mut UiElement, _: &mut UiState, _: UiEvent) -> EventResult {
         EventResult::None
     }
+
+    fn tick(&mut self, _: &mut UiElement, _: &mut UiState) {}
 }
 
-pub trait ElementBuild {
-    fn wrap(self, ui_state: &UiState) -> UiElement;
-}
-
-pub trait TypeConst {
+pub trait TypeConst: Default + 'static {
     const ELEMENT_TYPE: ElementType;
+    const DEFAULT_TICKING: bool = false;
+    fn wrap(self, ui_state: &UiState) -> UiElement
+    where
+        Self: Element + Sized,
+    {
+        UiElement {
+            id: ui_state.get_id(),
+            typ: Self::ELEMENT_TYPE,
+            dirty: true,
+            visible: true,
+            size: Vec2::zero(),
+            pos: Vec2::zero(),
+            parent: std::ptr::null_mut(),
+            element: Box::new(self),
+            z_index: 0.0,
+        }
+    }
 }
 
 pub struct UiElement {
@@ -58,6 +70,7 @@ pub struct UiElement {
 }
 
 impl UiElement {
+    #[track_caller]
     pub fn downcast<'a, T: Element + TypeConst>(&'a self) -> &'a T {
         if T::ELEMENT_TYPE != self.typ {
             panic!(
@@ -71,6 +84,7 @@ impl UiElement {
         }
     }
 
+    #[track_caller]
     pub fn downcast_mut<'a, T: Element + TypeConst>(&'a mut self) -> &'a mut T {
         if T::ELEMENT_TYPE != self.typ {
             panic!(
@@ -199,7 +213,6 @@ impl UiElement {
         offset
     }
 
-    #[inline(always)]
     pub fn move_element(&mut self, amount: Vec2) {
         if let Some(childs) = self.element.childs_mut() {
             for child in childs {
@@ -214,16 +227,6 @@ impl UiElement {
                 i.pos += amount;
             }
         }
-    }
-
-    #[inline(always)]
-    pub fn move_computed_absolute(&mut self, pos: Vec2) {
-        if let Some(childs) = self.element.childs_mut() {
-            for child in childs {
-                child.move_computed_absolute(pos);
-            }
-        }
-        self.pos = pos;
     }
 
     #[inline]
@@ -294,14 +297,33 @@ impl UiElement {
     }
 
     #[inline]
-    pub fn add_child(&mut self, mut child: UiElement) {
+    pub fn add_child(&mut self, mut child: UiElement) -> Option<&mut UiElement> {
         child.parent = ptr::from_mut(self);
-        self.element.add_child(child);
+        self.element.add_child(child)
     }
 
     pub fn clear_childs(&mut self) {
         if let Some(childs) = self.element.childs_mut() {
             childs.clear();
+        }
+    }
+
+    pub fn remove_child(&mut self, id: u32, ui: &mut UiState) -> Option<UiElement> {
+        if let Some(childs) = self.element.childs_mut() {
+            if let Some(pos) = childs.iter().position(|c| c.id == id) {
+                ui.remove_tick(id, 0);
+                return Some(childs.remove(pos));
+            }
+        }
+        None
+    }
+
+    pub fn remove_self(&mut self, ui: &mut UiState) -> Option<UiElement> {
+        if self.parent.is_null() {
+            ui.remove_element(self.id)
+        } else {
+            let id = self.id;
+            self.parent().remove_child(id, ui)
         }
     }
 

@@ -7,7 +7,7 @@ use winit::dpi::PhysicalSize;
 
 use super::{
     BuildContext, Font, UiElement,
-    raw_ui_element::UiEvent,
+    UiEvent,
     ui_element::{Element, TypeConst},
 };
 use crate::{
@@ -30,7 +30,10 @@ pub struct UiState {
     pub visible: bool,
     pub dirty: DirtyFlags,
     pub texts: Vec<FontInstance>,
+
     pub event: Option<QueuedEvent>,
+    pub tick_queue: Vec<TickEvent>,
+
     pub texture_atlas: TextureAtlas,
     id_gen: AtomicU32,
 
@@ -55,7 +58,10 @@ impl UiState {
             cursor_pos: Vec2::default(),
             selected: Selected::default(),
             texts: Vec::new(),
+
             event: None,
+            tick_queue: Vec::new(),
+
             font: Font::parse_from_bytes(include_bytes!("../../font/std1.fef")),
             texture_atlas: TextureAtlas::new((1024, 1024)),
 
@@ -70,7 +76,7 @@ impl UiState {
         }
     }
 
-    pub fn add_element<T: Element + TypeConst + 'static>(&mut self, element: T) -> u32 {
+    pub fn add_element<T: Element + TypeConst>(&mut self, element: T) -> u32 {
         let id = self.get_id();
         let z_index = if matches!(T::ELEMENT_TYPE, ElementType::AbsoluteLayout) {
             0.5
@@ -91,15 +97,17 @@ impl UiState {
 
         element.init();
         self.elements.push(element);
+        if T::DEFAULT_TICKING
+            && let Some(child) = self.elements.last_mut()
+        {
+            let child = ptr::from_mut(child);
+            self.set_ticking(child, 0);
+        }
         self.dirty = DirtyFlags::Resize;
         id
     }
 
-    pub fn add_child_to<T: Element + TypeConst + 'static>(
-        &mut self,
-        child: T,
-        element: u32,
-    ) -> Option<u32> {
+    pub fn add_child_to<T: Element + TypeConst>(&mut self, child: T, element: u32) -> Option<u32> {
         let id = self.get_id();
         let element = self.get_element(element)?;
         let mut child = UiElement {
@@ -115,9 +123,28 @@ impl UiState {
         };
 
         child.init();
-        element.add_child(child);
+        let child = element.add_child(child);
+
+        if T::DEFAULT_TICKING
+            && let Some(child) = child
+        {
+            let child = ptr::from_mut(child);
+            self.set_ticking(child, 0);
+        }
+
         self.dirty = DirtyFlags::Resize;
         Some(id)
+    }
+
+    pub fn remove_element(&mut self, id: u32) -> Option<UiElement> {
+        if let Some(pos) = self.elements.iter().position(|x| x.id == id) {
+            self.dirty = DirtyFlags::Resize;
+            self.remove_tick(id, 0);
+            Some(self.elements.remove(pos))
+        } else {
+            println!("Element with id {id} not found");
+            None
+        }
     }
 
     pub fn get_id(&self) -> u32 {
@@ -265,9 +292,6 @@ impl UiState {
         }
 
         let ui_instances = self.get_instaces();
-        //if !ui_instances.is_empty() || !self.texts.is_empty() {
-        //    unsafe { base.device.queue_wait_idle(base.queue).unwrap() };
-        //}
 
         let mut mat_index = 0;
         let mut data_buf = Vec::new();
@@ -353,7 +377,6 @@ impl UiState {
                     last_mat = *mat;
                     let (pipeline, buffer) = self.mat_pipe(*mat);
 
-                    
                     device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, pipeline.this);
                     device.cmd_bind_vertex_buffers(cmd, 0, &[buffer.inner], &[0]);
                 }
@@ -393,6 +416,32 @@ impl UiState {
             device.destroy_buffer(self.font_instance_buffer.inner, None);
         }
         self.texture_atlas.destroy(device);
+    }
+
+    pub fn set_ticking(&mut self, element: *mut UiElement, message: u16) {
+        self.tick_queue.push(TickEvent::new(element, message));
+    }
+
+    pub fn process_ticks(&mut self) {
+        let ui = unsafe { &mut *ptr::from_mut(self) };
+        for tick in &self.tick_queue {
+            let element = tick.element();
+            element.element.tick(tick.element(), ui);
+        }
+    }
+
+    pub fn remove_tick(&mut self, element_id: u32, message: u16) {
+        if let Some(pos) = self
+            .tick_queue
+            .iter()
+            .position(|x| x.element_id == element_id && x.message == message)
+        {
+            self.tick_queue.swap_remove(pos);
+        }
+    }
+
+    pub fn needs_ticking(&self) -> bool {
+        !self.tick_queue.is_empty()
     }
 }
 
@@ -480,6 +529,28 @@ impl Default for Selected {
             ptr: null_mut(),
             selected: SelectedFlags::default(),
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct TickEvent {
+    pub element_id: u32,
+    element: *mut UiElement,
+    pub message: u16,
+}
+
+impl TickEvent {
+    pub fn new(element: *mut UiElement, message: u16) -> Self {
+        let element_id = unsafe { (*element).id };
+        Self {
+            element_id,
+            element: element,
+            message,
+        }
+    }
+
+    pub fn element(&self) -> &mut UiElement {
+        unsafe { &mut *self.element }
     }
 }
 

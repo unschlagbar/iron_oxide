@@ -1,8 +1,6 @@
-use std::ptr;
-
 use super::{
     BuildContext, ElementType, ErasedFnPointer, OutArea, Overflow, UiElement, UiUnit,
-    ui_element::{Element, ElementBuild, TypeConst},
+    ui_element::{Element, TypeConst},
 };
 use crate::{
     graphics::{UiInstance, formats::Color},
@@ -114,10 +112,6 @@ impl Element for Button {
         &self.childs
     }
 
-    fn add_child(&mut self, child: UiElement) {
-        self.childs.push(child);
-    }
-
     fn interaction(
         &mut self,
         element: &mut UiElement,
@@ -171,22 +165,6 @@ impl Element for Button {
         }
 
         result
-    }
-}
-
-impl ElementBuild for Button {
-    fn wrap(self, ui_state: &super::UiState) -> UiElement {
-        UiElement {
-            id: ui_state.get_id(),
-            typ: Self::ELEMENT_TYPE,
-            dirty: true,
-            visible: true,
-            size: Vec2::zero(),
-            pos: Vec2::zero(),
-            parent: ptr::null_mut(),
-            element: Box::new(self),
-            z_index: 0.0,
-        }
     }
 }
 

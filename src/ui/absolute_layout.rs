@@ -112,10 +112,6 @@ impl Element for AbsoluteLayout {
     fn childs(&self) -> &[UiElement] {
         &self.childs
     }
-
-    fn add_child(&mut self, child: UiElement) {
-        self.childs.push(child);
-    }
 }
 
 impl TypeConst for AbsoluteLayout {

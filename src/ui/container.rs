@@ -1,6 +1,6 @@
 use super::{
     BuildContext, ElementType, OutArea, UiElement, UiUnit,
-    ui_element::{Element, ElementBuild, TypeConst},
+    ui_element::{Element, TypeConst},
 };
 use crate::{
     graphics::{UiInstance, formats::Color},
@@ -106,27 +106,6 @@ impl Element for Container {
 
     fn childs(&self) -> &[UiElement] {
         &self.childs
-    }
-
-    fn add_child(&mut self, child: UiElement) {
-        self.childs.push(child);
-    }
-}
-
-impl ElementBuild for Container {
-    fn wrap(self, ui_state: &super::UiState) -> UiElement {
-        let visible = self.color.a != 0.0;
-        UiElement {
-            id: ui_state.get_id(),
-            typ: Self::ELEMENT_TYPE,
-            dirty: true,
-            visible,
-            size: Vec2::zero(),
-            pos: Vec2::zero(),
-            parent: std::ptr::null_mut(),
-            element: Box::new(self),
-            z_index: 0.0,
-        }
     }
 }
 

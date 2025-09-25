@@ -2,7 +2,7 @@ use winit::event::MouseScrollDelta;
 
 use super::{
     BuildContext, ElementType, UiElement, UiUnit,
-    ui_element::{Element, ElementBuild, TypeConst},
+    ui_element::{Element, TypeConst},
 };
 use crate::{
     primitives::Vec2,
@@ -121,26 +121,6 @@ impl Element for ScrollPanel {
 
     fn childs(&self) -> &[UiElement] {
         &self.childs
-    }
-
-    fn add_child(&mut self, child: UiElement) {
-        self.childs.push(child);
-    }
-}
-
-impl ElementBuild for ScrollPanel {
-    fn wrap(self, ui_state: &super::UiState) -> UiElement {
-        UiElement {
-            id: ui_state.get_id(),
-            typ: Self::ELEMENT_TYPE,
-            dirty: true,
-            visible: false,
-            size: Vec2::zero(),
-            pos: Vec2::zero(),
-            parent: std::ptr::null_mut(),
-            element: Box::new(self),
-            z_index: 0.0,
-        }
     }
 }
 

@@ -26,9 +26,9 @@ impl Font {
         }
     }
 
-    pub fn get_data(&self, char: u8) -> (u16, u16, u16, u16) {
+    pub fn get_data(&self, mut char: u8) -> (u16, u16, u16, u16) {
         if char < 32 {
-            todo!();
+            char = 64;
         }
 
         let i = (char as usize - 32) * 4;
