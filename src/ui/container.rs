@@ -1,6 +1,6 @@
 use super::{
     BuildContext, ElementType, OutArea, UiElement, UiUnit,
-    ui_element::{Element, TypeConst},
+    element::{Element, TypeConst},
 };
 use crate::{
     graphics::{UiInstance, formats::Color},

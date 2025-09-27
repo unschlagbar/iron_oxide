@@ -1,3 +1,4 @@
+#![cfg(feature = "net")]
 mod http_request;
 mod https;
 mod web_socket;

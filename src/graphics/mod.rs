@@ -8,8 +8,10 @@ mod shader_modul;
 mod single_time_commands;
 mod texture_atlas;
 mod vertex_ui;
+mod swapchain;
 
 pub use buffer::Buffer;
+pub use swapchain::Swapchain;
 pub use font_instance::FontInstance;
 pub use image::Image;
 pub use oxinstance::VkBase;

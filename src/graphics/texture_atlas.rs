@@ -1,7 +1,5 @@
 use std::{
-    collections::HashMap,
-    fs::{self, File},
-    ptr, vec,
+    collections::HashMap, fs::{self, File}, io::BufReader, ptr, vec
 };
 
 use ash::vk::{
@@ -44,7 +42,7 @@ impl TextureAtlas {
             if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("png") {
                 let file = File::open(&path).unwrap();
 
-                let mut decoder = Decoder::new(file);
+                let mut decoder = Decoder::new(BufReader::new(file));
                 let height = decoder.read_header_info().unwrap().height;
                 let name = path.file_stem().unwrap().to_str().unwrap().to_string();
 
@@ -81,7 +79,7 @@ impl TextureAtlas {
             start_pos.0 += width;
 
             let mut info = png.read_info().unwrap();
-            let mut buf = vec![0; info.output_buffer_size()];
+            let mut buf = vec![0; info.output_buffer_size().unwrap()];
             info.next_frame(&mut buf).unwrap();
 
             for x in 0..uv.2 {
@@ -115,7 +113,7 @@ impl TextureAtlas {
 
         let mapped_memory = staging_buffer.map_memory(&base.device, size, 0);
         unsafe {
-            ptr::copy_nonoverlapping(image_data.as_ptr(), mapped_memory as _, image_data.len());
+            ptr::copy_nonoverlapping(image_data.as_ptr(), mapped_memory, image_data.len());
         };
         staging_buffer.unmap_memory(&base.device);
 

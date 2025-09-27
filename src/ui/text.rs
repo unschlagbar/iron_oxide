@@ -1,6 +1,6 @@
 use super::{
     Align, BuildContext, ElementType, UiElement, UiState,
-    ui_element::{Element, TypeConst},
+    element::{Element, TypeConst},
 };
 use crate::{
     graphics::{FontInstance, formats::Color},

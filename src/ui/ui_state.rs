@@ -7,7 +7,7 @@ use winit::dpi::PhysicalSize;
 
 use super::{
     BuildContext, Font, UiElement, UiEvent,
-    ui_element::{Element, TypeConst},
+    element::{Element, TypeConst},
 };
 use crate::{
     graphics::{AtlasInstance, Buffer, FontInstance, TextureAtlas, UiInstance, VkBase},

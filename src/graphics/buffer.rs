@@ -1,11 +1,11 @@
 use super::{SinlgeTimeCommands, VkBase};
-use ash::vk::{self, Handle, MemoryAllocateFlags};
-use std::{ffi::c_void, ptr};
+use ash::{vk::{self, BufferCopy, BufferCreateInfo, BufferDeviceAddressInfo, BufferUsageFlags, CommandBuffer, CommandPool, DeviceMemory, DeviceOrHostAddressConstKHR, DeviceOrHostAddressKHR, Handle, MemoryAllocateFlags, MemoryAllocateFlagsInfo, MemoryAllocateInfo, MemoryMapFlags, MemoryPropertyFlags, SharingMode}, Device};
+use std::ptr::copy_nonoverlapping;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Buffer {
     pub inner: vk::Buffer,
-    pub mem: vk::DeviceMemory,
+    pub mem: DeviceMemory,
     pub size: u64,
 }
 
@@ -13,14 +13,14 @@ impl Buffer {
     pub fn create(
         base: &VkBase,
         size: u64,
-        usage: vk::BufferUsageFlags,
-        properties: vk::MemoryPropertyFlags,
+        usage: BufferUsageFlags,
+        properties: MemoryPropertyFlags,
     ) -> Self {
-        assert_ne!(size, 0, "Buffer must have a size larger than 0");
-        let buffer_info = vk::BufferCreateInfo {
+        assert_ne!(size, 0, "Size must be larger than 0");
+        let buffer_info = BufferCreateInfo {
             size,
             usage,
-            sharing_mode: vk::SharingMode::EXCLUSIVE,
+            sharing_mode: SharingMode::EXCLUSIVE,
             ..Default::default()
         };
 
@@ -31,16 +31,16 @@ impl Buffer {
         };
         let mem_requirements = unsafe { base.device.get_buffer_memory_requirements(buffer) };
 
-        let alloc_flags_info = vk::MemoryAllocateFlagsInfo {
-            flags: if usage.contains(vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS) {
-                vk::MemoryAllocateFlags::DEVICE_ADDRESS
+        let alloc_flags_info = MemoryAllocateFlagsInfo {
+            flags: if usage.contains(BufferUsageFlags::SHADER_DEVICE_ADDRESS) {
+                MemoryAllocateFlags::DEVICE_ADDRESS
             } else {
                 MemoryAllocateFlags::empty()
-            }, // Aktiviert die Nutzung von Geräteadressen
+            },
             ..Default::default()
         };
 
-        let alloc_info = vk::MemoryAllocateInfo {
+        let alloc_info = MemoryAllocateInfo {
             allocation_size: mem_requirements.size,
             memory_type_index: find_memory_type(
                 base,
@@ -68,38 +68,38 @@ impl Buffer {
     pub fn null() -> Self {
         Self {
             inner: vk::Buffer::null(),
-            mem: vk::DeviceMemory::null(),
+            mem: DeviceMemory::null(),
             size: 0,
         }
     }
 
     pub fn device_local_raw(
         base: &VkBase,
-        command_pool: vk::CommandPool,
+        command_pool: CommandPool,
         stride: u64,
         len: u64,
         data: *const u8,
-        usage: vk::BufferUsageFlags,
+        usage: BufferUsageFlags,
     ) -> Self {
         let buffer_size = stride * len;
         let staging_buffer = Self::create(
             base,
             buffer_size,
-            vk::BufferUsageFlags::TRANSFER_SRC,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+            BufferUsageFlags::TRANSFER_SRC,
+            MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
         );
 
         let mapped_memory = staging_buffer.map_memory(&base.device, buffer_size, 0);
         unsafe {
-            std::ptr::copy_nonoverlapping(data, mapped_memory as _, buffer_size as usize);
+            copy_nonoverlapping(data, mapped_memory, buffer_size as usize);
             staging_buffer.unmap_memory(&base.device);
         };
 
         let device_local_buffer = Self::create(
             base,
             buffer_size,
-            usage | vk::BufferUsageFlags::TRANSFER_DST,
-            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            usage | BufferUsageFlags::TRANSFER_DST,
+            MemoryPropertyFlags::DEVICE_LOCAL,
         );
 
         let cmd_buf = SinlgeTimeCommands::begin(&base, command_pool);
@@ -117,7 +117,7 @@ impl Buffer {
 
         let mapped_memory = self.map_memory(&base.device, self.size, offset);
         unsafe {
-            ptr::copy_nonoverlapping(data.as_ptr(), mapped_memory as _, data.len());
+            copy_nonoverlapping(data.as_ptr(), mapped_memory, data.len());
             self.unmap_memory(&base.device);
         };
     }
@@ -125,21 +125,21 @@ impl Buffer {
     pub fn update<T>(
         &mut self,
         base: &VkBase,
-        command_pool: vk::CommandPool,
+        command_pool: CommandPool,
         data: &[T],
-        usage: vk::BufferUsageFlags,
+        usage: BufferUsageFlags,
     ) {
         let buffer_size = size_of::<T>() as u64 * data.len() as u64;
         let staging_buffer = Self::create(
             base,
             buffer_size,
-            vk::BufferUsageFlags::TRANSFER_SRC,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+            BufferUsageFlags::TRANSFER_SRC,
+            MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
         );
 
         let mapped_memory = staging_buffer.map_memory(&base.device, buffer_size, 0);
         unsafe {
-            ptr::copy_nonoverlapping(data.as_ptr(), mapped_memory as _, data.len());
+            copy_nonoverlapping(data.as_ptr(), mapped_memory, data.len());
             staging_buffer.unmap_memory(&base.device);
         };
 
@@ -149,8 +149,8 @@ impl Buffer {
             *self = Self::create(
                 base,
                 buffer_size,
-                usage | vk::BufferUsageFlags::TRANSFER_DST,
-                vk::MemoryPropertyFlags::DEVICE_LOCAL,
+                usage | BufferUsageFlags::TRANSFER_DST,
+                MemoryPropertyFlags::DEVICE_LOCAL,
             );
         }
 
@@ -163,29 +163,29 @@ impl Buffer {
 
     pub fn device_local_slow<T>(
         base: &VkBase,
-        command_pool: vk::CommandPool,
+        command_pool: CommandPool,
         data: &[T],
-        usage: vk::BufferUsageFlags,
+        usage: BufferUsageFlags,
     ) -> Self {
         let buffer_size = data.len() as u64 * size_of::<T>() as u64;
         let staging_buffer = Self::create(
             base,
             buffer_size,
-            vk::BufferUsageFlags::TRANSFER_SRC,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+            BufferUsageFlags::TRANSFER_SRC,
+            MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
         );
 
         let mapped_memory = staging_buffer.map_memory(&base.device, buffer_size, 0);
         unsafe {
-            std::ptr::copy_nonoverlapping(data.as_ptr(), mapped_memory as _, data.len());
+            copy_nonoverlapping(data.as_ptr(), mapped_memory, data.len());
         };
         staging_buffer.unmap_memory(&base.device);
 
         let device_local_buffer = Self::create(
             base,
             buffer_size,
-            usage | vk::BufferUsageFlags::TRANSFER_DST,
-            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            usage | BufferUsageFlags::TRANSFER_DST,
+            MemoryPropertyFlags::DEVICE_LOCAL,
         );
 
         let cmd_buf = SinlgeTimeCommands::begin(&base, command_pool);
@@ -203,9 +203,9 @@ impl Buffer {
         dst_buffer: &Self,
         size: u64,
         src_offset: u64,
-        cmd_buf: vk::CommandBuffer,
+        cmd_buf: CommandBuffer,
     ) {
-        let copy_region = vk::BufferCopy {
+        let copy_region = BufferCopy {
             src_offset,
             dst_offset: 0,
             size,
@@ -218,34 +218,22 @@ impl Buffer {
     }
 
     #[inline]
-    pub fn map_memory(&self, device: &ash::Device, buffer_size: u64, offset: u64) -> *const c_void {
+    pub fn map_memory<T>(&self, device: &Device, buffer_size: u64, offset: u64) -> *mut T {
         unsafe {
             device
-                .map_memory(self.mem, offset, buffer_size, vk::MemoryMapFlags::empty())
-                .unwrap()
+                .map_memory(self.mem, offset, buffer_size, MemoryMapFlags::empty())
+                .unwrap() as _
         }
     }
 
     #[inline]
-    pub fn unmap_memory(&self, device: &ash::Device) {
+    pub fn unmap_memory(&self, device: &Device) {
         unsafe { device.unmap_memory(self.mem) };
     }
 
     #[inline]
-    pub fn get_device_addr(&self, device: &ash::Device) -> vk::DeviceOrHostAddressKHR {
-        let device_address_info = vk::BufferDeviceAddressInfo {
-            buffer: self.inner,
-            ..Default::default()
-        };
-
-        let device_address = unsafe { device.get_buffer_device_address(&device_address_info) };
-
-        vk::DeviceOrHostAddressKHR { device_address }
-    }
-
-    #[inline]
-    pub fn get_device_addr_u64(&self, device: &ash::Device) -> u64 {
-        let device_address_info = vk::BufferDeviceAddressInfo {
+    pub fn get_device_addr_u64(&self, device: &Device) -> u64 {
+        let device_address_info = BufferDeviceAddressInfo {
             buffer: self.inner,
             ..Default::default()
         };
@@ -254,19 +242,17 @@ impl Buffer {
     }
 
     #[inline]
-    pub fn get_device_addr_const(&self, device: &ash::Device) -> vk::DeviceOrHostAddressConstKHR {
-        let device_address_info = vk::BufferDeviceAddressInfo {
-            buffer: self.inner,
-            ..Default::default()
-        };
-
-        let device_address = unsafe { device.get_buffer_device_address(&device_address_info) };
-
-        vk::DeviceOrHostAddressConstKHR { device_address }
+    pub fn get_device_addr(&self, device: &Device) -> DeviceOrHostAddressKHR {
+        DeviceOrHostAddressKHR { device_address: self.get_device_addr_u64(device) }
     }
 
     #[inline]
-    pub fn destroy(&self, device: &ash::Device) {
+    pub fn get_device_addr_const(&self, device: &Device) -> DeviceOrHostAddressConstKHR {
+        DeviceOrHostAddressConstKHR { device_address: self.get_device_addr_u64(device) }
+    }
+
+    #[inline]
+    pub fn destroy(&self, device: &Device) {
         if !self.inner.is_null() {
             unsafe {
                 device.destroy_buffer(self.inner, None);
@@ -279,7 +265,7 @@ impl Buffer {
 pub fn find_memory_type(
     base: &VkBase,
     type_filter: u32,
-    properties: vk::MemoryPropertyFlags,
+    properties: MemoryPropertyFlags,
 ) -> u32 {
     let mem_properties = unsafe {
         base.instance
