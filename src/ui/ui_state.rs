@@ -293,6 +293,9 @@ impl UiState {
     }
 
     pub fn update(&mut self, base: &VkBase, command_pool: vk::CommandPool) {
+        if !self.visible {
+            return;
+        }
         self.draw_batches.clear();
 
         if matches!(self.dirty, DirtyFlags::Resize) {
@@ -370,6 +373,9 @@ impl UiState {
         cmd: vk::CommandBuffer,
         descriptor_set: vk::DescriptorSet,
     ) {
+        if !self.visible {
+            return;
+        }
         unsafe {
             let mut last_mat = u32::MAX;
             device.cmd_bind_descriptor_sets(

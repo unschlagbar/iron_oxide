@@ -16,6 +16,7 @@ impl Buffer {
         usage: vk::BufferUsageFlags,
         properties: vk::MemoryPropertyFlags,
     ) -> Self {
+        assert_ne!(size, 0, "Buffer must have a size larger than 0");
         let buffer_info = vk::BufferCreateInfo {
             size,
             usage,
