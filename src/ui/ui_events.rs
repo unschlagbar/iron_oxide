@@ -1,6 +1,6 @@
 use winit::event::{ElementState, MouseScrollDelta, TouchPhase};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UiEvent {
     Press,
     Release,

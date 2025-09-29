@@ -52,13 +52,18 @@ impl Element for Text {
         let font = context.font();
         let font_uv_height = 8;
         let scale_factor = self.font_size / font_uv_height as f32;
+
         let mut cursor_pos = Vec2::zero();
+        let mut width: f32 = 0.0;
+
         let z_index = element.z_index;
 
         for c in self.text.chars() {
             if c == ' ' {
                 cursor_pos.x += self.font_size * 0.5;
             } else if c == '\n' {
+                width = width.max(cursor_pos.x);
+
                 cursor_pos.x = 0.0;
                 cursor_pos.y += self.font_size + self.line_spacing;
             } else {
@@ -82,6 +87,7 @@ impl Element for Text {
                 cursor_pos.x += char_data.2 as f32 * scale_factor;
             }
         }
+        width = width.max(cursor_pos.x);
 
         let mut offset = context.child_start_pos;
         if self.align.is_horizontal_centered() {
@@ -91,6 +97,22 @@ impl Element for Text {
         if self.align.is_vertical_centered() {
             offset.y += (context.available_size.y - self.font_size) * 0.5;
         }
+
+        context.apply_data(
+            offset,
+            Vec2::new(width, cursor_pos.y + self.font_size + self.line_spacing),
+        );
+
+        context.start_pos += Vec2::new(width, cursor_pos.y + self.font_size + self.line_spacing);
+
+        if self.text.starts_with("Zu") {
+            println!(
+                "{:?}, {:?}",
+                offset,
+                Vec2::new(width, cursor_pos.y + self.font_size + self.line_spacing)
+            );
+        }
+
 
         for i in &mut self.font_instances {
             i.pos += offset

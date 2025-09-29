@@ -1,5 +1,13 @@
 use super::{SinlgeTimeCommands, VkBase};
-use ash::{vk::{self, BufferCopy, BufferCreateInfo, BufferDeviceAddressInfo, BufferUsageFlags, CommandBuffer, CommandPool, DeviceMemory, DeviceOrHostAddressConstKHR, DeviceOrHostAddressKHR, Handle, MemoryAllocateFlags, MemoryAllocateFlagsInfo, MemoryAllocateInfo, MemoryMapFlags, MemoryPropertyFlags, SharingMode}, Device};
+use ash::{
+    Device,
+    vk::{
+        self, BufferCopy, BufferCreateInfo, BufferDeviceAddressInfo, BufferUsageFlags,
+        CommandBuffer, CommandPool, DeviceMemory, DeviceOrHostAddressConstKHR,
+        DeviceOrHostAddressKHR, Handle, MemoryAllocateFlags, MemoryAllocateFlagsInfo,
+        MemoryAllocateInfo, MemoryMapFlags, MemoryPropertyFlags, SharingMode,
+    },
+};
 use std::ptr::copy_nonoverlapping;
 
 #[derive(Debug, Clone, Copy)]
@@ -243,12 +251,16 @@ impl Buffer {
 
     #[inline]
     pub fn get_device_addr(&self, device: &Device) -> DeviceOrHostAddressKHR {
-        DeviceOrHostAddressKHR { device_address: self.get_device_addr_u64(device) }
+        DeviceOrHostAddressKHR {
+            device_address: self.get_device_addr_u64(device),
+        }
     }
 
     #[inline]
     pub fn get_device_addr_const(&self, device: &Device) -> DeviceOrHostAddressConstKHR {
-        DeviceOrHostAddressConstKHR { device_address: self.get_device_addr_u64(device) }
+        DeviceOrHostAddressConstKHR {
+            device_address: self.get_device_addr_u64(device),
+        }
     }
 
     #[inline]
@@ -262,11 +274,7 @@ impl Buffer {
     }
 }
 
-pub fn find_memory_type(
-    base: &VkBase,
-    type_filter: u32,
-    properties: MemoryPropertyFlags,
-) -> u32 {
+pub fn find_memory_type(base: &VkBase, type_filter: u32, properties: MemoryPropertyFlags) -> u32 {
     let mem_properties = unsafe {
         base.instance
             .get_physical_device_memory_properties(base.physical_device)

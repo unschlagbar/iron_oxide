@@ -29,25 +29,29 @@ impl Element for AbsoluteLayout {
     fn build(&mut self, context: &mut BuildContext, element: &UiElement) {
         let space = context.available_size;
 
-        let width = if matches!(self.width, UiUnit::Auto) {
+        let mut rework_width = false;
+        let mut rework_height = false;
+
+        let width = if self.width == UiUnit::Auto {
+            rework_width = true;
             0.0
         } else {
             self.width.pixelx(space)
         };
-        let height = if matches!(self.height, UiUnit::Auto) {
+        let height = if self.height == UiUnit::Auto {
+            rework_height = true;
             0.0
         } else {
             self.height.pixely(space)
         };
         let mut size = Vec2::new(width, height);
 
-        let mut pos = self.align.get_pos(
-            space,
-            size,
-            Vec2::new(self.x.pixelx(space), self.y.pixely(space)),
-        );
-
-        pos += context.child_start_pos;
+        let pos = context.child_start_pos
+            + self.align.get_pos(
+                space,
+                size,
+                Vec2::new(self.x.pixelx(space), self.y.pixely(space)),
+            );
 
         let mut child_context = BuildContext::new_from(
             context,
@@ -60,20 +64,20 @@ impl Element for AbsoluteLayout {
         size.x += self.padding.x(child_context.available_size);
         size.y += self.padding.y(child_context.available_size);
 
-        for element in self.childs.iter_mut() {
+        for element in &mut self.childs {
             element.build(&mut child_context);
             child_context.order += 1;
         }
 
-        if matches!(self.width, UiUnit::Auto) {
+        if rework_width {
             size.x = child_context.start_pos.x;
-            //dbg!(child_context.start_pos.x);
         }
 
-        if matches!(self.height, UiUnit::Auto) {
+        if rework_height {
             size.y = child_context.start_pos.y;
-            //dbg!(child_context.start_pos.y);
         }
+
+        println!("pos: {:?}, size: {:?}", pos, size);
 
         context.apply_data(pos, size);
     }

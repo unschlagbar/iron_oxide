@@ -199,7 +199,7 @@ impl VkBase {
                 return (device, capabilities);
             }
         }
-        println!("Gpu doenst support all extentions!");
+        println!("GPU doesnt support all extentions!");
 
         (devices[0], 0)
     }
@@ -218,7 +218,7 @@ impl VkBase {
 
         let mut acceleration_structure_features =
             vk::PhysicalDeviceAccelerationStructureFeaturesKHR {
-                acceleration_structure: vk::TRUE, // Aktiviere Beschleunigungsstrukturen
+                acceleration_structure: vk::TRUE,
                 p_next: &mut raytracing_pipeline_structure_features as *mut _ as *mut _,
                 ..Default::default()
             };

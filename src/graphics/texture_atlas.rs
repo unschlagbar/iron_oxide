@@ -1,5 +1,8 @@
 use std::{
-    collections::HashMap, fs::{self, File}, io::BufReader, ptr, vec
+    collections::HashMap,
+    fs::{self, File},
+    io::BufReader,
+    ptr, vec,
 };
 
 use ash::vk::{

@@ -80,6 +80,7 @@ impl UiState {
     pub fn add_element<T: Element + TypeConst>(&mut self, element: T) -> u32 {
         let id = self.get_id();
         let z_index = if matches!(T::ELEMENT_TYPE, ElementType::AbsoluteLayout) {
+            println!("matches");
             0.5
         } else {
             0.01
@@ -470,7 +471,7 @@ impl UiState {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum EventResult {
     None,
     Old,
