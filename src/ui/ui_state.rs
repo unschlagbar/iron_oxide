@@ -10,16 +10,14 @@ use super::{
     element::{Element, TypeConst},
 };
 use crate::{
-    graphics::{AtlasInstance, Buffer, FontInstance, TextureAtlas, UiInstance, VkBase},
+    graphics::{AtlasInstance, FontInstance, TextureAtlas, UiInstance, VkBase},
     primitives::Vec2,
     ui::{
         ElementType,
-        draw_data::{DrawData, InstanceData},
-        ui_pipeline::Pipeline,
+        material::{Basic, Material},
     },
 };
 
-#[derive(Debug)]
 pub struct UiState {
     elements: Vec<UiElement>,
     pub selected: Selected,
@@ -32,19 +30,13 @@ pub struct UiState {
 
     pub event: Option<QueuedEvent>,
     pub tick_queue: Vec<TickEvent>,
-    pub elements_to_remove: Vec<(*mut UiElement, u32)>,
 
     pub texture_atlas: TextureAtlas,
     id_gen: AtomicU32,
 
-    base_pipeline: Pipeline,
-    font_pipeline: Pipeline,
-    atlas_pipeline: Pipeline,
+    pub materials: Vec<Box<dyn Material>>,
 
-    instance_buffer: Buffer,
-    font_instance_buffer: Buffer,
-
-    draw_batches: Vec<(u32, u32, u32, Option<vk::Rect2D>)>, // (material_idx, offset, size, clip)
+    draw_batches: Vec<(usize, u32, u32, Option<vk::Rect2D>)>, // (material, offset, size, clip)
 }
 
 impl UiState {
@@ -61,17 +53,11 @@ impl UiState {
 
             event: None,
             tick_queue: Vec::new(),
-            elements_to_remove: Vec::new(),
 
             font: Font::parse_from_bytes(include_bytes!("../../font/std1.fef")),
             texture_atlas: TextureAtlas::new((1024, 1024)),
 
-            base_pipeline: Pipeline::null(),
-            font_pipeline: Pipeline::null(),
-            atlas_pipeline: Pipeline::null(),
-
-            instance_buffer: Buffer::null(),
-            font_instance_buffer: Buffer::null(),
+            materials: Vec::with_capacity(3),
 
             draw_batches: Vec::new(),
         }
@@ -172,28 +158,28 @@ impl UiState {
         atlas_shaders: (&[u8], &[u8]),
     ) {
         self.size = window_size.into();
-        self.base_pipeline = Pipeline::create_ui::<UiInstance>(
+        self.materials.push(Basic::<UiInstance>::new(
             base,
             window_size,
             render_pass,
             descriptor,
             base_shaders,
-        );
-        self.font_pipeline = Pipeline::create_ui::<FontInstance>(
+        ));
+        self.materials.push(Basic::<FontInstance>::new(
             base,
             window_size,
             render_pass,
             descriptor,
             font_shaders,
-        );
+        ));
 
-        self.atlas_pipeline = Pipeline::create_ui::<AtlasInstance>(
+        self.materials.push(Basic::<AtlasInstance>::new(
             base,
             window_size,
             render_pass,
             descriptor,
             atlas_shaders,
-        );
+        ));
 
         self.texture_atlas
             .load_directory("C:/Dev/home_storage_vulkan/textures", base, cmd_pool);
@@ -210,22 +196,19 @@ impl UiState {
         }
     }
 
-    pub fn get_instaces(&mut self) -> DrawData {
+    pub fn get_instaces(&mut self) {
         self.dirty = DirtyFlags::None;
         self.texts.clear();
 
         if !self.visible || self.elements.len() == 0 {
-            return DrawData::default();
+            return;
         }
 
-        let mut instances = DrawData::default();
         let self_copy = unsafe { &mut *ptr::from_mut(self) };
 
         for raw_e in &mut self.elements {
-            raw_e.get_instances(self_copy, &mut instances, None);
+            raw_e.get_instances(self_copy, None);
         }
-
-        instances
     }
 
     pub fn get_element(&mut self, id: u32) -> Option<&mut UiElement> {
@@ -288,147 +271,9 @@ impl UiState {
         result
     }
 
-    pub fn resize(&mut self, new_size: Vec2) {
-        self.dirty = DirtyFlags::Resize;
-        self.size = new_size;
-    }
-
-    pub fn update(&mut self, base: &VkBase, command_pool: vk::CommandPool) {
-        if !self.visible {
-            return;
-        }
-        self.draw_batches.clear();
-
-        if matches!(self.dirty, DirtyFlags::Resize) {
-            self.build();
-        }
-
-        let ui_instances = self.get_instaces();
-
-        let mut mat_index = 0;
-        let mut data_buf = Vec::new();
-
-        for draw in ui_instances.groups {
-            let this_mat = draw.data.material_idx();
-            if let InstanceData::Basic(data) = draw.data {
-                if this_mat == mat_index {
-                    self.draw_batches.push((
-                        this_mat,
-                        data_buf.len() as u32,
-                        data.len() as u32,
-                        draw.clip,
-                    ));
-                    data_buf.extend(data);
-                } else {
-                    println!("2. Mat");
-                    mat_index = this_mat;
-
-                    self.instance_buffer.destroy(&base.device);
-                    self.instance_buffer = Buffer::device_local_slow(
-                        &base,
-                        command_pool,
-                        &data_buf,
-                        vk::BufferUsageFlags::VERTEX_BUFFER,
-                    );
-                    data_buf.clear();
-                    self.draw_batches
-                        .push((this_mat, 0, data.len() as u32, draw.clip));
-                    data_buf.extend(data);
-                }
-            }
-        }
-        self.instance_buffer.destroy(&base.device);
-        self.instance_buffer = Buffer::device_local_slow(
-            &base,
-            command_pool,
-            &data_buf,
-            vk::BufferUsageFlags::VERTEX_BUFFER,
-        );
-
-        if !self.texts.is_empty() {
-            self.font_instance_buffer.destroy(&base.device);
-
-            self.font_instance_buffer = Buffer::device_local_slow(
-                &base,
-                command_pool,
-                &self.texts,
-                vk::BufferUsageFlags::VERTEX_BUFFER,
-            );
-        }
-    }
-
-    pub fn set_event(&mut self, event: QueuedEvent) {
-        self.event = Some(event);
-    }
-
-    fn mat_pipe(&self, mat_idx: u32) -> (&Pipeline, &Buffer) {
-        match mat_idx {
-            0 => (&self.base_pipeline, &self.instance_buffer),
-            _ => unimplemented!(),
-        }
-    }
-
-    pub fn draw(
-        &self,
-        device: &ash::Device,
-        cmd: vk::CommandBuffer,
-        descriptor_set: vk::DescriptorSet,
-    ) {
-        if !self.visible {
-            return;
-        }
-        unsafe {
-            let mut last_mat = u32::MAX;
-            device.cmd_bind_descriptor_sets(
-                cmd,
-                vk::PipelineBindPoint::GRAPHICS,
-                self.base_pipeline.layout,
-                0,
-                &[descriptor_set],
-                &[],
-            );
-            for (mat, offset, size, clip) in &self.draw_batches {
-                if last_mat != *mat {
-                    last_mat = *mat;
-                    let (pipeline, buffer) = self.mat_pipe(*mat);
-
-                    device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, pipeline.this);
-                    device.cmd_bind_vertex_buffers(cmd, 0, &[buffer.inner], &[0]);
-                }
-                if let Some(clip) = clip {
-                    device.cmd_set_scissor(cmd, 0, &[*clip]);
-                }
-                device.cmd_draw(cmd, 4, *size, 0, *offset);
-            }
-
-            if !self.texts.is_empty() {
-                device.cmd_bind_pipeline(
-                    cmd,
-                    vk::PipelineBindPoint::GRAPHICS,
-                    self.font_pipeline.this,
-                );
-                device.cmd_bind_vertex_buffers(cmd, 0, &[self.font_instance_buffer.inner], &[0]);
-                device.cmd_draw(
-                    cmd,
-                    4,
-                    self.font_instance_buffer.size as u32 / size_of::<FontInstance>() as u32,
-                    0,
-                    0,
-                );
-            }
-        }
-    }
-
-    pub fn destroy(&self, device: &ash::Device) {
-        unsafe {
-            self.base_pipeline.destroy(device);
-            self.font_pipeline.destroy(device);
-            self.atlas_pipeline.destroy(device);
-
-            device.free_memory(self.instance_buffer.mem, None);
-            device.destroy_buffer(self.instance_buffer.inner, None);
-            device.free_memory(self.font_instance_buffer.mem, None);
-            device.destroy_buffer(self.font_instance_buffer.inner, None);
+    pub fn destroy(&mut self, device: &ash::Device) {
+        for mat in &mut self.materials {
+            mat.destroy(device);
         }
         self.texture_atlas.destroy(device);
     }
@@ -468,6 +313,70 @@ impl UiState {
 
     pub fn needs_ticking(&self) -> bool {
         !self.tick_queue.is_empty()
+    }
+
+    pub fn resize(&mut self, new_size: Vec2) {
+        self.dirty = DirtyFlags::Resize;
+        self.size = new_size;
+    }
+
+    pub fn set_event(&mut self, event: QueuedEvent) {
+        self.event = Some(event);
+    }
+
+    pub fn update(&mut self, base: &VkBase, cmd_pool: vk::CommandPool) {
+        if !self.visible {
+            return;
+        }
+        self.draw_batches.clear();
+
+        if matches!(self.dirty, DirtyFlags::Resize) {
+            self.build();
+        }
+
+        for mat in &mut self.materials {
+            mat.clear();
+        }
+
+        self.get_instaces();
+
+        for mat in &mut self.materials {
+            mat.update(base, cmd_pool);
+        }
+    }
+
+    pub fn draw(
+        &mut self,
+        device: &ash::Device,
+        cmd: vk::CommandBuffer,
+        descriptor_set: vk::DescriptorSet,
+    ) {
+        if !self.visible {
+            return;
+        }
+
+        let clip = vk::Rect2D {
+            offset: vk::Offset2D { x: 0, y: 0 },
+            extent: vk::Extent2D {
+                width: self.size.x as _,
+                height: self.size.y as _,
+            },
+        };
+        unsafe {
+            device.cmd_bind_descriptor_sets(
+                cmd,
+                vk::PipelineBindPoint::GRAPHICS,
+                self.materials[0].pipeline().layout,
+                0,
+                &[descriptor_set],
+                &[],
+            );
+            for mat in &self.materials {
+                if mat.draw(device, cmd, clip) {
+                    device.cmd_set_scissor(cmd, 0, &[clip]);
+                }
+            }
+        }
     }
 }
 

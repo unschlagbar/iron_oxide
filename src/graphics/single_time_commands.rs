@@ -6,9 +6,9 @@ pub struct SinlgeTimeCommands;
 
 impl SinlgeTimeCommands {
     #[inline]
-    pub fn begin(base: &VkBase, command_pool: vk::CommandPool) -> vk::CommandBuffer {
+    pub fn begin(base: &VkBase, cmd_pool: vk::CommandPool) -> vk::CommandBuffer {
         let allocate_info = vk::CommandBufferAllocateInfo {
-            command_pool,
+            command_pool: cmd_pool,
             level: vk::CommandBufferLevel::PRIMARY,
             command_buffer_count: 1,
             ..Default::default()
@@ -48,7 +48,7 @@ impl SinlgeTimeCommands {
     }
 
     #[inline]
-    pub fn end(base: &VkBase, command_pool: vk::CommandPool, cmd_buf: vk::CommandBuffer) {
+    pub fn end(base: &VkBase, cmd_pool: vk::CommandPool, cmd_buf: vk::CommandBuffer) {
         unsafe { base.device.end_command_buffer(cmd_buf).unwrap_unchecked() }
 
         let submits = vk::SubmitInfo {
@@ -62,12 +62,12 @@ impl SinlgeTimeCommands {
                 .queue_submit(base.queue, &[submits], vk::Fence::null())
                 .unwrap_unchecked();
             base.device.queue_wait_idle(base.queue).unwrap_unchecked();
-            base.device.free_command_buffers(command_pool, &[cmd_buf]);
+            base.device.free_command_buffers(cmd_pool, &[cmd_buf]);
         }
     }
 
     #[inline]
-    pub fn end_debug(base: &VkBase, command_pool: vk::CommandPool, cmd_buf: vk::CommandBuffer) {
+    pub fn end_debug(base: &VkBase, cmd_pool: vk::CommandPool, cmd_buf: vk::CommandBuffer) {
         unsafe { base.device.end_command_buffer(cmd_buf).unwrap_unchecked() }
 
         let submits = vk::SubmitInfo {
@@ -83,7 +83,7 @@ impl SinlgeTimeCommands {
             let start_time = std::time::Instant::now();
             base.device.queue_wait_idle(base.queue).unwrap_unchecked();
             println!("time: {:?}", start_time.elapsed());
-            base.device.free_command_buffers(command_pool, &[cmd_buf]);
+            base.device.free_command_buffers(cmd_pool, &[cmd_buf]);
         }
     }
 
@@ -105,21 +105,17 @@ impl SinlgeTimeCommands {
     }
 
     #[inline]
-    pub fn end_after_submit(
-        base: &VkBase,
-        command_pool: vk::CommandPool,
-        cmd_buf: vk::CommandBuffer,
-    ) {
+    pub fn end_after_submit(base: &VkBase, cmd_pool: vk::CommandPool, cmd_buf: vk::CommandBuffer) {
         unsafe {
             base.device.queue_wait_idle(base.queue).unwrap_unchecked();
-            base.device.free_command_buffers(command_pool, &[cmd_buf]);
+            base.device.free_command_buffers(cmd_pool, &[cmd_buf]);
         }
     }
 
     #[inline]
-    pub fn free(base: &VkBase, command_pool: vk::CommandPool, cmd_buf: vk::CommandBuffer) {
+    pub fn free(base: &VkBase, cmd_pool: vk::CommandPool, cmd_buf: vk::CommandBuffer) {
         unsafe {
-            base.device.free_command_buffers(command_pool, &[cmd_buf]);
+            base.device.free_command_buffers(cmd_pool, &[cmd_buf]);
         }
     }
 
@@ -144,7 +140,7 @@ impl SinlgeTimeCommands {
         }
     }
 
-    pub fn end_no_wait(base: &VkBase, command_pool: vk::CommandPool, cmd_buf: vk::CommandBuffer) {
+    pub fn end_no_wait(base: &VkBase, cmd_pool: vk::CommandPool, cmd_buf: vk::CommandBuffer) {
         unsafe { base.device.end_command_buffer(cmd_buf).unwrap_unchecked() }
 
         let submits = vk::SubmitInfo {
@@ -157,13 +153,13 @@ impl SinlgeTimeCommands {
             base.device
                 .queue_submit(base.queue, &[submits], vk::Fence::null())
                 .unwrap_unchecked();
-            base.device.free_command_buffers(command_pool, &[cmd_buf]);
+            base.device.free_command_buffers(cmd_pool, &[cmd_buf]);
         }
     }
 
     pub fn end_fence_wait(
         base: &VkBase,
-        command_pool: vk::CommandPool,
+        cmd_pool: vk::CommandPool,
         cmd_buf: vk::CommandBuffer,
         fence: vk::Fence,
     ) {
@@ -183,7 +179,7 @@ impl SinlgeTimeCommands {
                 .wait_for_fences(&[fence], true, u64::MAX)
                 .unwrap();
             base.device.reset_fences(&[fence]).unwrap();
-            base.device.free_command_buffers(command_pool, &[cmd_buf]);
+            base.device.free_command_buffers(cmd_pool, &[cmd_buf]);
         }
     }
 }

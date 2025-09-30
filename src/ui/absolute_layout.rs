@@ -5,10 +5,7 @@ use super::{
 use crate::{
     graphics::{UiInstance, formats::Color},
     primitives::Vec2,
-    ui::{
-        FlexDirection,
-        draw_data::{DrawData, InstanceData},
-    },
+    ui::{FlexDirection, UiState},
 };
 
 pub struct AbsoluteLayout {
@@ -86,27 +83,20 @@ impl Element for AbsoluteLayout {
         (self.width, self.height)
     }
 
-    fn instance(
-        &self,
-        element: &UiElement,
-        draw_data: &mut DrawData,
-        clip: Option<ash::vk::Rect2D>,
-    ) {
-        if let InstanceData::Basic(vec) = draw_data.get_group(0, 0, clip) {
-            vec.push(UiInstance {
-                color: self.color,
-                border_color: self.border_color,
-                border: self.border[0],
-                x: element.pos.x,
-                y: element.pos.y,
-                width: element.size.x,
-                height: element.size.y,
-                corner: self.corner[0].pixelx(element.size),
-                z_index: element.z_index,
-            });
-        } else {
-            unreachable!()
-        }
+    fn instance(&self, element: &UiElement, ui: &mut UiState, clip: Option<ash::vk::Rect2D>) {
+        let material = &mut ui.materials[0];
+        let to_add = UiInstance {
+            color: self.color,
+            border_color: self.border_color,
+            border: self.border[0],
+            x: element.pos.x,
+            y: element.pos.y,
+            width: element.size.x,
+            height: element.size.y,
+            corner: self.corner[0].pixelx(element.size),
+            z_index: element.z_index,
+        };
+        material.add(&to_add as *const _ as *const _, 0, clip);
     }
 
     fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {

@@ -107,7 +107,7 @@ impl TextureAtlas {
         };
         let cmd_buf = SinlgeTimeCommands::begin(&base, cmd_pool);
 
-        let staging_buffer = Buffer::create(
+        let mut staging_buffer = Buffer::create(
             base,
             size,
             BufferUsageFlags::TRANSFER_SRC,

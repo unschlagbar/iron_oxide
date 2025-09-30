@@ -4,9 +4,7 @@ use super::{
     BuildContext, ElementType, UiElement, UiUnit,
     element::{Element, TypeConst},
 };
-use crate::ui::{
-    CallContext, ErasedFnPointer, UiEvent, UiState, draw_data::DrawData, ui_state::EventResult,
-};
+use crate::ui::{CallContext, ErasedFnPointer, UiEvent, UiState, ui_state::EventResult};
 
 pub struct Ticking<T: Element + TypeConst> {
     pub last_tick: Instant,
@@ -33,13 +31,8 @@ impl<T: Element + TypeConst> Element for Ticking<T> {
         self.inner.get_size()
     }
 
-    fn instance(
-        &self,
-        element: &UiElement,
-        draw_data: &mut DrawData,
-        clip: Option<ash::vk::Rect2D>,
-    ) {
-        self.inner.instance(element, draw_data, clip);
+    fn instance(&self, element: &UiElement, ui: &mut UiState, clip: Option<ash::vk::Rect2D>) {
+        self.inner.instance(element, ui, clip);
     }
 
     fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {

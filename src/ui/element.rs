@@ -1,6 +1,6 @@
 use std::{fmt::Debug, ptr, rc::Rc};
 
-use ash::vk;
+use ash::vk::{self, Rect2D};
 
 use super::{
     AbsoluteLayout, BuildContext, Button, ButtonState, CallContext, Container, ElementType, Text,
@@ -8,21 +8,26 @@ use super::{
 };
 use crate::{
     primitives::Vec2,
-    ui::{ScrollPanel, UiUnit, draw_data::DrawData},
+    ui::{ScrollPanel, UiUnit},
 };
 
 pub trait Element {
     fn build(&mut self, context: &mut BuildContext, element: &UiElement);
+
     fn get_size(&mut self) -> (UiUnit, UiUnit) {
         (UiUnit::Undefined, UiUnit::Undefined)
     }
-    fn instance(&self, _: &UiElement, _: &mut DrawData, _: Option<ash::vk::Rect2D>) {}
+
+    fn instance(&self, _: &UiElement, _: &mut UiState, _: Option<Rect2D>) {}
+
     fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
         None
     }
+
     fn childs(&self) -> &[UiElement] {
         &[]
     }
+
     fn add_child(&mut self, child: UiElement) -> Option<&mut UiElement> {
         let childs = self.childs_mut()?;
         childs.push(child);
@@ -153,21 +158,16 @@ impl UiElement {
         }
     }
 
-    pub fn get_instances(
-        &mut self,
-        ui: &mut UiState,
-        instances: &mut DrawData,
-        clip: Option<vk::Rect2D>,
-    ) {
+    pub fn get_instances(&mut self, ui: &mut UiState, clip: Option<vk::Rect2D>) {
         if self.visible {
             if self.typ == ElementType::Text {
                 let size = self.parent().size;
                 let pos = self.parent().pos;
                 let element = unsafe { &*ptr::from_mut(self) };
                 let text: &mut Text = self.downcast_mut();
-                text.get_font_instances(size, pos, ui, element);
+                text.get_font_instances(size, pos, ui, element, clip);
             } else {
-                self.element.instance(self, instances, clip);
+                self.element.instance(self, ui, clip);
             }
         }
 
@@ -191,7 +191,7 @@ impl UiElement {
 
         if let Some(childs) = self.element.childs_mut() {
             for child in childs {
-                child.get_instances(ui, instances, clip);
+                child.get_instances(ui, clip);
             }
         }
     }

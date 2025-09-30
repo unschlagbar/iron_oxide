@@ -1,3 +1,5 @@
+use ash::vk::Rect2D;
+
 use super::{
     Align, BuildContext, ElementType, UiElement, UiState,
     element::{Element, TypeConst},
@@ -25,14 +27,21 @@ impl Text {
         parent_pos: Vec2,
         ui: &mut UiState,
         element: &UiElement,
+        clip: Option<Rect2D>
     ) {
         match self.dirty_flags {
-            TextDirtyFlags::None => ui.texts.extend_from_slice(&self.font_instances),
+            TextDirtyFlags::None => {
+                for inst in &self.font_instances {
+                    ui.materials[1].add(inst as *const _ as *const _, 0, clip)
+                }
+            },
             TextDirtyFlags::TextChanged => {
                 let mut context = BuildContext::default(&ui.font, parent_size);
                 context.child_start_pos = parent_pos;
                 self.build(&mut context, element);
-                ui.texts.extend_from_slice(&self.font_instances)
+                for inst in &self.font_instances {
+                    ui.materials[1].add(inst as *const _ as *const _, 0, clip)
+                }
             }
             TextDirtyFlags::AddedChar => todo!(),
             TextDirtyFlags::RemovedChar => todo!(),
@@ -112,7 +121,6 @@ impl Element for Text {
                 Vec2::new(width, cursor_pos.y + self.font_size + self.line_spacing)
             );
         }
-
 
         for i in &mut self.font_instances {
             i.pos += offset

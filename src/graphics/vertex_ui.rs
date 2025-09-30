@@ -4,7 +4,7 @@ use std::mem::offset_of;
 use super::formats::Color;
 
 #[repr(C)]
-#[derive(Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct UiInstance {
     pub color: Color,
     pub border_color: Color,
@@ -84,7 +84,7 @@ impl VertexDescription for UiInstance {
 }
 
 #[repr(C)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct AtlasInstance {
     pub x: f32,
     pub y: f32,

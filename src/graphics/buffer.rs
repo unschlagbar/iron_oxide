@@ -18,6 +18,7 @@ pub struct Buffer {
 }
 
 impl Buffer {
+    #[track_caller]
     pub fn create(
         base: &VkBase,
         size: u64,
@@ -83,14 +84,14 @@ impl Buffer {
 
     pub fn device_local_raw(
         base: &VkBase,
-        command_pool: CommandPool,
+        cmd_pool: CommandPool,
         stride: u64,
         len: u64,
         data: *const u8,
         usage: BufferUsageFlags,
     ) -> Self {
         let buffer_size = stride * len;
-        let staging_buffer = Self::create(
+        let mut staging_buffer = Self::create(
             base,
             buffer_size,
             BufferUsageFlags::TRANSFER_SRC,
@@ -110,9 +111,9 @@ impl Buffer {
             MemoryPropertyFlags::DEVICE_LOCAL,
         );
 
-        let cmd_buf = SinlgeTimeCommands::begin(&base, command_pool);
+        let cmd_buf = SinlgeTimeCommands::begin(&base, cmd_pool);
         staging_buffer.copy(base, &device_local_buffer, buffer_size, 0, cmd_buf);
-        SinlgeTimeCommands::end(base, command_pool, cmd_buf);
+        SinlgeTimeCommands::end(base, cmd_pool, cmd_buf);
 
         staging_buffer.destroy(&base.device);
 
@@ -133,12 +134,12 @@ impl Buffer {
     pub fn update<T>(
         &mut self,
         base: &VkBase,
-        command_pool: CommandPool,
+        cmd_pool: CommandPool,
         data: &[T],
         usage: BufferUsageFlags,
     ) {
         let buffer_size = size_of::<T>() as u64 * data.len() as u64;
-        let staging_buffer = Self::create(
+        let mut staging_buffer = Self::create(
             base,
             buffer_size,
             BufferUsageFlags::TRANSFER_SRC,
@@ -162,21 +163,22 @@ impl Buffer {
             );
         }
 
-        let cmd_buf = SinlgeTimeCommands::begin(&base, command_pool);
+        let cmd_buf = SinlgeTimeCommands::begin(&base, cmd_pool);
         staging_buffer.copy(base, &self, buffer_size, 0, cmd_buf);
-        SinlgeTimeCommands::end(base, command_pool, cmd_buf);
+        SinlgeTimeCommands::end(base, cmd_pool, cmd_buf);
 
         staging_buffer.destroy(&base.device);
     }
 
+    #[track_caller]
     pub fn device_local_slow<T>(
         base: &VkBase,
-        command_pool: CommandPool,
+        cmd_pool: CommandPool,
         data: &[T],
         usage: BufferUsageFlags,
     ) -> Self {
         let buffer_size = data.len() as u64 * size_of::<T>() as u64;
-        let staging_buffer = Self::create(
+        let mut staging_buffer = Self::create(
             base,
             buffer_size,
             BufferUsageFlags::TRANSFER_SRC,
@@ -196,9 +198,9 @@ impl Buffer {
             MemoryPropertyFlags::DEVICE_LOCAL,
         );
 
-        let cmd_buf = SinlgeTimeCommands::begin(&base, command_pool);
+        let cmd_buf = SinlgeTimeCommands::begin(&base, cmd_pool);
         staging_buffer.copy(base, &device_local_buffer, buffer_size, 0, cmd_buf);
-        SinlgeTimeCommands::end(base, command_pool, cmd_buf);
+        SinlgeTimeCommands::end(base, cmd_pool, cmd_buf);
 
         staging_buffer.destroy(&base.device);
 
@@ -264,12 +266,13 @@ impl Buffer {
     }
 
     #[inline]
-    pub fn destroy(&self, device: &Device) {
+    pub fn destroy(&mut self, device: &Device) {
         if !self.inner.is_null() {
             unsafe {
                 device.destroy_buffer(self.inner, None);
                 device.free_memory(self.mem, None);
             }
+            self.inner = vk::Buffer::null();
         }
     }
 }

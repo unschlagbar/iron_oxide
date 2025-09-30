@@ -6,10 +6,7 @@ use super::{
 };
 use crate::{
     primitives::Vec2,
-    ui::{
-        DirtyFlags, FlexDirection, OutArea, UiEvent, UiState, draw_data::DrawData,
-        ui_state::EventResult,
-    },
+    ui::{DirtyFlags, FlexDirection, OutArea, UiEvent, UiState, ui_state::EventResult},
 };
 
 #[derive(Default)]
@@ -109,10 +106,6 @@ impl Element for ScrollPanel {
 
     fn get_size(&mut self) -> (UiUnit, UiUnit) {
         (UiUnit::Fill, UiUnit::Fill)
-    }
-
-    fn instance(&self, _: &UiElement, _: &mut DrawData, _: Option<ash::vk::Rect2D>) {
-        // ScrollPanel itself does not render anything
     }
 
     fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
