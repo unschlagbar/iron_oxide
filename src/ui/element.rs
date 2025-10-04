@@ -1,4 +1,4 @@
-use std::{fmt::Debug, ptr, rc::Rc};
+use std::{fmt::Debug, ptr};
 
 use ash::vk::{self, Rect2D};
 
@@ -51,7 +51,6 @@ pub trait TypeConst: Default + 'static {
         UiElement {
             id: ui_state.get_id(),
             typ: Self::ELEMENT_TYPE,
-            dirty: true,
             visible: true,
             size: Vec2::zero(),
             pos: Vec2::zero(),
@@ -65,7 +64,6 @@ pub trait TypeConst: Default + 'static {
 pub struct UiElement {
     pub id: u32,
     pub typ: ElementType,
-    pub dirty: bool,
     pub visible: bool,
     pub size: Vec2,
     pub pos: Vec2,
@@ -113,27 +111,22 @@ impl UiElement {
             ElementType::Block => {
                 let div: &mut Container = self.downcast_mut();
                 div.build(context, element);
-                self.dirty = false;
             }
             ElementType::AbsoluteLayout => {
                 let div: &mut AbsoluteLayout = self.downcast_mut();
                 div.build(context, element);
-                self.dirty = false;
             }
             ElementType::Button => {
                 let div: &mut Button = self.downcast_mut();
                 div.build(context, element);
-                self.dirty = false;
             }
             ElementType::Text => {
                 let div: &mut Text = self.downcast_mut();
                 div.build(context, element);
-                self.dirty = false;
             }
             ElementType::ScrollPanel => {
                 let div: &mut ScrollPanel = self.downcast_mut();
                 div.build(context, element);
-                self.dirty = false;
             }
             _ => unimplemented!(),
         }
@@ -231,8 +224,8 @@ impl UiElement {
 
     #[inline]
     pub fn is_in(&self, pos: Vec2) -> bool {
-        if self.pos < pos {
-            if self.pos.x + self.size.x > pos.x && self.pos.y + self.size.y > pos.y {
+        if self.pos <= pos {
+            if self.pos.x + self.size.x >= pos.x && self.pos.y + self.size.y >= pos.y {
                 return true;
             }
         }
@@ -248,13 +241,10 @@ impl UiElement {
         Some(&text_element.text)
     }
 
-    #[allow(unused)]
     pub fn update_cursor(&mut self, ui: &mut UiState, event: UiEvent) -> EventResult {
         if !self.visible {
             return EventResult::None;
         }
-
-        let (size, pos) = (self.size, self.pos);
 
         if self.is_in(ui.cursor_pos) {
             if let Some(childs) = self.element.childs_mut() {
@@ -269,11 +259,8 @@ impl UiElement {
             let mut result = EventResult::None;
             let element = unsafe { ptr::from_mut(self).as_mut().unwrap() };
 
-            match self.typ {
-                ElementType::Button | ElementType::ScrollPanel => {
-                    result = self.element.interaction(element, ui, event);
-                }
-                _ => (),
+            if self.typ.has_interaction() {
+                result = self.element.interaction(element, ui, event);
             }
 
             return result;
@@ -284,16 +271,6 @@ impl UiElement {
     pub fn add_to_parent(mut self, parent: &mut UiElement) {
         self.parent = ptr::from_mut(parent);
         parent.add_child(self);
-    }
-
-    #[inline]
-    pub fn get_mut(this: &mut Rc<UiElement>) -> Option<&mut UiElement> {
-        Rc::get_mut(this)
-    }
-
-    #[inline]
-    pub fn set_dirty(&self) {
-        unsafe { (self as *const Self as *mut Self).as_mut().unwrap().dirty = true };
     }
 
     #[inline]
@@ -360,7 +337,6 @@ impl Debug for UiElement {
         f.debug_struct("UiElement")
             .field("id", &self.id)
             .field("typ", &self.typ)
-            .field("dirty", &self.dirty)
             .field("visible", &self.visible)
             .field("size", &self.size)
             .field("pos", &self.pos)

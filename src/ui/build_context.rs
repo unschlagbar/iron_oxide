@@ -11,13 +11,13 @@ use super::Font;
 pub struct BuildContext {
     pub element_size: Vec2,
     pub element_pos: Vec2,
+
     pub available_size: Vec2,
     pub child_start_pos: Vec2,
     pub line_offset: f32,
-    pub start_pos: Vec2,
+    pub used_space: Vec2,
     pub flex_direction: FlexDirection,
     pub parent: *const UiElement,
-    pub order: u16,
     font: *const Font,
 }
 
@@ -29,10 +29,9 @@ impl BuildContext {
             available_size: parent_size,
             child_start_pos: Vec2::default(),
             line_offset: 0.0,
-            start_pos: Vec2::default(),
+            used_space: Vec2::default(),
             flex_direction: FlexDirection::Vertical,
             parent: null(),
-            order: 0,
             font: font as _,
         }
     }
@@ -54,10 +53,9 @@ impl BuildContext {
             available_size,
             child_start_pos,
             line_offset: 0.0,
-            start_pos: Vec2::default(),
+            used_space: Vec2::default(),
             flex_direction,
             parent: ptr::from_ref(parent),
-            order: 0,
             font: context.font,
         }
     }
@@ -66,37 +64,37 @@ impl BuildContext {
     pub fn fits_in_line(&mut self, pos: &mut Vec2, size: Vec2) -> bool {
         match self.flex_direction {
             FlexDirection::Horizontal => {
-                if self.available_size.x - self.start_pos.x >= size.x {
-                    *pos += self.start_pos;
+                if self.available_size.x - self.used_space.x >= size.x {
+                    *pos += self.used_space;
 
                     self.line_offset = self.line_offset.max(size.y);
-                    self.start_pos.x += size.x;
+                    self.used_space.x += size.x;
 
                     true
                 } else {
-                    self.start_pos.y += self.line_offset;
-                    pos.y += self.start_pos.y;
+                    self.used_space.y += self.line_offset;
+                    pos.y += self.used_space.y;
 
                     self.line_offset = size.y;
-                    self.start_pos.x = size.x;
+                    self.used_space.x = size.x;
 
                     false
                 }
             }
             FlexDirection::Vertical => {
-                if self.available_size.y - self.start_pos.y >= size.y {
-                    *pos += self.start_pos;
+                if self.available_size.y - self.used_space.y >= size.y {
+                    *pos += self.used_space;
 
                     self.line_offset = self.line_offset.max(size.x);
-                    self.start_pos.y += size.y;
+                    self.used_space.y += size.y;
 
                     true
                 } else {
-                    self.start_pos.x += self.line_offset;
-                    pos.x += self.start_pos.x;
+                    self.used_space.x += self.line_offset;
+                    pos.x += self.used_space.x;
 
                     self.line_offset = size.x;
-                    self.start_pos.y = size.y;
+                    self.used_space.y = size.y;
 
                     false
                 }

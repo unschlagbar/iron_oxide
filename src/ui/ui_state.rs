@@ -10,11 +10,10 @@ use super::{
     element::{Element, TypeConst},
 };
 use crate::{
-    graphics::{AtlasInstance, FontInstance, TextureAtlas, UiInstance, VkBase},
+    graphics::{TextureAtlas, VkBase},
     primitives::Vec2,
     ui::{
-        ElementType,
-        material::{Basic, Material},
+        materials::{AtlasInstance, Basic, FontInstance, Material, UiInstance}, ElementType
     },
 };
 
@@ -35,8 +34,6 @@ pub struct UiState {
     id_gen: AtomicU32,
 
     pub materials: Vec<Box<dyn Material>>,
-
-    draw_batches: Vec<(usize, u32, u32, Option<vk::Rect2D>)>, // (material, offset, size, clip)
 }
 
 impl UiState {
@@ -58,15 +55,12 @@ impl UiState {
             texture_atlas: TextureAtlas::new((1024, 1024)),
 
             materials: Vec::with_capacity(3),
-
-            draw_batches: Vec::new(),
         }
     }
 
     pub fn add_element<T: Element + TypeConst>(&mut self, element: T) -> u32 {
         let id = self.get_id();
         let z_index = if matches!(T::ELEMENT_TYPE, ElementType::AbsoluteLayout) {
-            println!("matches");
             0.5
         } else {
             0.01
@@ -74,7 +68,6 @@ impl UiState {
         let mut element = UiElement {
             id,
             typ: T::ELEMENT_TYPE,
-            dirty: true,
             visible: true,
             size: Vec2::default(),
             pos: Vec2::default(),
@@ -99,7 +92,6 @@ impl UiState {
         let mut child = UiElement {
             id,
             typ: T::ELEMENT_TYPE,
-            dirty: true,
             visible: true,
             size: Vec2::default(),
             pos: Vec2::default(),
@@ -192,7 +184,6 @@ impl UiState {
 
         for element in &mut self.elements {
             element.build(&mut build_context);
-            build_context.order += 1;
         }
     }
 
@@ -225,11 +216,11 @@ impl UiState {
         None
     }
 
-    pub fn get_element_mut(&mut self, root: Vec<usize>) -> Option<&mut UiElement> {
-        let mut h = self.elements.get_mut(*root.first()?)?;
+    pub fn get_element_mut(&mut self, root: Vec<u32>) -> Option<&mut UiElement> {
+        let mut h = self.elements.get_mut(*root.first()? as usize)?;
         for i in 1..root.len() {
             if let Some(childs) = h.element.childs_mut() {
-                h = childs.get_mut(*root.get(i)?)?;
+                h = childs.get_mut(*root.get(i)? as usize)?;
             } else {
                 return None;
             }
@@ -247,6 +238,21 @@ impl UiState {
             let element2 = unsafe { &mut *self.selected.ptr };
 
             result = element.element.interaction(element2, self_clone, event);
+        }
+        result
+    }
+
+    pub fn end_selection(&mut self) -> EventResult {
+        let self_clone = unsafe { ptr::from_mut(self).as_mut().unwrap() };
+        let mut result = EventResult::None;
+
+        self.cursor_pos = Vec2::new(f32::MAX, f32::MAX);
+
+        if !self.selected.is_none() {
+            let element = unsafe { &mut *self.selected.ptr };
+            let element2 = unsafe { &mut *self.selected.ptr };
+
+            result = element.element.interaction(element2, self_clone, UiEvent::Move);
         }
         result
     }
@@ -269,6 +275,14 @@ impl UiState {
         }
 
         result
+    }
+
+    pub fn get_hovered(&mut self) -> Option<&mut UiElement> {
+        if !self.selected.is_none() {
+            return Some(unsafe { &mut *self.selected.ptr });
+        } else {
+            None
+        }
     }
 
     pub fn destroy(&mut self, device: &ash::Device) {
@@ -328,7 +342,6 @@ impl UiState {
         if !self.visible {
             return;
         }
-        self.draw_batches.clear();
 
         if matches!(self.dirty, DirtyFlags::Resize) {
             self.build();

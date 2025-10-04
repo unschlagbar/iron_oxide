@@ -3,9 +3,9 @@ use super::{
     element::{Element, TypeConst},
 };
 use crate::{
-    graphics::{UiInstance, formats::Color},
+    graphics::formats::RGBA,
     primitives::Vec2,
-    ui::{FlexDirection, UiState},
+    ui::{materials::UiInstance, FlexDirection, UiState},
 };
 
 pub struct AbsoluteLayout {
@@ -14,8 +14,8 @@ pub struct AbsoluteLayout {
     pub y: UiUnit,
     pub width: UiUnit,
     pub height: UiUnit,
-    pub color: Color,
-    pub border_color: Color,
+    pub color: RGBA,
+    pub border_color: RGBA,
     pub border: [f32; 4],
     pub corner: [UiUnit; 4],
     pub padding: OutArea,
@@ -63,18 +63,15 @@ impl Element for AbsoluteLayout {
 
         for element in &mut self.childs {
             element.build(&mut child_context);
-            child_context.order += 1;
         }
 
         if rework_width {
-            size.x = child_context.start_pos.x;
+            size.x = child_context.used_space.x;
         }
 
         if rework_height {
-            size.y = child_context.start_pos.y;
+            size.y = child_context.used_space.y;
         }
-
-        println!("pos: {:?}, size: {:?}", pos, size);
 
         context.apply_data(pos, size);
     }
@@ -121,8 +118,8 @@ impl Default for AbsoluteLayout {
             y: UiUnit::Px(10.0),
             width: UiUnit::Px(100.0),
             height: UiUnit::Px(100.0),
-            color: Color::DARKGREY,
-            border_color: Color::GREEN,
+            color: RGBA::DARKGREY,
+            border_color: RGBA::GREEN,
             border: [0.0; 4],
             corner: [UiUnit::Zero; 4],
             padding: OutArea::default(),

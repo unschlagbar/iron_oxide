@@ -3,9 +3,9 @@ use super::{
     element::{Element, TypeConst},
 };
 use crate::{
-    graphics::{UiInstance, formats::Color},
+    graphics::formats::RGBA,
     primitives::Vec2,
-    ui::{FlexDirection, UiState},
+    ui::{materials::UiInstance, FlexDirection, UiState},
 };
 
 pub struct Container {
@@ -13,8 +13,8 @@ pub struct Container {
     pub padding: OutArea,
     pub width: UiUnit,
     pub height: UiUnit,
-    pub color: Color,
-    pub border_color: Color,
+    pub color: RGBA,
+    pub border_color: RGBA,
     pub flex_direction: FlexDirection,
     pub border: [f32; 4],
     pub corner: [UiUnit; 4],
@@ -57,14 +57,13 @@ impl Element for Container {
         for element in self.childs.iter_mut() {
             let (width, height) = element.element.get_size();
             if matches!(width, UiUnit::Fill) {
-                element.size.x = (child_context.available_size.x - child_context.start_pos.x).abs();
+                element.size.x = (child_context.available_size.x - child_context.used_space.x).abs();
             }
 
             if matches!(height, UiUnit::Fill) {
-                element.size.y = (child_context.available_size.y - child_context.start_pos.y).abs();
+                element.size.y = (child_context.available_size.y - child_context.used_space.y).abs();
             }
             element.build(&mut child_context);
-            child_context.order += 1;
         }
 
         context.apply_data(pos, size);
@@ -110,8 +109,8 @@ impl Default for Container {
             padding: OutArea::default(),
             width: UiUnit::Px(100.0),
             height: UiUnit::Px(100.0),
-            color: Color::DARKGREY,
-            border_color: Color::GREEN,
+            color: RGBA::DARKGREY,
+            border_color: RGBA::GREEN,
             flex_direction: FlexDirection::default(),
             border: [0.0; 4],
             corner: [UiUnit::Zero; 4],

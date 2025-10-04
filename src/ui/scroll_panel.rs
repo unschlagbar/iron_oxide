@@ -46,10 +46,9 @@ impl Element for ScrollPanel {
 
         for element in self.childs.iter_mut() {
             element.build(&mut child_context);
-            child_context.order += 1;
         }
 
-        self.size.y = child_context.start_pos.y + self.padding.size(space).y;
+        self.size.y = child_context.used_space.y + self.padding.size(space).y;
 
         // if we resize the element we dont want the scroll offset to be larger it should be
         if element.size.y < self.size.y {

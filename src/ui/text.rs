@@ -5,13 +5,13 @@ use super::{
     element::{Element, TypeConst},
 };
 use crate::{
-    graphics::{FontInstance, formats::Color},
-    primitives::Vec2,
+    graphics::formats::RGBA,
+    primitives::Vec2, ui::materials::FontInstance,
 };
 
 pub struct Text {
     pub text: String,
-    pub color: Color,
+    pub color: RGBA,
     pub font_size: f32,
     pub align: Align,
     pub wrap: WrapMode,
@@ -112,15 +112,7 @@ impl Element for Text {
             Vec2::new(width, cursor_pos.y + self.font_size + self.line_spacing),
         );
 
-        context.start_pos += Vec2::new(width, cursor_pos.y + self.font_size + self.line_spacing);
-
-        if self.text.starts_with("Zu") {
-            println!(
-                "{:?}, {:?}",
-                offset,
-                Vec2::new(width, cursor_pos.y + self.font_size + self.line_spacing)
-            );
-        }
+        context.used_space += Vec2::new(width, cursor_pos.y + self.font_size + self.line_spacing);
 
         for i in &mut self.font_instances {
             i.pos += offset
@@ -135,7 +127,7 @@ impl TypeConst for Text {
 impl Default for Text {
     fn default() -> Self {
         Self {
-            color: Color::WHITE,
+            color: RGBA::WHITE,
             text: "Default".to_string(),
             font_size: 16.0,
             font_instances: Vec::new(),

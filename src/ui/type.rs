@@ -8,3 +8,13 @@ pub enum ElementType {
     Text,
     ScrollPanel,
 }
+
+impl ElementType {
+    pub const fn has_interaction(&self) -> bool {
+        match self {
+            Self::Button => true,
+            Self::ScrollPanel => true,
+            _ => false
+        }
+    }
+}
