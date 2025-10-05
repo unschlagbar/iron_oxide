@@ -1,5 +1,5 @@
 use super::{
-    BuildContext, ElementType, ErasedFnPointer, OutArea, UiElement, UiUnit,
+    BuildContext, ElementType, FnPtr, OutArea, UiElement, UiUnit,
     element::{Element, TypeConst},
 };
 use crate::{
@@ -19,7 +19,7 @@ pub struct Button {
     pub border: [f32; 4],
     pub corner: [UiUnit; 4],
     pub state: ButtonState,
-    pub callback: ErasedFnPointer,
+    pub callback: FnPtr,
     pub message: u16,
     pub childs: Vec<UiElement>,
 }
@@ -145,10 +145,15 @@ impl Element for Button {
                     }
                 }
             }
+            UiEvent::End => {
+                result = EventResult::New;
+                self.state = ButtonState::Normal;
+                ui.selected.clear();
+            }
             _ => return EventResult::None,
         }
 
-        if !self.callback.is_null() {
+        if !self.callback.is_none() {
             let context = CallContext { ui, element, event };
             self.callback.call(context);
         }
@@ -175,7 +180,7 @@ impl Default for Button {
             flex_direction: FlexDirection::Horizontal,
             state: ButtonState::Normal,
             childs: Default::default(),
-            callback: ErasedFnPointer::null(),
+            callback: FnPtr::none(),
             message: 0,
         }
     }

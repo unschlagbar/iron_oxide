@@ -7,6 +7,7 @@ pub enum UiEvent {
     Move,
     Scroll(MouseScrollDelta),
     Tick,
+    End,
 }
 
 impl From<TouchPhase> for UiEvent {

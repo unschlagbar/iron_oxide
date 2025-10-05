@@ -22,7 +22,7 @@ impl UiUnit {
         match self {
             Self::Zero => 0.0,
             Self::Undefined => 100.0,
-            Self::Auto => 100.0,
+            Self::Auto => f32::MAX,
             Self::Fill => 1.77,
             Self::Px(pixel) => *pixel,
             Self::Relative(percent) | Self::RelativeWidth(percent) => space.x * percent,
@@ -38,7 +38,7 @@ impl UiUnit {
         match self {
             Self::Zero => 0.0,
             Self::Undefined => 100.0,
-            Self::Auto => 100.0,
+            Self::Auto => f32::MAX,
             Self::Fill => 1.77,
             Self::Px(pixel) => *pixel,
             Self::Relative(percent) | Self::RelativeHeight(percent) => space.y * percent,
@@ -47,6 +47,10 @@ impl UiUnit {
             Self::RelativeMin(percent) => space.min() * percent,
             Self::Rem(rem) => *rem,
         }
+    }
+
+    pub fn child_dependent(&self) -> bool {
+        matches!(self, Self::Auto)
     }
 }
 

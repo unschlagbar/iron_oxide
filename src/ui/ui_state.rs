@@ -58,7 +58,11 @@ impl UiState {
         }
     }
 
-    pub fn add_element<T: Element + TypeConst>(&mut self, element: T) -> u32 {
+    pub fn add_element<T: Element + TypeConst>(&mut self, element: T, name: &'static str) -> u32 {
+        let self_2 = unsafe {
+            &mut *(self as *mut Self)
+        };
+
         let id = self.get_id();
         let z_index = if matches!(T::ELEMENT_TYPE, ElementType::AbsoluteLayout) {
             0.5
@@ -67,6 +71,7 @@ impl UiState {
         };
         let mut element = UiElement {
             id,
+            name,
             typ: T::ELEMENT_TYPE,
             visible: true,
             size: Vec2::default(),
@@ -78,19 +83,30 @@ impl UiState {
 
         element.init();
         self.elements.push(element);
+
+
+        let element = self.elements.last_mut().unwrap();
+
         if T::DEFAULT_TICKING {
-            let child = ptr::from_mut(self.elements.last_mut().unwrap());
-            self.set_ticking(child);
+            let child = ptr::from_mut(element);
+            self_2.set_ticking(child);
         }
+
+        if T::ELEMENT_TYPE == ElementType::AbsoluteLayout && element.is_in(self.cursor_pos) {
+            self.selected.clear();
+            self.update_cursor(self.cursor_pos, UiEvent::Move);
+        }
+
         self.dirty = DirtyFlags::Resize;
         id
     }
 
-    pub fn add_child_to<T: Element + TypeConst>(&mut self, child: T, element: u32) -> Option<u32> {
+    pub fn add_child_to<T: Element + TypeConst>(&mut self, child: T, name: &'static str, element: u32) -> Option<u32> {
         let id = self.get_id();
         let element = self.get_element(element)?;
         let mut child = UiElement {
             id,
+            name,
             typ: T::ELEMENT_TYPE,
             visible: true,
             size: Vec2::default(),
@@ -103,11 +119,11 @@ impl UiState {
         child.init();
         let child = element.add_child(child);
 
-        if T::DEFAULT_TICKING
-            && let Some(child) = child
-        {
-            let child = ptr::from_mut(child);
-            self.set_ticking(child);
+        if let Some(child) = child {
+            if T::DEFAULT_TICKING {
+                let child = ptr::from_mut(child);
+                self.set_ticking(child);
+            }
         }
 
         self.dirty = DirtyFlags::Resize;
@@ -174,7 +190,7 @@ impl UiState {
         ));
 
         self.texture_atlas
-            .load_directory("C:/Dev/home_storage_vulkan/textures", base, cmd_pool);
+            .load_directory("../home_storage_vulkan/textures", base, cmd_pool);
     }
 
     pub fn build(&mut self) {
@@ -230,16 +246,16 @@ impl UiState {
     }
 
     pub fn check_selected(&mut self, event: UiEvent) -> EventResult {
-        let self_clone = unsafe { ptr::from_mut(self).as_mut().unwrap() };
-        let mut result = EventResult::None;
-
         if !self.selected.is_none() {
-            let element = unsafe { &mut *self.selected.ptr };
-            let element2 = unsafe { &mut *self.selected.ptr };
-
-            result = element.element.interaction(element2, self_clone, event);
+            unsafe {
+                let element = &mut *self.selected.ptr;
+                let element2 = &mut *self.selected.ptr;
+    
+                element.element.interaction(element2, self, event)
+            }
+        } else {
+            EventResult::None
         }
-        result
     }
 
     pub fn end_selection(&mut self) -> EventResult {
@@ -252,7 +268,7 @@ impl UiState {
             let element = unsafe { &mut *self.selected.ptr };
             let element2 = unsafe { &mut *self.selected.ptr };
 
-            result = element.element.interaction(element2, self_clone, UiEvent::Move);
+            result = element.element.interaction(element2, self_clone, UiEvent::End);
         }
         result
     }
@@ -262,16 +278,23 @@ impl UiState {
         self.cursor_pos = cursor_pos;
 
         let mut result = self.check_selected(event);
-        if !result.is_none() {
-            return result;
-        }
 
-        for element in &mut self.elements {
-            let r = element.update_cursor(self_clone, event);
-            if !r.is_none() {
-                result = r;
+        for element in self.elements.iter_mut().rev() {
+            if element.typ == ElementType::AbsoluteLayout && element.is_in(cursor_pos) && element.id != self.selected.id() {
+                self.selected.end(self_clone);
+                let r = element.update_cursor(self_clone, event);
+                if !r.is_none() {
+                    result = r;
+                }
                 break;
+            } else {
+                let r = element.update_cursor(self_clone, event);
+                if !r.is_none() {
+                    result = r;
+                    break;
+                }
             }
+
         }
 
         result
@@ -444,6 +467,15 @@ impl Selected {
         self.selected = SelectedFlags::Null;
     }
 
+    pub fn end(&mut self, ui: &mut UiState) {
+        if !self.is_none() {
+            unsafe {
+                let old = &mut *self.ptr;
+                old.update_cursor(ui, UiEvent::End);
+            }
+        }
+    }
+
     pub const fn set_selected(&mut self, element: *mut UiElement) {
         self.ptr = element;
         self.selected = SelectedFlags::Selected;
@@ -506,6 +538,7 @@ impl TickEvent {
 pub struct QueuedEvent {
     pub element_id: u32,
     pub element_type: ElementType,
+    pub element_name: &'static str,
     pub event: UiEvent,
     pub message: u16,
 }
@@ -515,6 +548,7 @@ impl QueuedEvent {
         Self {
             element_id: element.id,
             element_type: element.typ,
+            element_name: element.name,
             event,
             message,
         }

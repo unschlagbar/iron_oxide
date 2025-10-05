@@ -3,7 +3,7 @@ use std::{fmt::Debug, ptr};
 use ash::vk::{self, Rect2D};
 
 use super::{
-    AbsoluteLayout, BuildContext, Button, ButtonState, CallContext, Container, ElementType, Text,
+    Absolute, BuildContext, Button, ButtonState, CallContext, Container, ElementType, Text,
     UiEvent, UiState, ui_state::EventResult,
 };
 use crate::{
@@ -44,12 +44,13 @@ pub trait Element {
 pub trait TypeConst: Default + 'static {
     const ELEMENT_TYPE: ElementType;
     const DEFAULT_TICKING: bool = false;
-    fn wrap(self, ui_state: &UiState) -> UiElement
+    fn wrap(self, name: &'static str, ui_state: &UiState) -> UiElement
     where
         Self: Element + Sized,
     {
         UiElement {
             id: ui_state.get_id(),
+            name,
             typ: Self::ELEMENT_TYPE,
             visible: true,
             size: Vec2::zero(),
@@ -63,6 +64,7 @@ pub trait TypeConst: Default + 'static {
 
 pub struct UiElement {
     pub id: u32,
+    pub name: &'static str,
     pub typ: ElementType,
     pub visible: bool,
     pub size: Vec2,
@@ -113,7 +115,7 @@ impl UiElement {
                 div.build(context, element);
             }
             ElementType::AbsoluteLayout => {
-                let div: &mut AbsoluteLayout = self.downcast_mut();
+                let div: &mut Absolute = self.downcast_mut();
                 div.build(context, element);
             }
             ElementType::Button => {
@@ -140,7 +142,7 @@ impl UiElement {
             let element = unsafe { &mut *(self as *mut UiElement) };
             let button: &mut Button = self.downcast_mut();
             button.state = ButtonState::Normal;
-            if !button.callback.is_null() {
+            if !button.callback.is_none() {
                 let context = CallContext {
                     ui,
                     element,
@@ -248,11 +250,14 @@ impl UiElement {
 
         if self.is_in(ui.cursor_pos) {
             if let Some(childs) = self.element.childs_mut() {
-                for child in childs {
+                for child in childs.iter_mut().rev() {
                     let result = child.update_cursor(ui, event);
                     if !result.is_none() {
                         return result;
+                    } else if child.typ == ElementType::AbsoluteLayout {
+                        return result;
                     };
+                    
                 }
             }
 
@@ -336,6 +341,7 @@ impl Debug for UiElement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("UiElement")
             .field("id", &self.id)
+            .field("name", &self.name)
             .field("typ", &self.typ)
             .field("visible", &self.visible)
             .field("size", &self.size)

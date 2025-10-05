@@ -8,7 +8,7 @@ use crate::{
     ui::{materials::UiInstance, FlexDirection, UiState},
 };
 
-pub struct AbsoluteLayout {
+pub struct Absolute {
     pub align: Align,
     pub x: UiUnit,
     pub y: UiUnit,
@@ -22,25 +22,16 @@ pub struct AbsoluteLayout {
     pub childs: Vec<UiElement>,
 }
 
-impl Element for AbsoluteLayout {
+impl Element for Absolute {
     fn build(&mut self, context: &mut BuildContext, element: &UiElement) {
         let space = context.available_size;
 
-        let mut rework_width = false;
-        let mut rework_height = false;
+        let rework_x = self.width.child_dependent();
+        let rework_y = self.height.child_dependent();
 
-        let width = if self.width == UiUnit::Auto {
-            rework_width = true;
-            0.0
-        } else {
-            self.width.pixelx(space)
-        };
-        let height = if self.height == UiUnit::Auto {
-            rework_height = true;
-            0.0
-        } else {
-            self.height.pixely(space)
-        };
+        let width = self.width.pixelx(space);
+        let height = self.height.pixely(space);
+
         let mut size = Vec2::new(width, height);
 
         let pos = context.child_start_pos
@@ -65,11 +56,11 @@ impl Element for AbsoluteLayout {
             element.build(&mut child_context);
         }
 
-        if rework_width {
+        if rework_x {
             size.x = child_context.used_space.x;
         }
 
-        if rework_height {
+        if rework_y {
             size.y = child_context.used_space.y;
         }
 
@@ -105,11 +96,11 @@ impl Element for AbsoluteLayout {
     }
 }
 
-impl TypeConst for AbsoluteLayout {
+impl TypeConst for Absolute {
     const ELEMENT_TYPE: ElementType = ElementType::AbsoluteLayout;
 }
 
-impl Default for AbsoluteLayout {
+impl Default for Absolute {
     fn default() -> Self {
         Self {
             childs: Default::default(),

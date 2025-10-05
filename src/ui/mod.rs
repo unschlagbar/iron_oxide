@@ -9,6 +9,8 @@ mod ui_events;
 mod ui_pipeline;
 mod ui_state;
 mod ui_unit;
+#[macro_use]
+pub mod building;
 
 mod absolute_layout;
 mod button;
@@ -21,7 +23,7 @@ pub mod materials;
 pub use build_context::BuildContext;
 pub use callback::CallContext;
 pub use callback::CallbackResult;
-pub use callback::ErasedFnPointer;
+pub use callback::FnPtr;
 pub use element::TypeConst;
 pub use element::UiElement;
 pub use font::Font;
@@ -35,7 +37,7 @@ pub use ui_state::UiState;
 pub use ui_unit::Align;
 pub use ui_unit::UiUnit;
 
-pub use absolute_layout::AbsoluteLayout;
+pub use absolute_layout::Absolute;
 pub use button::Button;
 pub use button::ButtonState;
 pub use container::Container;
