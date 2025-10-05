@@ -450,7 +450,7 @@ pub enum DirtyFlags {
 #[derive(Debug, Default)]
 pub enum SelectedFlags {
     #[default]
-    Null,
+    None,
     Selected,
     Pressed,
 }
@@ -464,7 +464,6 @@ pub struct Selected {
 impl Selected {
     pub const fn clear(&mut self) {
         self.ptr = null_mut();
-        self.selected = SelectedFlags::Null;
     }
 
     pub fn end(&mut self, ui: &mut UiState) {
