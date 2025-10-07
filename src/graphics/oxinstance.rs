@@ -27,6 +27,7 @@ pub struct VkBase {
 impl VkBase {
     pub fn create(
         required_capabilities: u32,
+        api_version: u32,
         display_handle: RawDisplayHandle,
         window_handle: RawWindowHandle,
     ) -> (Self, surface::Instance, vk::SurfaceKHR) {
@@ -36,7 +37,7 @@ impl VkBase {
         #[cfg(not(feature = "linked"))]
         let entry = unsafe { ash::Entry::load().unwrap() };
 
-        let instance = Self::create_instance(&entry, display_handle);
+        let instance = Self::create_instance(&entry, display_handle, api_version);
 
         #[cfg(debug_assertions)]
         let debug_utils = ext::debug_utils::Instance::new(&entry, &instance);
@@ -100,7 +101,7 @@ impl VkBase {
         )
     }
 
-    fn create_instance(entry: &ash::Entry, display_handle: RawDisplayHandle) -> ash::Instance {
+    fn create_instance(entry: &ash::Entry, display_handle: RawDisplayHandle, api_version: u32) -> ash::Instance {
         let app_name = c"Home Storage";
 
         let app_info = vk::ApplicationInfo {
@@ -108,7 +109,7 @@ impl VkBase {
             application_version: vk::make_api_version(0, 1, 0, 0),
             p_engine_name: std::ptr::null(),
             engine_version: vk::make_api_version(0, 1, 0, 0),
-            api_version: vk::make_api_version(0, 1, 3, 289),
+            api_version,
             ..Default::default()
         };
 
