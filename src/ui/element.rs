@@ -168,7 +168,7 @@ impl UiElement {
 
         let clip = if self.typ == ElementType::ScrollPanel {
             if clip.is_some() {
-                panic!("Nested scroll panels are not supported");
+                panic!("Nested scroll panels are not allowed");
             }
             Some(vk::Rect2D {
                 offset: vk::Offset2D {
@@ -191,7 +191,6 @@ impl UiElement {
         }
     }
 
-    #[inline(always)]
     pub fn get_offset(&mut self) -> Vec2 {
         let mut offset = Vec2::default();
         if !self.parent.is_null() {
@@ -278,7 +277,6 @@ impl UiElement {
         parent.add_child(self);
     }
 
-    #[inline]
     pub fn add_child(&mut self, mut child: UiElement) -> Option<&mut UiElement> {
         child.parent = ptr::from_mut(self);
         self.element.add_child(child)
@@ -291,13 +289,10 @@ impl UiElement {
     }
 
     pub fn remove_self(&mut self, ui: &mut UiState) -> Option<UiElement> {
-        self.remove_tick(ui);
-        ui.remove_element(self.parent, self.id);
-
-        None
+        ui.remove_element_by_ref(self)
     }
 
-    pub fn remove_tick(&mut self, ui: &mut UiState) -> Option<UiElement> {
+    pub fn remove_tick(&mut self, ui: &mut UiState) {
         ui.remove_tick(self.id);
 
         if let Some(childs) = self.element.childs_mut() {
@@ -305,7 +300,6 @@ impl UiElement {
                 child.remove_tick(ui);
             }
         }
-        None
     }
 
     pub fn init(&mut self) {

@@ -19,14 +19,16 @@ use crate::{
 
 pub struct UiState {
     elements: Vec<UiElement>,
-    pub selected: Selected,
     pub size: Vec2,
     pub cursor_pos: Vec2,
     pub font: Font,
     pub visible: bool,
     pub dirty: DirtyFlags,
-    pub texts: Vec<FontInstance>,
-
+    
+    // All this needs to be checke before element removal
+    // If not checked this will result in undefined behavior!
+    pub selected: Selected,
+    pub active_input: *mut UiElement,
     pub event: Option<QueuedEvent>,
     pub tick_queue: Vec<TickEvent>,
 
@@ -45,9 +47,9 @@ impl UiState {
             size: Vec2::zero(),
             id_gen: AtomicU32::new(1),
             cursor_pos: Vec2::default(),
+            
             selected: Selected::default(),
-            texts: Vec::new(),
-
+            active_input: null_mut(),
             event: None,
             tick_queue: Vec::new(),
 
@@ -130,24 +132,30 @@ impl UiState {
         Some(id)
     }
 
-    pub fn remove_element(&mut self, parent: *mut UiElement, id: u32) -> Option<UiElement> {
+    pub fn remove_element_by_ref(&mut self, element: &mut UiElement) -> Option<UiElement> {
+        let parent = element.parent;
         if parent.is_null() {
-            if let Some(pos) = self.elements.iter().position(|c| c.id == id) {
-                self.elements.remove(pos);
+            if let Some(pos) = self.elements.iter().position(|c| c.id == element.id) {
+                element.remove_tick(self);
+                Some(self.elements.remove(pos))
             } else {
-                println!("Child to remove not found: {id}");
+                println!("Child to remove not found: {}", element.id);
+                None
             }
         } else {
             let parent = unsafe { &mut *parent };
             if let Some(childs) = parent.element.childs_mut() {
-                if let Some(pos) = childs.iter().position(|c| c.id == id) {
-                    childs.remove(pos);
+                if let Some(pos) = childs.iter().position(|c| c.id == element.id) {
+                    element.remove_tick(self);
+                    Some(childs.remove(pos))
                 } else {
-                    println!("Child to remove not found: {id}");
+                    println!("Child to remove not found: {}", element.id);
+                    None
                 }
+            } else {
+                None
             }
         }
-        None
     }
 
     pub fn get_id(&self) -> u32 {
@@ -205,7 +213,6 @@ impl UiState {
 
     pub fn get_instaces(&mut self) {
         self.dirty = DirtyFlags::None;
-        self.texts.clear();
 
         if !self.visible || self.elements.len() == 0 {
             return;

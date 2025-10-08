@@ -120,6 +120,10 @@ impl Matrix {
         unsafe { slice::from_raw_parts_mut(self.data.as_ptr(), self.flat_len()) }
     }
 
+    pub fn copy_from(&mut self, other: &Self) {
+        self.as_slice_mut().copy_from_slice(other.as_slice());
+    }
+
     #[track_caller]
     /// Erstellt eine Matrix aus einem Vec
     pub fn from_vec(mut vec: Vec<f32>, rows: usize, cols: usize) -> Self {
@@ -391,18 +395,17 @@ impl Matrix {
     }
 
     #[track_caller]
-    pub fn row_mul(&self, row: &[f32]) -> Vec<f32> {
+    pub fn row_mul(&self, row: &[f32], out: &mut [f32]) {
         assert_eq!(self.rows, row.len());
+        assert_eq!(self.cols, out.len());
 
         (0..self.cols)
-            .map(|j| {
-                let mut s = 0.0;
+            .for_each(|j| {
+                out[j] = 0.0;
                 for i in 0..row.len() {
-                    s += row[i] * self[i][j];
+                    out[j] += row[i] * self[i][j];
                 }
-                s
             })
-            .collect()
     }
 }
 
