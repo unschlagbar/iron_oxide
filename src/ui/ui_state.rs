@@ -386,6 +386,26 @@ impl UiState {
             mat.update(base, command_buffer);
         }
 
+        let memory_barrier = vk::MemoryBarrier {
+    s_type: vk::StructureType::MEMORY_BARRIER,
+    p_next: std::ptr::null(),
+    src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
+    dst_access_mask: vk::AccessFlags::VERTEX_ATTRIBUTE_READ,
+    ..Default::default()
+};
+
+unsafe {
+    base.device.cmd_pipeline_barrier(
+        command_buffer,
+        vk::PipelineStageFlags::TRANSFER,
+        vk::PipelineStageFlags::VERTEX_INPUT,
+        vk::DependencyFlags::empty(),
+        &[memory_barrier],
+        &[],
+        &[],
+    );
+}
+
         println!("time: {:?}", start.elapsed())
     }
 

@@ -114,6 +114,8 @@ impl<T: VertexDescription + Copy> Material for Basic<T> {
         }
 
         if buf.len() * size_of::<T>() > self.staging_buffer.size as usize {
+            unsafe { base.device.queue_wait_idle(base.queue).unwrap() };
+
             self.staging_buffer.destroy(&base.device);
             self.buffer.destroy(&base.device);
 
