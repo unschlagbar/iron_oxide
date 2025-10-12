@@ -62,11 +62,7 @@ impl Buffer {
 
         let mem = unsafe { base.device.allocate_memory(&alloc_info, None).unwrap() };
 
-        unsafe {
-            base.device
-                .bind_buffer_memory(buffer, mem, 0)
-                .unwrap()
-        };
+        unsafe { base.device.bind_buffer_memory(buffer, mem, 0).unwrap() };
         Self {
             inner: buffer,
             mem,

@@ -121,11 +121,17 @@ impl<T: VertexDescription + Copy> Material for Basic<T> {
 
             let size = (size_of::<T>() * (buf.len() + 20)) as u64;
 
-            self.buffer = Buffer::create(base, size, vk::BufferUsageFlags::VERTEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST, vk::MemoryPropertyFlags::DEVICE_LOCAL);
+            self.buffer = Buffer::create(
+                base,
+                size,
+                vk::BufferUsageFlags::VERTEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST,
+                vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            );
             self.staging_buffer = Buffer::create_stagging(base, size);
         }
 
-        self.buffer.update_on_cmd_buf(base, &self.staging_buffer, &buf, cmd_buf);
+        self.buffer
+            .update_on_cmd_buf(base, &self.staging_buffer, &buf, cmd_buf);
     }
 }
 
