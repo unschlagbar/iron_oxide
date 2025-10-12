@@ -65,7 +65,7 @@ impl Buffer {
         unsafe {
             base.device
                 .bind_buffer_memory(buffer, mem, 0)
-                .unwrap_unchecked()
+                .unwrap()
         };
         Self {
             inner: buffer,
@@ -74,50 +74,21 @@ impl Buffer {
         }
     }
 
+    pub fn create_stagging(base: &VkBase, size: u64) -> Self {
+        Self::create(
+            base,
+            size,
+            BufferUsageFlags::TRANSFER_SRC,
+            MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
+        )
+    }
+
     pub fn null() -> Self {
         Self {
             inner: vk::Buffer::null(),
             mem: DeviceMemory::null(),
             size: 0,
         }
-    }
-
-    pub fn device_local_raw(
-        base: &VkBase,
-        cmd_pool: CommandPool,
-        stride: u64,
-        len: u64,
-        data: *const u8,
-        usage: BufferUsageFlags,
-    ) -> Self {
-        let buffer_size = stride * len;
-        let mut staging_buffer = Self::create(
-            base,
-            buffer_size,
-            BufferUsageFlags::TRANSFER_SRC,
-            MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
-        );
-
-        let mapped_memory = staging_buffer.map_memory(&base.device, buffer_size, 0);
-        unsafe {
-            copy_nonoverlapping(data, mapped_memory, buffer_size as usize);
-            staging_buffer.unmap_memory(&base.device);
-        };
-
-        let device_local_buffer = Self::create(
-            base,
-            buffer_size,
-            usage | BufferUsageFlags::TRANSFER_DST,
-            MemoryPropertyFlags::DEVICE_LOCAL,
-        );
-
-        let cmd_buf = SinlgeTimeCommands::begin(&base, cmd_pool);
-        staging_buffer.copy(base, &device_local_buffer, buffer_size, 0, cmd_buf);
-        SinlgeTimeCommands::end(base, cmd_pool, cmd_buf);
-
-        staging_buffer.destroy(&base.device);
-
-        device_local_buffer
     }
 
     pub fn update_data<T>(&mut self, base: &VkBase, data: &[T], offset: u64) {
@@ -139,12 +110,7 @@ impl Buffer {
         usage: BufferUsageFlags,
     ) {
         let buffer_size = size_of::<T>() as u64 * data.len() as u64;
-        let mut staging_buffer = Self::create(
-            base,
-            buffer_size,
-            BufferUsageFlags::TRANSFER_SRC,
-            MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
-        );
+        let mut staging_buffer = Self::create_stagging(base, buffer_size);
 
         let mapped_memory = staging_buffer.map_memory(&base.device, buffer_size, 0);
         unsafe {
@@ -170,20 +136,36 @@ impl Buffer {
         staging_buffer.destroy(&base.device);
     }
 
+    pub fn update_on_cmd_buf<T>(
+        &mut self,
+        base: &VkBase,
+        staging_buffer: &Self,
+        data: &[T],
+        cmd_buf: CommandBuffer,
+    ) {
+        let buffer_size = size_of::<T>() as u64 * data.len() as u64;
+
+        assert!(buffer_size <= self.size && buffer_size <= staging_buffer.size);
+
+        let mapped_memory = staging_buffer.map_memory(&base.device, buffer_size, 0);
+        unsafe {
+            copy_nonoverlapping(data.as_ptr(), mapped_memory, data.len());
+            staging_buffer.unmap_memory(&base.device);
+        };
+
+        staging_buffer.copy(base, &self, buffer_size, 0, cmd_buf);
+    }
+
     #[track_caller]
-    pub fn device_local_slow<T>(
+    ///Very slow!!!
+    pub fn upload<T>(
         base: &VkBase,
         cmd_pool: CommandPool,
         data: &[T],
         usage: BufferUsageFlags,
     ) -> Self {
         let buffer_size = data.len() as u64 * size_of::<T>() as u64;
-        let mut staging_buffer = Self::create(
-            base,
-            buffer_size,
-            BufferUsageFlags::TRANSFER_SRC,
-            MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
-        );
+        let mut staging_buffer = Self::create_stagging(base, buffer_size);
 
         let mapped_memory = staging_buffer.map_memory(&base.device, buffer_size, 0);
         unsafe {

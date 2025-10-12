@@ -1,9 +1,12 @@
 use std::mem::MaybeUninit;
 
 use ash::{
-    khr::{surface, swapchain}, vk::{
-        self, Extent2D, ImageView, PresentModeKHR, RenderPass, SurfaceCapabilitiesKHR, SurfaceFormatKHR, SurfaceKHR, SurfaceTransformFlagsKHR, SwapchainKHR
-    }, Device
+    Device,
+    khr::{surface, swapchain},
+    vk::{
+        self, Extent2D, ImageView, PresentModeKHR, RenderPass, SurfaceCapabilitiesKHR,
+        SurfaceFormatKHR, SurfaceKHR, SurfaceTransformFlagsKHR, SwapchainKHR,
+    },
 };
 use winit::dpi::PhysicalSize;
 
@@ -115,7 +118,7 @@ impl Swapchain {
     }
 
     pub fn update_caps(&mut self, base: &VkBase) {
-unsafe {
+        unsafe {
             self.capabilities = self
                 .surface_loader
                 .get_physical_device_surface_capabilities(base.physical_device, self.surface)

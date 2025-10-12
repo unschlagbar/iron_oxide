@@ -12,9 +12,11 @@ use crate::{
 pub trait Material {
     fn pipeline(&self) -> &Pipeline;
     fn buffer(&mut self) -> &mut Buffer;
+    fn staging_buffer(&mut self) -> &mut Buffer;
     fn destroy(&mut self, device: &Device) {
         self.pipeline().destroy(device);
         self.buffer().destroy(device);
+        self.staging_buffer().destroy(device);
     }
 
     fn size_of(&self) -> u32;
@@ -22,12 +24,13 @@ pub trait Material {
     fn add(&mut self, to_add: *const (), descriptor: u32, clip: Option<Rect2D>);
     fn clear(&mut self);
 
-    fn update(&mut self, base: &VkBase, cmd_pool: vk::CommandPool);
+    fn update(&mut self, base: &VkBase, cmd_buf: vk::CommandBuffer);
     fn draw(&self, device: &ash::Device, cmd: vk::CommandBuffer, clip: Rect2D) -> bool;
 }
 
 pub struct Basic<T: VertexDescription + Copy> {
     pub buffer: Buffer,
+    pub staging_buffer: Buffer,
     pub pipeline: Pipeline,
     groups: Vec<DrawGroup<T>>,
 }
@@ -35,6 +38,10 @@ pub struct Basic<T: VertexDescription + Copy> {
 impl<T: VertexDescription + Copy> Material for Basic<T> {
     fn buffer(&mut self) -> &mut Buffer {
         &mut self.buffer
+    }
+
+    fn staging_buffer(&mut self) -> &mut Buffer {
+        &mut self.staging_buffer
     }
 
     fn pipeline(&self) -> &Pipeline {
@@ -92,7 +99,7 @@ impl<T: VertexDescription + Copy> Material for Basic<T> {
         last_had_clip
     }
 
-    fn update(&mut self, base: &VkBase, cmd_pool: vk::CommandPool) {
+    fn update(&mut self, base: &VkBase, cmd_buf: vk::CommandBuffer) {
         let mut buf = Vec::new();
 
         for batch in &mut self.groups {
@@ -102,16 +109,21 @@ impl<T: VertexDescription + Copy> Material for Basic<T> {
             buf.extend_from_slice(&batch.data);
         }
 
-        self.buffer.destroy(&base.device);
-
-        if !buf.is_empty() {
-            self.buffer = Buffer::device_local_slow(
-                &base,
-                cmd_pool,
-                &buf,
-                vk::BufferUsageFlags::VERTEX_BUFFER,
-            );
+        if buf.len() == 0 {
+            return;
         }
+
+        if buf.len() * size_of::<T>() > self.staging_buffer.size as usize {
+            self.staging_buffer.destroy(&base.device);
+            self.buffer.destroy(&base.device);
+
+            let size = (size_of::<T>() * (buf.len() + 20)) as u64;
+
+            self.buffer = Buffer::create(base, size, vk::BufferUsageFlags::VERTEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST, vk::MemoryPropertyFlags::DEVICE_LOCAL);
+            self.staging_buffer = Buffer::create_stagging(base, size);
+        }
+
+        self.buffer.update_on_cmd_buf(base, &self.staging_buffer, &buf, cmd_buf);
     }
 }
 
@@ -125,6 +137,7 @@ impl<T: VertexDescription + Copy> Basic<T> {
     ) -> Box<Self> {
         Box::new(Self {
             buffer: Buffer::null(),
+            staging_buffer: Buffer::null(),
             pipeline: Pipeline::create_ui::<T>(
                 base,
                 window_size,

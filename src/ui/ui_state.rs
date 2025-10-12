@@ -1,7 +1,7 @@
 use ash::vk;
 use std::{
     ptr,
-    sync::atomic::{AtomicU32, Ordering},
+    sync::atomic::{AtomicU32, Ordering}, time::Instant,
 };
 use winit::dpi::PhysicalSize;
 
@@ -365,10 +365,12 @@ impl UiState {
         self.event = Some(event);
     }
 
-    pub fn update(&mut self, base: &VkBase, cmd_pool: vk::CommandPool) {
-        if !self.visible {
+    pub fn update(&mut self, base: &VkBase, command_buffer: vk::CommandBuffer) {
+        if !self.visible || matches!(self.dirty, DirtyFlags::None) {
             return;
         }
+
+        let start = Instant::now();
 
         if matches!(self.dirty, DirtyFlags::Resize) {
             self.build();
@@ -381,8 +383,10 @@ impl UiState {
         self.get_instaces();
 
         for mat in &mut self.materials {
-            mat.update(base, cmd_pool);
+            mat.update(base, command_buffer);
         }
+
+        println!("time: {:?}", start.elapsed())
     }
 
     pub fn draw(
