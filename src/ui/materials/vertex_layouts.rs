@@ -1,7 +1,10 @@
 use ash::vk;
 use std::mem::offset_of;
 
-use crate::{graphics::{formats::RGBA, VertexDescription}, primitives::Vec2};
+use crate::{
+    graphics::{VertexDescription, formats::RGBA},
+    primitives::Vec2,
+};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct UiInstance {

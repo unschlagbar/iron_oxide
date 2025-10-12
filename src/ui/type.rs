@@ -14,7 +14,7 @@ impl ElementType {
         match self {
             Self::Button => true,
             Self::ScrollPanel => true,
-            _ => false
+            _ => false,
         }
     }
 }

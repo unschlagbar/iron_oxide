@@ -101,7 +101,11 @@ impl VkBase {
         )
     }
 
-    fn create_instance(entry: &ash::Entry, display_handle: RawDisplayHandle, api_version: u32) -> ash::Instance {
+    fn create_instance(
+        entry: &ash::Entry,
+        display_handle: RawDisplayHandle,
+        api_version: u32,
+    ) -> ash::Instance {
         let app_name = c"Home Storage";
 
         let app_info = vk::ApplicationInfo {

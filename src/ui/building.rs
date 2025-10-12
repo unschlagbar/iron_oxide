@@ -1,6 +1,9 @@
 #![allow(unused)]
 
-use crate::{graphics::formats::RGBA, ui::{Absolute, Button, UiUnit}};
+use crate::{
+    graphics::formats::RGBA,
+    ui::{Absolute, Button, UiUnit},
+};
 
 // --- Hilfs-Types + Style ---
 #[derive(Default, Clone)]
@@ -20,53 +23,77 @@ fn is_unit_default(u: &UiUnit) -> bool {
         UiUnit::Relative(r) => *r == 0.0,
         UiUnit::Fill => false,
         UiUnit::Auto => true, // treat Auto as default
-        _ => false
+        _ => false,
     }
 }
 
 // Style-Apply functions (erweitere nach Bedarf)
 fn apply_style_absolute(mut a: Absolute, style: &UiStyle) -> Absolute {
     if a.color == RGBA::ZERO {
-        if let Some(c) = style.color { a.color = c; }
+        if let Some(c) = style.color {
+            a.color = c;
+        }
     }
     if a.border_color == RGBA::ZERO {
-        if let Some(c) = style.border_color { a.border_color = c; }
+        if let Some(c) = style.border_color {
+            a.border_color = c;
+        }
     }
     if a.border == [0.0; 4] {
-        if let Some(b) = style.border { a.border = b; }
+        if let Some(b) = style.border {
+            a.border = b;
+        }
     }
     let default_corner = [UiUnit::Px(0.0); 4];
     if a.corner == default_corner {
-        if let Some(c) = style.corner { a.corner = c; }
+        if let Some(c) = style.corner {
+            a.corner = c;
+        }
     }
     if is_unit_default(&a.width) {
-        if let Some(w) = style.width { a.width = w; }
+        if let Some(w) = style.width {
+            a.width = w;
+        }
     }
     if is_unit_default(&a.height) {
-        if let Some(h) = style.height { a.height = h; }
+        if let Some(h) = style.height {
+            a.height = h;
+        }
     }
     a
 }
 
 fn apply_style_button(mut b: Button, style: &UiStyle) -> Button {
     if b.color == RGBA::ZERO {
-        if let Some(c) = style.color { b.color = c; }
+        if let Some(c) = style.color {
+            b.color = c;
+        }
     }
     if b.border_color == RGBA::ZERO {
-        if let Some(c) = style.border_color { b.border_color = c; }
+        if let Some(c) = style.border_color {
+            b.border_color = c;
+        }
     }
     if b.border == [0.0; 4] {
-        if let Some(br) = style.border { b.border = br; }
+        if let Some(br) = style.border {
+            b.border = br;
+        }
     }
     let default_corner = [UiUnit::Px(0.0); 4];
     if b.corner == default_corner {
-        if let Some(c) = style.corner { b.corner = c; }
+        if let Some(c) = style.corner {
+            b.corner = c;
+        }
     }
     if is_unit_default(&b.width) {
-        if let Some(w) = style.width { b.width = w; }
+        if let Some(w) = style.width {
+            b.width = w;
+        }
     }
     if is_unit_default(&b.height) {
-        if let Some(h) = style.height { b.height = h; }
+        if let Some(h) = style.height {
+            b.height = h;
+        }
     }
     b
 }

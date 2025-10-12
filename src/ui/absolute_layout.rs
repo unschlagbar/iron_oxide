@@ -5,7 +5,7 @@ use super::{
 use crate::{
     graphics::formats::RGBA,
     primitives::Vec2,
-    ui::{materials::UiInstance, FlexDirection, UiState},
+    ui::{FlexDirection, UiState, materials::UiInstance},
 };
 
 pub struct Absolute {

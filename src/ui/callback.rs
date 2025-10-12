@@ -7,14 +7,10 @@ pub struct FnPtr {
     fp: Option<fn(CallContext)>,
 }
 
-
-
 impl FnPtr {
     pub fn new(func: fn(CallContext)) -> Self {
         Self { fp: Some(func) }
-
     }
-
 
     pub const fn none() -> Self {
         Self { fp: None }

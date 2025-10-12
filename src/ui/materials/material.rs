@@ -5,7 +5,8 @@ use ash::{
 use winit::dpi::PhysicalSize;
 
 use crate::{
-    graphics::{Buffer, VertexDescription, VkBase}, ui::ui_pipeline::Pipeline
+    graphics::{Buffer, VertexDescription, VkBase},
+    ui::ui_pipeline::Pipeline,
 };
 
 pub trait Material {
@@ -104,8 +105,12 @@ impl<T: VertexDescription + Copy> Material for Basic<T> {
         self.buffer.destroy(&base.device);
 
         if !buf.is_empty() {
-            self.buffer =
-                Buffer::device_local_slow(&base, cmd_pool, &buf, vk::BufferUsageFlags::VERTEX_BUFFER);
+            self.buffer = Buffer::device_local_slow(
+                &base,
+                cmd_pool,
+                &buf,
+                vk::BufferUsageFlags::VERTEX_BUFFER,
+            );
         }
     }
 }

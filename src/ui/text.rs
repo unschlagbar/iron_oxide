@@ -4,10 +4,7 @@ use super::{
     Align, BuildContext, ElementType, UiElement, UiState,
     element::{Element, TypeConst},
 };
-use crate::{
-    graphics::formats::RGBA,
-    primitives::Vec2, ui::materials::FontInstance,
-};
+use crate::{graphics::formats::RGBA, primitives::Vec2, ui::materials::FontInstance};
 
 pub struct Text {
     pub text: String,
@@ -27,14 +24,14 @@ impl Text {
         parent_pos: Vec2,
         ui: &mut UiState,
         element: &UiElement,
-        clip: Option<Rect2D>
+        clip: Option<Rect2D>,
     ) {
         match self.dirty_flags {
             TextDirtyFlags::None => {
                 for inst in &self.font_instances {
                     ui.materials[1].add(inst as *const _ as *const _, 0, clip)
                 }
-            },
+            }
             TextDirtyFlags::TextChanged => {
                 let mut context = BuildContext::default(&ui.font, parent_size);
                 context.child_start_pos = parent_pos;

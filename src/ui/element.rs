@@ -1,9 +1,9 @@
-use std::{fmt::Debug, ptr};
+use std::{fmt::Debug, ptr::{self, NonNull}};
 
 use ash::vk::{self, Rect2D};
 
 use super::{
-    Absolute, BuildContext, Button, ButtonState, CallContext, Container, ElementType, Text,
+    Absolute, BuildContext, Button, Container, ElementType, Text,
     UiEvent, UiState, ui_state::EventResult,
 };
 use crate::{
@@ -18,7 +18,8 @@ pub trait Element {
         (UiUnit::Undefined, UiUnit::Undefined)
     }
 
-    fn instance(&self, _: &UiElement, _: &mut UiState, _: Option<Rect2D>) {}
+    #[allow(unused)]
+    fn instance(&self, element: &UiElement, ui: &mut UiState, clip: Option<Rect2D>) {}
 
     fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
         None
@@ -34,11 +35,13 @@ pub trait Element {
         childs.last_mut()
     }
 
-    fn interaction(&mut self, _: &mut UiElement, _: &mut UiState, _: UiEvent) -> EventResult {
+    #[allow(unused)]
+    fn interaction(&mut self, element: &mut UiElement, ui: &mut UiState, event: UiEvent) -> EventResult {
         EventResult::None
     }
 
-    fn tick(&mut self, _: &mut UiElement, _: &mut UiState) {}
+    #[allow(unused)]
+    fn tick(&mut self, element: &mut UiElement, ui: &mut UiState) {}
 }
 
 pub trait TypeConst: Default + 'static {
@@ -55,7 +58,7 @@ pub trait TypeConst: Default + 'static {
             visible: true,
             size: Vec2::zero(),
             pos: Vec2::zero(),
-            parent: std::ptr::null_mut(),
+            parent: None,
             element: Box::new(self),
             z_index: 0.0,
         }
@@ -70,7 +73,7 @@ pub struct UiElement {
     pub size: Vec2,
     pub pos: Vec2,
     pub z_index: f32,
-    pub parent: *mut UiElement,
+    pub parent: Option<NonNull<UiElement>>,
     pub element: Box<dyn Element>,
 }
 
@@ -104,7 +107,11 @@ impl UiElement {
     }
 
     pub fn parent(&mut self) -> &mut UiElement {
-        unsafe { &mut *self.parent }
+        if let Some(parent) = &mut self.parent {
+            unsafe { parent.as_mut() }
+        }  else {
+            panic!()
+        }
     }
 
     pub fn build(&mut self, context: &mut BuildContext) {
@@ -135,22 +142,6 @@ impl UiElement {
 
         self.pos = context.element_pos;
         self.size = context.element_size;
-    }
-
-    pub fn end_selection(&mut self, ui: &mut UiState) {
-        if self.typ == ElementType::Button {
-            let element = unsafe { &mut *(self as *mut UiElement) };
-            let button: &mut Button = self.downcast_mut();
-            button.state = ButtonState::Normal;
-            if !button.callback.is_none() {
-                let context = CallContext {
-                    ui,
-                    element,
-                    event: UiEvent::Release,
-                };
-                button.callback.call(context);
-            }
-        }
     }
 
     pub fn get_instances(&mut self, ui: &mut UiState, clip: Option<vk::Rect2D>) {
@@ -193,10 +184,10 @@ impl UiElement {
 
     pub fn get_offset(&mut self) -> Vec2 {
         let mut offset = Vec2::default();
-        if !self.parent.is_null() {
+        if let Some(parent) = &mut self.parent {
             let id = self.id;
-            let parent = self.parent();
-
+            let parent = unsafe { parent.as_mut() };
+    
             for child in parent.element.childs_mut().unwrap() {
                 if child.id == id {
                     break;
@@ -256,7 +247,6 @@ impl UiElement {
                     } else if child.typ == ElementType::AbsoluteLayout {
                         return result;
                     };
-                    
                 }
             }
 
@@ -273,12 +263,23 @@ impl UiElement {
     }
 
     pub fn add_to_parent(mut self, parent: &mut UiElement) {
-        self.parent = ptr::from_mut(parent);
+        self.parent = Some(NonNull::from_mut(parent));
         parent.add_child(self);
     }
 
+    pub fn set_parent(&mut self, parent: NonNull<UiElement>) {
+        self.parent = Some(parent);
+
+        let parent = NonNull::from_mut(self);
+        if let Some(childs) = self.element.childs_mut() {
+            for child in childs {
+                child.set_parent(parent);
+            }
+        }
+    }
+
     pub fn add_child(&mut self, mut child: UiElement) -> Option<&mut UiElement> {
-        child.parent = ptr::from_mut(self);
+        child.parent = Some(NonNull::from_mut(self));
         self.element.add_child(child)
     }
 
@@ -289,11 +290,12 @@ impl UiElement {
     }
 
     pub fn remove_self(&mut self, ui: &mut UiState) -> Option<UiElement> {
-        ui.remove_element_by_ref(self)
+        ui.remove_element(self)
     }
 
     pub fn remove_tick(&mut self, ui: &mut UiState) {
         ui.remove_tick(self.id);
+        ui.selection.check_removed(self.id);
 
         if let Some(childs) = self.element.childs_mut() {
             for child in childs {
@@ -303,7 +305,7 @@ impl UiElement {
     }
 
     pub fn init(&mut self) {
-        let parent = ptr::from_mut(self);
+        let parent = Some(NonNull::from_mut(self));
         let z_index = self.z_index + 0.01;
         if let Some(childs) = self.element.childs_mut() {
             for child in childs {

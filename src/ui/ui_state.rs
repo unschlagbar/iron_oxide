@@ -1,6 +1,6 @@
 use ash::vk;
 use std::{
-    ptr::{self, null_mut},
+    ptr,
     sync::atomic::{AtomicU32, Ordering},
 };
 use winit::dpi::PhysicalSize;
@@ -13,7 +13,7 @@ use crate::{
     graphics::{TextureAtlas, VkBase},
     primitives::Vec2,
     ui::{
-        materials::{AtlasInstance, Basic, FontInstance, Material, UiInstance}, ElementType
+        materials::{AtlasInstance, Basic, FontInstance, Material, UiInstance}, selection::Selection, ElementType
     },
 };
 
@@ -24,11 +24,10 @@ pub struct UiState {
     pub font: Font,
     pub visible: bool,
     pub dirty: DirtyFlags,
-    
+
     // All this needs to be checke before element removal
     // If not checked this will result in undefined behavior!
-    pub selected: Selected,
-    pub active_input: *mut UiElement,
+    pub selection: Selection,
     pub event: Option<QueuedEvent>,
     pub tick_queue: Vec<TickEvent>,
 
@@ -47,9 +46,8 @@ impl UiState {
             size: Vec2::zero(),
             id_gen: AtomicU32::new(1),
             cursor_pos: Vec2::default(),
-            
-            selected: Selected::default(),
-            active_input: null_mut(),
+
+            selection: Selection::default(),
             event: None,
             tick_queue: Vec::new(),
 
@@ -61,9 +59,7 @@ impl UiState {
     }
 
     pub fn add_element<T: Element + TypeConst>(&mut self, element: T, name: &'static str) -> u32 {
-        let self_2 = unsafe {
-            &mut *(self as *mut Self)
-        };
+        let self_2 = unsafe { &mut *(self as *mut Self) };
 
         let id = self.get_id();
         let z_index = if matches!(T::ELEMENT_TYPE, ElementType::AbsoluteLayout) {
@@ -78,14 +74,13 @@ impl UiState {
             visible: true,
             size: Vec2::default(),
             pos: Vec2::default(),
-            parent: null_mut(),
+            parent: None,
             element: Box::new(element),
             z_index,
         };
 
         element.init();
         self.elements.push(element);
-
 
         let element = self.elements.last_mut().unwrap();
 
@@ -95,7 +90,7 @@ impl UiState {
         }
 
         if T::ELEMENT_TYPE == ElementType::AbsoluteLayout && element.is_in(self.cursor_pos) {
-            self.selected.clear();
+            self.selection.clear();
             self.update_cursor(self.cursor_pos, UiEvent::Move);
         }
 
@@ -103,7 +98,12 @@ impl UiState {
         id
     }
 
-    pub fn add_child_to<T: Element + TypeConst>(&mut self, child: T, name: &'static str, element: u32) -> Option<u32> {
+    pub fn add_child_to<T: Element + TypeConst>(
+        &mut self,
+        child: T,
+        name: &'static str,
+        element: u32,
+    ) -> Option<u32> {
         let id = self.get_id();
         let element = self.get_element(element)?;
         let mut child = UiElement {
@@ -113,7 +113,7 @@ impl UiState {
             visible: true,
             size: Vec2::default(),
             pos: Vec2::default(),
-            parent: null_mut(),
+            parent: None,
             element: Box::new(child),
             z_index: element.z_index + 0.01,
         };
@@ -132,22 +132,20 @@ impl UiState {
         Some(id)
     }
 
-    pub fn remove_element_by_ref(&mut self, element: &mut UiElement) -> Option<UiElement> {
-        let parent = element.parent;
-        if parent.is_null() {
-            if let Some(pos) = self.elements.iter().position(|c| c.id == element.id) {
-                element.remove_tick(self);
-                Some(self.elements.remove(pos))
-            } else {
-                println!("Child to remove not found: {}", element.id);
-                None
-            }
-        } else {
-            let parent = unsafe { &mut *parent };
-            if let Some(childs) = parent.element.childs_mut() {
+    pub fn remove_element(&mut self, element: &mut UiElement) -> Option<UiElement> {
+        if let Some(mut parent) = element.parent {
+            let parent_mut = unsafe { parent.as_mut() };
+
+            if let Some(childs) = parent_mut.element.childs_mut() {
                 if let Some(pos) = childs.iter().position(|c| c.id == element.id) {
                     element.remove_tick(self);
-                    Some(childs.remove(pos))
+                    let out = Some(childs.remove(pos));
+
+                    for child in &mut childs[pos..] {
+                        child.set_parent(parent);
+                    }
+
+                    out
                 } else {
                     println!("Child to remove not found: {}", element.id);
                     None
@@ -155,7 +153,22 @@ impl UiState {
             } else {
                 None
             }
+        } else {
+            if let Some(pos) = self.elements.iter().position(|c| c.id == element.id) {
+                element.remove_tick(self);
+                Some(self.elements.remove(pos))
+            } else {
+                println!("Child to remove not found: {}", element.id);
+                None
+            }
         }
+
+    }
+
+    pub fn remove_element_by_id(&mut self, id: u32) -> Option<UiElement> {
+        let self2 = unsafe { &mut *ptr::from_mut(self) };
+        let element = self2.get_element(id)?;
+        self.remove_element(element)
     }
 
     pub fn get_id(&self) -> u32 {
@@ -202,7 +215,7 @@ impl UiState {
     }
 
     pub fn build(&mut self) {
-        self.selected.clear();
+        self.selection.clear();
 
         let mut build_context = BuildContext::default(&self.font, self.size);
 
@@ -253,31 +266,16 @@ impl UiState {
     }
 
     pub fn check_selected(&mut self, event: UiEvent) -> EventResult {
-        if !self.selected.is_none() {
-            unsafe {
-                let element = &mut *self.selected.ptr;
-                let element2 = &mut *self.selected.ptr;
-    
-                element.element.interaction(element2, self, event)
-            }
-        } else {
-            EventResult::None
-        }
+        let self2 = unsafe { &mut *ptr::from_mut(self) };
+        self.selection.check(self2, event)
     }
 
     pub fn end_selection(&mut self) -> EventResult {
-        let self_clone = unsafe { ptr::from_mut(self).as_mut().unwrap() };
-        let mut result = EventResult::None;
+        let self2 = unsafe { ptr::from_mut(self).as_mut().unwrap() };
 
         self.cursor_pos = Vec2::new(f32::MAX, f32::MAX);
 
-        if !self.selected.is_none() {
-            let element = unsafe { &mut *self.selected.ptr };
-            let element2 = unsafe { &mut *self.selected.ptr };
-
-            result = element.element.interaction(element2, self_clone, UiEvent::End);
-        }
-        result
+        self.selection.end(self2)
     }
 
     pub fn update_cursor(&mut self, cursor_pos: Vec2, event: UiEvent) -> EventResult {
@@ -287,8 +285,11 @@ impl UiState {
         let mut result = self.check_selected(event);
 
         for element in self.elements.iter_mut().rev() {
-            if element.typ == ElementType::AbsoluteLayout && element.is_in(cursor_pos) && element.id != self.selected.id() {
-                self.selected.end(self_clone);
+            if element.typ == ElementType::AbsoluteLayout
+                && element.is_in(cursor_pos)
+                && element.id != self.selection.hover_id()
+            {
+                self.selection.end(self_clone);
                 let r = element.update_cursor(self_clone, event);
                 if !r.is_none() {
                     result = r;
@@ -301,18 +302,13 @@ impl UiState {
                     break;
                 }
             }
-
         }
 
         result
     }
 
     pub fn get_hovered(&mut self) -> Option<&mut UiElement> {
-        if !self.selected.is_none() {
-            return Some(unsafe { &mut *self.selected.ptr });
-        } else {
-            None
-        }
+        self.selection.get_hovered()
     }
 
     pub fn destroy(&mut self, device: &ash::Device) {
@@ -451,71 +447,6 @@ pub enum DirtyFlags {
     Resize,
     Color,
     Size,
-}
-
-#[repr(u8)]
-#[derive(Debug, Default)]
-pub enum SelectedFlags {
-    #[default]
-    None,
-    Selected,
-    Pressed,
-}
-
-#[derive(Debug)]
-pub struct Selected {
-    pub ptr: *mut UiElement,
-    pub selected: SelectedFlags,
-}
-
-impl Selected {
-    pub const fn clear(&mut self) {
-        self.ptr = null_mut();
-    }
-
-    pub fn end(&mut self, ui: &mut UiState) {
-        if !self.is_none() {
-            unsafe {
-                let old = &mut *self.ptr;
-                old.update_cursor(ui, UiEvent::End);
-            }
-        }
-    }
-
-    pub const fn set_selected(&mut self, element: *mut UiElement) {
-        self.ptr = element;
-        self.selected = SelectedFlags::Selected;
-    }
-
-    pub const fn set_pressed(&mut self, element: *mut UiElement) {
-        self.ptr = element;
-        self.selected = SelectedFlags::Pressed;
-    }
-
-    pub const fn is_none(&self) -> bool {
-        self.ptr.is_null()
-    }
-
-    pub const fn id(&self) -> u32 {
-        if self.ptr.is_null() {
-            0
-        } else {
-            unsafe { (*self.ptr).id }
-        }
-    }
-
-    pub const fn pressed(&self) -> bool {
-        matches!(self.selected, SelectedFlags::Pressed)
-    }
-}
-
-impl Default for Selected {
-    fn default() -> Self {
-        Self {
-            ptr: null_mut(),
-            selected: SelectedFlags::default(),
-        }
-    }
 }
 
 #[derive(Debug)]

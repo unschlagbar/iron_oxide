@@ -5,7 +5,10 @@ use super::{
 use crate::{
     graphics::formats::RGBA,
     primitives::Vec2,
-    ui::{materials::UiInstance, ui_state::EventResult, CallContext, FlexDirection, QueuedEvent, UiEvent, UiState},
+    ui::{
+        CallContext, FlexDirection, QueuedEvent, UiEvent, UiState, materials::UiInstance,
+        ui_state::EventResult,
+    },
 };
 
 pub struct Button {
@@ -60,11 +63,13 @@ impl Element for Button {
         for element in self.childs.iter_mut() {
             let (width, height) = element.element.get_size();
             if matches!(width, UiUnit::Fill) {
-                element.size.x = (child_context.available_size.x - child_context.used_space.x).abs();
+                element.size.x =
+                    (child_context.available_size.x - child_context.used_space.x).abs();
             }
 
             if matches!(height, UiUnit::Fill) {
-                element.size.y = (child_context.available_size.y - child_context.used_space.y).abs();
+                element.size.y =
+                    (child_context.available_size.y - child_context.used_space.y).abs();
             }
             element.build(&mut child_context);
         }
@@ -121,34 +126,35 @@ impl Element for Button {
         match event {
             UiEvent::Press => {
                 self.state = ButtonState::Pressed;
-                ui.selected.set_pressed(element as _);
+                ui.selection.set_hover(element);
             }
             UiEvent::Release => {
                 if element.is_in(ui.cursor_pos) {
                     self.state = ButtonState::Hovered;
-                    ui.selected.set_selected(element);
+                    ui.selection.set_hover(element);
                 } else {
                     result = EventResult::None;
                     self.state = ButtonState::Normal;
-                    ui.selected.clear();
+                    ui.selection.clear();
                 }
             }
             UiEvent::Move => {
                 if self.state != ButtonState::Pressed {
                     if result == EventResult::New || element.is_in(ui.cursor_pos) {
                         self.state = ButtonState::Hovered;
-                        ui.selected.set_selected(element);
+                        ui.selection.set_hover(element);
+
                     } else {
                         result = EventResult::None;
                         self.state = ButtonState::Normal;
-                        ui.selected.clear();
+                        ui.selection.clear();
                     }
                 }
             }
             UiEvent::End => {
                 result = EventResult::New;
                 self.state = ButtonState::Normal;
-                ui.selected.clear();
+                ui.selection.clear();
             }
             _ => return EventResult::None,
         }

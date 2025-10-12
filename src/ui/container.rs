@@ -5,7 +5,7 @@ use super::{
 use crate::{
     graphics::formats::RGBA,
     primitives::Vec2,
-    ui::{materials::UiInstance, FlexDirection, UiState},
+    ui::{FlexDirection, UiState, materials::UiInstance},
 };
 
 pub struct Container {
@@ -57,11 +57,13 @@ impl Element for Container {
         for element in self.childs.iter_mut() {
             let (width, height) = element.element.get_size();
             if matches!(width, UiUnit::Fill) {
-                element.size.x = (child_context.available_size.x - child_context.used_space.x).abs();
+                element.size.x =
+                    (child_context.available_size.x - child_context.used_space.x).abs();
             }
 
             if matches!(height, UiUnit::Fill) {
-                element.size.y = (child_context.available_size.y - child_context.used_space.y).abs();
+                element.size.y =
+                    (child_context.available_size.y - child_context.used_space.y).abs();
             }
             element.build(&mut child_context);
         }

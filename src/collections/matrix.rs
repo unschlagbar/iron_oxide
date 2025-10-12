@@ -399,13 +399,12 @@ impl Matrix {
         assert_eq!(self.rows, row.len());
         assert_eq!(self.cols, out.len());
 
-        (0..self.cols)
-            .for_each(|j| {
-                out[j] = 0.0;
-                for i in 0..row.len() {
-                    out[j] += row[i] * self[i][j];
-                }
-            })
+        (0..self.cols).for_each(|j| {
+            out[j] = 0.0;
+            for i in 0..row.len() {
+                out[j] += row[i] * self[i][j];
+            }
+        })
     }
 }
 
