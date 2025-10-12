@@ -13,7 +13,9 @@ use crate::{
     graphics::{TextureAtlas, VkBase},
     primitives::Vec2,
     ui::{
-        materials::{AtlasInstance, Basic, FontInstance, Material, UiInstance}, selection::Selection, ElementType
+        ElementType,
+        materials::{AtlasInstance, Basic, FontInstance, Material, UiInstance},
+        selection::Selection,
     },
 };
 
@@ -162,7 +164,6 @@ impl UiState {
                 None
             }
         }
-
     }
 
     pub fn remove_element_by_id(&mut self, id: u32) -> Option<UiElement> {

@@ -1,10 +1,13 @@
-use std::{fmt::Debug, ptr::{self, NonNull}};
+use std::{
+    fmt::Debug,
+    ptr::{self, NonNull},
+};
 
 use ash::vk::{self, Rect2D};
 
 use super::{
-    Absolute, BuildContext, Button, Container, ElementType, Text,
-    UiEvent, UiState, ui_state::EventResult,
+    Absolute, BuildContext, Button, Container, ElementType, Text, UiEvent, UiState,
+    ui_state::EventResult,
 };
 use crate::{
     primitives::Vec2,
@@ -36,7 +39,12 @@ pub trait Element {
     }
 
     #[allow(unused)]
-    fn interaction(&mut self, element: &mut UiElement, ui: &mut UiState, event: UiEvent) -> EventResult {
+    fn interaction(
+        &mut self,
+        element: &mut UiElement,
+        ui: &mut UiState,
+        event: UiEvent,
+    ) -> EventResult {
         EventResult::None
     }
 
@@ -109,7 +117,7 @@ impl UiElement {
     pub fn parent(&mut self) -> &mut UiElement {
         if let Some(parent) = &mut self.parent {
             unsafe { parent.as_mut() }
-        }  else {
+        } else {
             panic!()
         }
     }
@@ -187,7 +195,7 @@ impl UiElement {
         if let Some(parent) = &mut self.parent {
             let id = self.id;
             let parent = unsafe { parent.as_mut() };
-    
+
             for child in parent.element.childs_mut().unwrap() {
                 if child.id == id {
                     break;

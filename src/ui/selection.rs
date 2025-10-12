@@ -1,6 +1,6 @@
 use std::ptr::NonNull;
 
-use crate::ui::{ui_state::EventResult, UiElement, UiEvent, UiState};
+use crate::ui::{UiElement, UiEvent, UiState, ui_state::EventResult};
 
 #[derive(Default)]
 pub struct Selection {
@@ -16,7 +16,10 @@ impl Selection {
     pub fn check(&mut self, ui: &mut UiState, event: UiEvent) -> EventResult {
         if let Some(hovered) = &mut self.hovered {
             unsafe {
-                hovered.as_mut().element.interaction(hovered.as_mut(), ui, event)
+                hovered
+                    .as_mut()
+                    .element
+                    .interaction(hovered.as_mut(), ui, event)
             }
         } else {
             EventResult::None
@@ -25,7 +28,12 @@ impl Selection {
 
     pub fn end(&mut self, ui: &mut UiState) -> EventResult {
         if let Some(hovered) = &mut self.hovered {
-            unsafe { hovered.as_mut().element.interaction(hovered.as_mut(), ui, UiEvent::End) }
+            unsafe {
+                hovered
+                    .as_mut()
+                    .element
+                    .interaction(hovered.as_mut(), ui, UiEvent::End)
+            }
         } else {
             EventResult::None
         }

@@ -143,7 +143,6 @@ impl Element for Button {
                     if result == EventResult::New || element.is_in(ui.cursor_pos) {
                         self.state = ButtonState::Hovered;
                         ui.selection.set_hover(element);
-
                     } else {
                         result = EventResult::None;
                         self.state = ButtonState::Normal;

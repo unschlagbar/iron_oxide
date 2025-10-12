@@ -1,12 +1,9 @@
 use std::mem::MaybeUninit;
 
 use ash::{
-    Device,
-    khr::{surface, swapchain},
-    vk::{
-        self, ImageView, PresentModeKHR, RenderPass, SurfaceCapabilitiesKHR, SurfaceFormatKHR,
-        SurfaceKHR, SurfaceTransformFlagsKHR, SwapchainKHR,
-    },
+    khr::{surface, swapchain}, vk::{
+        self, Extent2D, ImageView, PresentModeKHR, RenderPass, SurfaceCapabilitiesKHR, SurfaceFormatKHR, SurfaceKHR, SurfaceTransformFlagsKHR, SwapchainKHR
+    }, Device
 };
 use winit::dpi::PhysicalSize;
 
@@ -90,7 +87,7 @@ impl Swapchain {
     pub fn create_framebuffer(
         &mut self,
         base: &VkBase,
-        window_size: PhysicalSize<u32>,
+        image_extend: Extent2D,
         render_pass: RenderPass,
         attachment: ImageView,
     ) {
@@ -103,8 +100,8 @@ impl Swapchain {
                 render_pass,
                 attachment_count: attachments.len() as _,
                 p_attachments: attachments.as_ptr(),
-                width: window_size.width,
-                height: window_size.height,
+                width: image_extend.width,
+                height: image_extend.height,
                 layers: 1,
                 ..Default::default()
             };
@@ -117,6 +114,15 @@ impl Swapchain {
         }
     }
 
+    pub fn update_caps(&mut self, base: &VkBase) {
+unsafe {
+            self.capabilities = self
+                .surface_loader
+                .get_physical_device_surface_capabilities(base.physical_device, self.surface)
+                .unwrap();
+        }
+    }
+
     pub fn recreate(
         &mut self,
         base: &VkBase,
@@ -124,17 +130,10 @@ impl Swapchain {
         render_pass: RenderPass,
         attachment: ImageView,
     ) {
-        unsafe {
-            self.capabilities = self
-                .surface_loader
-                .get_physical_device_surface_capabilities(base.physical_device, self.surface)
-                .unwrap();
-        }
-
         let image_extent = if self.capabilities.current_extent.width != u32::MAX {
             self.capabilities.current_extent
         } else {
-            vk::Extent2D {
+            Extent2D {
                 width: window_size.width,
                 height: window_size.height,
             }
@@ -166,20 +165,20 @@ impl Swapchain {
         };
 
         unsafe {
-            let new = self
-                .loader
-                .create_swapchain(&create_info, None)
-                .unwrap_unchecked();
             for i in 0..self.image_views.len() {
                 base.device.destroy_framebuffer(self.framebuffers[i], None);
                 base.device.destroy_image_view(self.image_views[i], None);
             }
+            let new = self
+                .loader
+                .create_swapchain(&create_info, None)
+                .unwrap_unchecked();
             self.loader.destroy_swapchain(self.inner, None);
             self.inner = new;
         }
 
         self.create_image_views(base);
-        self.create_framebuffer(base, window_size, render_pass, attachment);
+        self.create_framebuffer(base, image_extent, render_pass, attachment);
     }
 
     fn create_image_views(&mut self, base: &VkBase) {

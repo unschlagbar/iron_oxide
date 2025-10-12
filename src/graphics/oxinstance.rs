@@ -125,12 +125,7 @@ impl VkBase {
         extensions.push(ext::debug_utils::NAME.as_ptr() as _);
 
         let layer_names: &[&CStr] = {
-            if cfg!(debug_assertions) && cfg!(target_os = "windows") {
-                &[
-                    c"VK_LAYER_KHRONOS_validation",
-                    //c"VK_LAYER_LUNARG_monitor",
-                ]
-            } else if cfg!(target_os = "android") {
+            if cfg!(debug_assertions) {
                 &[c"VK_LAYER_KHRONOS_validation"]
             } else {
                 &[]
@@ -150,6 +145,7 @@ impl VkBase {
                 }) {
                     Some(layer_name.as_ptr())
                 } else {
+                    println!("Layer: {:?} not aviable", layer_name);
                     None
                 }
             })
