@@ -65,7 +65,7 @@ impl UiState {
         let self_2 = unsafe { &mut *(self as *mut Self) };
 
         let id = self.get_id();
-        let z_index = if matches!(T::ELEMENT_TYPE, ElementType::AbsoluteLayout) {
+        let z_index = if matches!(T::ELEMENT_TYPE, ElementType::Absolute) {
             0.5
         } else {
             0.01
@@ -92,7 +92,7 @@ impl UiState {
             self_2.set_ticking(child);
         }
 
-        if T::ELEMENT_TYPE == ElementType::AbsoluteLayout && element.is_in(self.cursor_pos) {
+        if T::ELEMENT_TYPE == ElementType::Absolute && element.is_in(self.cursor_pos) {
             self.selection.clear();
             self.update_cursor(self.cursor_pos, UiEvent::Move);
         }
@@ -286,10 +286,9 @@ impl UiState {
 
         let mut result = self.check_selected(event);
 
-        for element in self.elements.iter_mut().rev() {
-            if element.typ == ElementType::AbsoluteLayout
+        for element in self.elements.iter_mut() {
+            if element.typ == ElementType::Absolute
                 && element.is_in(cursor_pos)
-                && element.id != self.selection.hover_id()
             {
                 self.selection.end(self_clone);
                 let r = element.update_cursor(self_clone, event);
@@ -301,7 +300,6 @@ impl UiState {
                 let r = element.update_cursor(self_clone, event);
                 if !r.is_none() {
                     result = r;
-                    break;
                 }
             }
         }

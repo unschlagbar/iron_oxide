@@ -3,7 +3,7 @@
 pub enum ElementType {
     None,
     Block,
-    AbsoluteLayout,
+    Absolute,
     Button,
     Text,
     ScrollPanel,

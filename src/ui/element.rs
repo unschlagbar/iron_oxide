@@ -129,7 +129,7 @@ impl UiElement {
                 let div: &mut Container = self.downcast_mut();
                 div.build(context, element);
             }
-            ElementType::AbsoluteLayout => {
+            ElementType::Absolute => {
                 let div: &mut Absolute = self.downcast_mut();
                 div.build(context, element);
             }
@@ -249,10 +249,12 @@ impl UiElement {
         if self.is_in(ui.cursor_pos) {
             if let Some(childs) = self.element.childs_mut() {
                 for child in childs.iter_mut().rev() {
+                    if child.id == ui.selection.hover_id() {
+                        println!("sa,e");
+                        return EventResult::Old;
+                    }
                     let result = child.update_cursor(ui, event);
                     if !result.is_none() {
-                        return result;
-                    } else if child.typ == ElementType::AbsoluteLayout {
                         return result;
                     };
                 }

@@ -97,7 +97,7 @@ impl Element for Absolute {
 }
 
 impl TypeConst for Absolute {
-    const ELEMENT_TYPE: ElementType = ElementType::AbsoluteLayout;
+    const ELEMENT_TYPE: ElementType = ElementType::Absolute;
 }
 
 impl Default for Absolute {
