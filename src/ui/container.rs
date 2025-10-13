@@ -80,11 +80,11 @@ impl Element for Container {
         let to_add = UiInstance {
             color: self.color,
             border_color: self.border_color,
-            border: self.border[0],
-            x: element.pos.x,
-            y: element.pos.y,
-            width: element.size.x,
-            height: element.size.y,
+            border: self.border[0] as _,
+            x: element.pos.x as _,
+            y: element.pos.y as _,
+            width: element.size.x as _,
+            height: element.size.y as _,
             corner: self.corner[0].pixelx(element.size),
             z_index: element.z_index,
         };

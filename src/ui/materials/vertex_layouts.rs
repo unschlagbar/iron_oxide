@@ -1,4 +1,4 @@
-use ash::vk;
+use ash::vk::{self, Format, VertexInputAttributeDescription, VertexInputBindingDescription};
 use std::mem::offset_of;
 
 use crate::{
@@ -10,76 +10,76 @@ use crate::{
 pub struct UiInstance {
     pub color: RGBA,
     pub border_color: RGBA,
-    pub border: f32,
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
+    pub border: i8,
+    pub x: i16,
+    pub y: i16,
+    pub width: i16,
+    pub height: i16,
     pub corner: f32,
     pub z_index: f32,
 }
 
 impl VertexDescription for UiInstance {
-    const GET_BINDING_DESCRIPTION: &[vk::VertexInputBindingDescription] =
-        &[vk::VertexInputBindingDescription {
+    const GET_BINDING_DESCRIPTION: &[VertexInputBindingDescription] =
+        &[VertexInputBindingDescription {
             binding: 0,
             stride: size_of::<Self>() as _,
             input_rate: vk::VertexInputRate::INSTANCE,
         }];
 
-    const GET_ATTRIBUTE_DESCRIPTIONS: &[vk::VertexInputAttributeDescription] = &[
-        vk::VertexInputAttributeDescription {
+    const GET_ATTRIBUTE_DESCRIPTIONS: &[VertexInputAttributeDescription] = &[
+        VertexInputAttributeDescription {
             binding: 0,
             location: 0,
-            format: vk::Format::R8G8B8A8_UNORM,
+            format: Format::R8G8B8A8_UNORM,
             offset: offset_of!(Self, color) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 1,
-            format: vk::Format::R8G8B8A8_UNORM,
+            format: Format::R8G8B8A8_UNORM,
             offset: offset_of!(Self, border_color) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 2,
-            format: vk::Format::R32_SFLOAT,
+            format: Format::R8_SINT,
             offset: offset_of!(Self, border) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 3,
-            format: vk::Format::R32_SFLOAT,
+            format: Format::R16_SINT,
             offset: offset_of!(Self, x) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 4,
-            format: vk::Format::R32_SFLOAT,
+            format: Format::R16_SINT,
             offset: offset_of!(Self, y) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 5,
-            format: vk::Format::R32_SFLOAT,
+            format: Format::R16_SINT,
             offset: offset_of!(Self, width) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 6,
-            format: vk::Format::R32_SFLOAT,
+            format: Format::R16_SINT,
             offset: offset_of!(Self, height) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 7,
-            format: vk::Format::R32_SFLOAT,
+            format: Format::R32_SFLOAT,
             offset: offset_of!(Self, corner) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 8,
-            format: vk::Format::R32_SFLOAT,
+            format: Format::R32_SFLOAT,
             offset: offset_of!(Self, z_index) as u32,
         },
     ];
@@ -97,54 +97,54 @@ pub struct AtlasInstance {
 }
 
 impl VertexDescription for AtlasInstance {
-    const GET_BINDING_DESCRIPTION: &[vk::VertexInputBindingDescription] =
-        &[vk::VertexInputBindingDescription {
+    const GET_BINDING_DESCRIPTION: &[VertexInputBindingDescription] =
+        &[VertexInputBindingDescription {
             binding: 0,
             stride: size_of::<Self>() as _,
             input_rate: vk::VertexInputRate::INSTANCE,
         }];
 
-    const GET_ATTRIBUTE_DESCRIPTIONS: &[vk::VertexInputAttributeDescription] = &[
-        vk::VertexInputAttributeDescription {
+    const GET_ATTRIBUTE_DESCRIPTIONS: &[VertexInputAttributeDescription] = &[
+        VertexInputAttributeDescription {
             binding: 0,
             location: 0,
-            format: vk::Format::R32_SFLOAT,
+            format: Format::R32_SFLOAT,
             offset: offset_of!(Self, x) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 1,
-            format: vk::Format::R32_SFLOAT,
+            format: Format::R32_SFLOAT,
             offset: offset_of!(Self, y) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 2,
-            format: vk::Format::R32_SFLOAT,
+            format: Format::R32_SFLOAT,
             offset: offset_of!(Self, width) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 3,
-            format: vk::Format::R32_SFLOAT,
+            format: Format::R32_SFLOAT,
             offset: offset_of!(Self, height) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 4,
-            format: vk::Format::R32_UINT,
+            format: Format::R32_UINT,
             offset: offset_of!(Self, atlas_start) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 5,
-            format: vk::Format::R32_UINT,
+            format: Format::R32_UINT,
             offset: offset_of!(Self, atlas_end) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 6,
-            format: vk::Format::R32_SFLOAT,
+            format: Format::R32_SFLOAT,
             offset: offset_of!(Self, z_index) as u32,
         },
     ];
@@ -174,48 +174,48 @@ impl Default for FontInstance {
 }
 
 impl VertexDescription for FontInstance {
-    const GET_BINDING_DESCRIPTION: &[vk::VertexInputBindingDescription] =
-        &[vk::VertexInputBindingDescription {
+    const GET_BINDING_DESCRIPTION: &[VertexInputBindingDescription] =
+        &[VertexInputBindingDescription {
             binding: 0,
             stride: size_of::<FontInstance>() as _,
             input_rate: vk::VertexInputRate::INSTANCE,
         }];
 
-    const GET_ATTRIBUTE_DESCRIPTIONS: &[vk::VertexInputAttributeDescription] = &[
-        vk::VertexInputAttributeDescription {
+    const GET_ATTRIBUTE_DESCRIPTIONS: &[VertexInputAttributeDescription] = &[
+        VertexInputAttributeDescription {
             binding: 0,
             location: 0,
-            format: vk::Format::R8G8B8A8_UNORM,
+            format: Format::R8G8B8A8_UNORM,
             offset: offset_of!(FontInstance, color) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 1,
-            format: vk::Format::R32G32_SFLOAT,
+            format: Format::R32G32_SFLOAT,
             offset: offset_of!(FontInstance, pos) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 2,
-            format: vk::Format::R32G32_SFLOAT,
+            format: Format::R32G32_SFLOAT,
             offset: offset_of!(FontInstance, size) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 3,
-            format: vk::Format::R32_UINT,
+            format: Format::R32_UINT,
             offset: offset_of!(FontInstance, uv_start) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 4,
-            format: vk::Format::R32_UINT,
+            format: Format::R32_UINT,
             offset: offset_of!(FontInstance, uv_size) as u32,
         },
-        vk::VertexInputAttributeDescription {
+        VertexInputAttributeDescription {
             binding: 0,
             location: 5,
-            format: vk::Format::R32_SFLOAT,
+            format: Format::R32_SFLOAT,
             offset: offset_of!(FontInstance, z_index) as u32,
         },
     ];

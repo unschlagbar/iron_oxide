@@ -10,7 +10,7 @@ use crate::{
 pub struct UiStyle {
     pub color: Option<RGBA>,
     pub border_color: Option<RGBA>,
-    pub border: Option<[f32; 4]>,
+    pub border: Option<[i8; 4]>,
     pub corner: Option<[UiUnit; 4]>,
     pub width: Option<UiUnit>,
     pub height: Option<UiUnit>,
@@ -39,7 +39,7 @@ fn apply_style_absolute(mut a: Absolute, style: &UiStyle) -> Absolute {
             a.border_color = c;
         }
     }
-    if a.border == [0.0; 4] {
+    if a.border == [0; 4] {
         if let Some(b) = style.border {
             a.border = b;
         }
@@ -74,7 +74,7 @@ fn apply_style_button(mut b: Button, style: &UiStyle) -> Button {
             b.border_color = c;
         }
     }
-    if b.border == [0.0; 4] {
+    if b.border == [0; 4] {
         if let Some(br) = style.border {
             b.border = br;
         }
