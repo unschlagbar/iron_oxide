@@ -250,7 +250,6 @@ impl UiElement {
             if let Some(childs) = self.element.childs_mut() {
                 for child in childs.iter_mut().rev() {
                     if child.id == ui.selection.hover_id() {
-                        println!("sa,e");
                         return EventResult::Old;
                     }
                     let result = child.update_cursor(ui, event);
