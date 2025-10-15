@@ -15,9 +15,21 @@ impl Pipeline {
         base: &VkBase,
         window_size: PhysicalSize<u32>,
         render_pass: vk::RenderPass,
-        descriptor_set_layout: vk::DescriptorSetLayout,
+        descriptor_set_layouts: &[vk::DescriptorSetLayout],
         shaders: (&[u8], &[u8]),
     ) -> Self {
+        let layout_info = vk::PipelineLayoutCreateInfo {
+            set_layout_count: descriptor_set_layouts.len() as _,
+            p_set_layouts: descriptor_set_layouts.as_ptr(),
+            ..Default::default()
+        };
+
+        let layout = unsafe {
+            base.device
+                .create_pipeline_layout(&layout_info, None)
+                .unwrap()
+        };
+
         let vertex_shader_buff = shaders.0;
         let fragment_shader_buff = shaders.1;
 
@@ -126,18 +138,6 @@ impl Pipeline {
             ..Default::default()
         };
 
-        let layout_info = vk::PipelineLayoutCreateInfo {
-            set_layout_count: 1,
-            p_set_layouts: &descriptor_set_layout,
-            ..Default::default()
-        };
-
-        let layout = unsafe {
-            base.device
-                .create_pipeline_layout(&layout_info, None)
-                .unwrap()
-        };
-
         let depth_stencil = vk::PipelineDepthStencilStateCreateInfo {
             depth_test_enable: vk::TRUE,
             depth_write_enable: vk::TRUE,
@@ -150,7 +150,7 @@ impl Pipeline {
         };
 
         let main_create_info = vk::GraphicsPipelineCreateInfo {
-            stage_count: 2,
+            stage_count: shader_stage.len() as _,
             p_stages: shader_stage.as_ptr(),
             p_vertex_input_state: &vertex_input_info,
             p_input_assembly_state: &input_assembly,

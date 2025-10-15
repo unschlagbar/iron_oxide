@@ -11,12 +11,13 @@ mod ui_state;
 mod ui_unit;
 #[macro_use]
 pub mod building;
+pub mod materials;
 mod selection;
 
-mod absolute_layout;
+mod absolute;
 mod button;
 mod container;
-pub mod materials;
+mod image;
 mod scroll_panel;
 mod text;
 mod ticking;
@@ -38,10 +39,11 @@ pub use ui_state::UiState;
 pub use ui_unit::Align;
 pub use ui_unit::UiUnit;
 
-pub use absolute_layout::Absolute;
+pub use absolute::Absolute;
 pub use button::Button;
 pub use button::ButtonState;
 pub use container::Container;
+pub use image::Image;
 pub use scroll_panel::ScrollPanel;
 pub use text::Text;
 pub use ticking::Ticking;

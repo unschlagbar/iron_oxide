@@ -55,7 +55,7 @@ impl TextureAtlas {
 
         pngs.sort_unstable_by(|(a, _, _), (b, _, _)| b.cmp(&a));
         let mut start_pos = (0, 0);
-        let mut image_data = vec![0.0; self.size.0 as usize * self.size.1 as usize * 4];
+        let mut image_data = vec![0; self.size.0 as usize * self.size.1 as usize * 4];
 
         for (_, mut png, name) in pngs {
             let width;
@@ -93,7 +93,7 @@ impl TextureAtlas {
                         let px_color = buf[flat_idx + i];
                         let flat_idx =
                             ((start_pos.1 + y) * self.size.0 + (start_pos.0 + x)) as usize * 4 + i;
-                        image_data[flat_idx] = px_color as f32 / 255.0;
+                        image_data[flat_idx] = px_color;
                     }
                 }
             }
@@ -123,7 +123,7 @@ impl TextureAtlas {
         let mut atlas = Image::create(
             base,
             extent,
-            Format::R8G8B8A8_SRGB,
+            Format::R8G8B8A8_UNORM,
             ImageTiling::OPTIMAL,
             ImageUsageFlags::TRANSFER_DST | ImageUsageFlags::SAMPLED,
             MemoryPropertyFlags::DEVICE_LOCAL,
