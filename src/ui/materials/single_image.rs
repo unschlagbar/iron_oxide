@@ -1,9 +1,13 @@
 use ash::vk;
 use winit::dpi::PhysicalSize;
 
-use crate::{graphics::{Buffer, VertexDescription, VkBase}, ui::{materials::{Basic, Material}, ui_pipeline::Pipeline}};
-
-
+use crate::{
+    graphics::{Buffer, VertexDescription, VkBase},
+    ui::{
+        materials::{Basic, Material},
+        ui_pipeline::Pipeline,
+    },
+};
 
 pub struct SingleImage<T: VertexDescription + Copy> {
     pub basic: Basic<T>,
@@ -54,8 +58,7 @@ impl<T: VertexDescription + Copy> Material for SingleImage<T> {
     }
 }
 
-
-impl<T: VertexDescription + Copy>  SingleImage<T> {
+impl<T: VertexDescription + Copy> SingleImage<T> {
     pub fn new(
         base: &VkBase,
         window_size: PhysicalSize<u32>,
@@ -65,7 +68,13 @@ impl<T: VertexDescription + Copy>  SingleImage<T> {
         shaders: (&[u8], &[u8]),
     ) -> Self {
         Self {
-            basic: Basic::new(base, window_size, render_pass, descriptor_set_layouts, shaders),
+            basic: Basic::new(
+                base,
+                window_size,
+                render_pass,
+                descriptor_set_layouts,
+                shaders,
+            ),
             desc_set,
         }
     }

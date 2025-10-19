@@ -15,7 +15,9 @@ use crate::{
     graphics::{Buffer, TextureAtlas, VkBase},
     primitives::Vec2,
     ui::{
-        materials::{AtlasInstance, Basic, FontInstance, Material, SingleImage, UiInstance}, selection::Selection, ElementType
+        ElementType,
+        materials::{AtlasInstance, Basic, FontInstance, Material, SingleImage, UiInstance},
+        selection::Selection,
     },
 };
 
@@ -354,7 +356,13 @@ impl UiState {
         let img_layout = Self::create_img_desc_layout(&base.device);
 
         self.create_desc_pool(&base.device);
-        self.create_desc_sets(&base.device, &[ubo_layout, img_layout], uniform_buffer, image_view, sampler);
+        self.create_desc_sets(
+            &base.device,
+            &[ubo_layout, img_layout],
+            uniform_buffer,
+            image_view,
+            sampler,
+        );
 
         self.add_mat(Basic::<UiInstance>::new(
             base,
@@ -546,7 +554,12 @@ impl UiState {
             p_set_layouts: layouts.as_ptr(),
             ..Default::default()
         };
-        let mut sets = unsafe { device.allocate_descriptor_sets(&allocate_info).unwrap().into_iter() };
+        let mut sets = unsafe {
+            device
+                .allocate_descriptor_sets(&allocate_info)
+                .unwrap()
+                .into_iter()
+        };
 
         let ubo_set = sets.next().unwrap();
         let img_set = sets.next().unwrap();

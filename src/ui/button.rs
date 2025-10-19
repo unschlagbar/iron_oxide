@@ -86,7 +86,7 @@ impl Element for Button {
         let to_add = UiInstance {
             color: self.color,
             border_color: self.border_color,
-            border: self.border[0],
+            border: self.border,
             x: element.pos.x as _,
             y: element.pos.y as _,
             width: element.size.x as _,

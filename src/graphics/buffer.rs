@@ -36,7 +36,7 @@ impl Buffer {
         let buffer = unsafe {
             base.device
                 .create_buffer(&buffer_info, None)
-                .unwrap_unchecked()
+                .unwrap()
         };
         let mem_requirements = unsafe { base.device.get_buffer_memory_requirements(buffer) };
 
@@ -260,6 +260,8 @@ pub fn find_memory_type(base: &VkBase, type_filter: u32, properties: MemoryPrope
         base.instance
             .get_physical_device_memory_properties(base.physical_device)
     };
+
+    //println!("mem: {:?}", mem_properties);
 
     for i in 0..mem_properties.memory_type_count {
         if (type_filter & (1 << i) != 0)

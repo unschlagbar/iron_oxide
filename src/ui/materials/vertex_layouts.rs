@@ -10,7 +10,7 @@ use crate::{
 pub struct UiInstance {
     pub color: RGBA,
     pub border_color: RGBA,
-    pub border: i8,
+    pub border: [i8; 4],
     pub x: i16,
     pub y: i16,
     pub width: i16,
@@ -43,7 +43,7 @@ impl VertexDescription for UiInstance {
         VertexInputAttributeDescription {
             binding: 0,
             location: 2,
-            format: Format::R8_SINT,
+            format: Format::R8G8B8A8_SINT,
             offset: offset_of!(Self, border) as u32,
         },
         VertexInputAttributeDescription {
@@ -87,12 +87,10 @@ impl VertexDescription for UiInstance {
 
 #[derive(Debug, Clone, Copy)]
 pub struct AtlasInstance {
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
-    pub atlas_start: u32,
-    pub atlas_end: u32,
+    pub pos: Vec2,
+    pub size: Vec2,
+    pub uv_start: (u16, u16),
+    pub uv_size: (u16, u16),
     pub z_index: f32,
 }
 
@@ -108,42 +106,30 @@ impl VertexDescription for AtlasInstance {
         VertexInputAttributeDescription {
             binding: 0,
             location: 0,
-            format: Format::R32_SFLOAT,
-            offset: offset_of!(Self, x) as u32,
+            format: Format::R32G32_SFLOAT,
+            offset: offset_of!(Self, pos) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 1,
-            format: Format::R32_SFLOAT,
-            offset: offset_of!(Self, y) as u32,
+            format: Format::R32G32_SFLOAT,
+            offset: offset_of!(Self, size) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 2,
-            format: Format::R32_SFLOAT,
-            offset: offset_of!(Self, width) as u32,
+            format: Format::R32_UINT,
+            offset: offset_of!(Self, uv_start) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 3,
-            format: Format::R32_SFLOAT,
-            offset: offset_of!(Self, height) as u32,
+            format: Format::R32_UINT,
+            offset: offset_of!(Self, uv_size) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 4,
-            format: Format::R32_UINT,
-            offset: offset_of!(Self, atlas_start) as u32,
-        },
-        VertexInputAttributeDescription {
-            binding: 0,
-            location: 5,
-            format: Format::R32_UINT,
-            offset: offset_of!(Self, atlas_end) as u32,
-        },
-        VertexInputAttributeDescription {
-            binding: 0,
-            location: 6,
             format: Format::R32_SFLOAT,
             offset: offset_of!(Self, z_index) as u32,
         },

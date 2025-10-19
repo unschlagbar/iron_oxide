@@ -16,7 +16,7 @@ pub struct Container {
     pub color: RGBA,
     pub border_color: RGBA,
     pub flex_direction: FlexDirection,
-    pub border: [f32; 4],
+    pub border: [i8; 4],
     pub corner: [UiUnit; 4],
     pub childs: Vec<UiElement>,
 }
@@ -80,7 +80,7 @@ impl Element for Container {
         let to_add = UiInstance {
             color: self.color,
             border_color: self.border_color,
-            border: self.border[0] as _,
+            border: self.border,
             x: element.pos.x as _,
             y: element.pos.y as _,
             width: element.size.x as _,
@@ -114,7 +114,7 @@ impl Default for Container {
             color: RGBA::DARKGREY,
             border_color: RGBA::GREEN,
             flex_direction: FlexDirection::default(),
-            border: [0.0; 4],
+            border: [0; 4],
             corner: [UiUnit::Zero; 4],
             childs: Default::default(),
         }

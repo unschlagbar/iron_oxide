@@ -26,17 +26,17 @@ impl<T: VertexDescription + Copy> Material for Basic<T> {
         &self.pipeline
     }
 
-    fn add(&mut self, to_add: *const (), desc: u32, clip: Option<Rect2D>) {
+    fn add(&mut self, to_add: *const (), _: u32, clip: Option<Rect2D>) {
         let to_add = unsafe { *(to_add as *mut T) };
         if let Some(group) = self
             .groups
             .iter_mut()
-            .find(|x| x.desc == desc && x.clip == clip)
+            .find(|x| x.clip == clip)
         {
             group.data.push(to_add);
         } else {
             self.groups.push(BasicDrawGroup {
-                desc,
+                //desc,
                 clip,
                 data: vec![to_add],
                 size: 0,
@@ -137,7 +137,7 @@ impl<T: VertexDescription + Copy> Basic<T> {
 }
 
 struct BasicDrawGroup<T> {
-    pub desc: u32,
+    //pub desc: u32,
     pub clip: Option<Rect2D>,
     pub data: Vec<T>,
     pub size: u32,
