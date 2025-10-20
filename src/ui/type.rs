@@ -7,6 +7,7 @@ pub enum ElementType {
     Button,
     Text,
     ScrollPanel,
+    Image,
 }
 
 impl ElementType {

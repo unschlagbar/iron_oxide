@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fs::{self, File},
     io::BufReader,
     ptr, vec,
@@ -9,22 +8,22 @@ use ash::vk::{
     self, BufferUsageFlags, CommandPool, Extent3D, Format, ImageTiling, ImageUsageFlags,
     MemoryPropertyFlags,
 };
-use png::{BitDepth, Decoder};
+use png::{BitDepth, ColorType, Decoder};
 
 use crate::graphics::{Buffer, Image, SinlgeTimeCommands, VkBase};
 
 #[derive(Debug)]
 pub struct TextureAtlas {
-    pub size: (u32, u32),
-    pub images: HashMap<String, (u32, u32, u32, u32)>,
+    pub size: (u16, u16),
+    pub images: Vec<AtlasImage>,
     pub atlas: Option<Image>,
 }
 
 impl TextureAtlas {
-    pub fn new(size: (u32, u32)) -> Self {
+    pub fn new(size: (u16, u16)) -> Self {
         TextureAtlas {
             size,
-            images: HashMap::new(),
+            images: Vec::new(),
             atlas: None,
         }
     }
@@ -53,21 +52,24 @@ impl TextureAtlas {
             }
         }
 
-        pngs.sort_unstable_by(|(a, _, _), (b, _, _)| b.cmp(&a));
-        let mut start_pos = (0, 0);
+        pngs.sort_by(|(a, _, _), (b, _, _)| b.cmp(&a));
+        let mut start_pos: (u16, u16) = (0, 0);
         let mut image_data = vec![0; self.size.0 as usize * self.size.1 as usize * 4];
 
         for (_, mut png, name) in pngs {
             let width;
+
             let height;
             let bytes_per_pixel;
 
             {
                 let header_info = png.read_header_info().unwrap();
-                width = header_info.width;
-                height = header_info.height;
+                width = header_info.width as u16;
+                height = header_info.height as u16;
                 bytes_per_pixel = header_info.bytes_per_pixel();
+
                 assert!(header_info.bit_depth == BitDepth::Eight);
+                assert!(header_info.color_type == ColorType::Rgba);
             }
 
             if width + start_pos.0 > self.size.0 {
@@ -77,16 +79,19 @@ impl TextureAtlas {
                     panic!("Texture atlas is full!");
                 }
             }
-            let uv = (start_pos.0, start_pos.1, width, height);
-            self.images.insert(name, uv);
+            let entry = AtlasImage {
+                uv_start: start_pos,
+                uv_size: (width, height),
+                name,
+            };
             start_pos.0 += width;
 
             let mut info = png.read_info().unwrap();
             let mut buf = vec![0; info.output_buffer_size().unwrap()];
             info.next_frame(&mut buf).unwrap();
 
-            for x in 0..uv.2 {
-                for y in 0..uv.3 {
+            for x in 0..entry.uv_size.0 {
+                for y in 0..entry.uv_size.1 {
                     let flat_idx = (y * width + x) as usize * 4;
 
                     for i in 0..bytes_per_pixel {
@@ -97,12 +102,13 @@ impl TextureAtlas {
                     }
                 }
             }
+            self.images.push(entry);
         }
 
-        let size = image_data.len() as u64 * 4;
+        let size = image_data.len() as u64;
         let extent = Extent3D {
-            width: self.size.0,
-            height: self.size.1,
+            width: self.size.0 as _,
+            height: self.size.1 as _,
             depth: 1,
         };
         let cmd_buf = SinlgeTimeCommands::begin(&base, cmd_pool);
@@ -125,7 +131,9 @@ impl TextureAtlas {
             extent,
             Format::R8G8B8A8_UNORM,
             ImageTiling::OPTIMAL,
-            ImageUsageFlags::TRANSFER_DST | ImageUsageFlags::SAMPLED,
+            ImageUsageFlags::TRANSFER_DST
+                | ImageUsageFlags::SAMPLED
+                | ImageUsageFlags::TRANSFER_SRC,
             MemoryPropertyFlags::DEVICE_LOCAL,
         );
 
@@ -153,4 +161,11 @@ impl TextureAtlas {
             atlas.destroy(device);
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct AtlasImage {
+    pub uv_start: (u16, u16),
+    pub uv_size: (u16, u16),
+    pub name: String,
 }

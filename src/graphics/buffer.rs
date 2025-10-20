@@ -33,11 +33,7 @@ impl Buffer {
             ..Default::default()
         };
 
-        let buffer = unsafe {
-            base.device
-                .create_buffer(&buffer_info, None)
-                .unwrap()
-        };
+        let buffer = unsafe { base.device.create_buffer(&buffer_info, None).unwrap() };
         let mem_requirements = unsafe { base.device.get_buffer_memory_requirements(buffer) };
 
         let alloc_flags_info = MemoryAllocateFlagsInfo {

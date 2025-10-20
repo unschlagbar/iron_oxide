@@ -28,11 +28,7 @@ impl<T: VertexDescription + Copy> Material for Basic<T> {
 
     fn add(&mut self, to_add: *const (), _: u32, clip: Option<Rect2D>) {
         let to_add = unsafe { *(to_add as *mut T) };
-        if let Some(group) = self
-            .groups
-            .iter_mut()
-            .find(|x| x.clip == clip)
-        {
+        if let Some(group) = self.groups.iter_mut().find(|x| x.clip == clip) {
             group.data.push(to_add);
         } else {
             self.groups.push(BasicDrawGroup {

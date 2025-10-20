@@ -11,7 +11,7 @@ use super::{
 };
 use crate::{
     primitives::Vec2,
-    ui::{ScrollPanel, UiUnit},
+    ui::{Image, ScrollPanel, UiUnit},
 };
 
 pub trait Element {
@@ -143,6 +143,10 @@ impl UiElement {
             }
             ElementType::ScrollPanel => {
                 let div: &mut ScrollPanel = self.downcast_mut();
+                div.build(context, element);
+            }
+            ElementType::Image => {
+                let div: &mut Image = self.downcast_mut();
                 div.build(context, element);
             }
             _ => unimplemented!(),

@@ -21,7 +21,7 @@ use crate::{
     },
 };
 
-pub const MAX_DESC: u32 = 2;
+pub const MAX_IMGS: u32 = 2;
 
 pub struct UiState {
     elements: Vec<UiElement>,
@@ -43,6 +43,7 @@ pub struct UiState {
     desc_pool: vk::DescriptorPool,
     ubo_set: vk::DescriptorSet,
     img_set: vk::DescriptorSet,
+    atl_set: vk::DescriptorSet,
     pub materials: Vec<Box<dyn Material>>,
 }
 
@@ -66,6 +67,7 @@ impl UiState {
             desc_pool: vk::DescriptorPool::null(),
             ubo_set: vk::DescriptorSet::null(),
             img_set: vk::DescriptorSet::null(),
+            atl_set: vk::DescriptorSet::null(),
             materials: Vec::with_capacity(3),
         }
     }
@@ -355,12 +357,17 @@ impl UiState {
         let ubo_layout = Self::create_ubo_desc_layout(&base.device);
         let img_layout = Self::create_img_desc_layout(&base.device);
 
+        self.texture_atlas
+            .load_directory("../home_storage_vulkan/textures", base, cmd_pool);
+        let atlas_view = self.texture_atlas.atlas.as_ref().unwrap().view;
+
         self.create_desc_pool(&base.device);
         self.create_desc_sets(
             &base.device,
-            &[ubo_layout, img_layout],
+            &[ubo_layout, img_layout, img_layout],
             uniform_buffer,
             image_view,
+            atlas_view,
             sampler,
         );
 
@@ -381,11 +388,12 @@ impl UiState {
             font_shaders,
         ));
 
-        self.add_mat(Basic::<AtlasInstance>::new(
+        self.add_mat(SingleImage::<AtlasInstance>::new(
             base,
             window_size,
             render_pass,
             &[ubo_layout, img_layout],
+            self.atl_set,
             atlas_shaders,
         ));
 
@@ -393,9 +401,6 @@ impl UiState {
             base.device.destroy_descriptor_set_layout(ubo_layout, None);
             base.device.destroy_descriptor_set_layout(img_layout, None);
         }
-
-        self.texture_atlas
-            .load_directory("../home_storage_vulkan/textures", base, cmd_pool);
     }
 
     fn add_mat<T: Material + 'static>(&mut self, material: T) {
@@ -482,14 +487,14 @@ impl UiState {
             },
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                descriptor_count: 1,
+                descriptor_count: MAX_IMGS,
             },
         ];
 
         let pool_info = vk::DescriptorPoolCreateInfo {
             pool_size_count: pool_sizes.len() as _,
             p_pool_sizes: pool_sizes.as_ptr(),
-            max_sets: MAX_DESC,
+            max_sets: MAX_IMGS + 1,
             ..Default::default()
         };
 
@@ -520,7 +525,7 @@ impl UiState {
 
     fn create_img_desc_layout(device: &ash::Device) -> vk::DescriptorSetLayout {
         let layout_binding = vk::DescriptorSetLayoutBinding {
-            binding: 1,
+            binding: 0,
             descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
             descriptor_count: 1,
             stage_flags: vk::ShaderStageFlags::FRAGMENT,
@@ -546,6 +551,7 @@ impl UiState {
         layouts: &[vk::DescriptorSetLayout],
         uniform_buffer: &Buffer,
         image_view: vk::ImageView,
+        atlas_view: vk::ImageView,
         sampler: vk::Sampler,
     ) {
         let allocate_info = vk::DescriptorSetAllocateInfo {
@@ -563,6 +569,7 @@ impl UiState {
 
         let ubo_set = sets.next().unwrap();
         let img_set = sets.next().unwrap();
+        let atl_set = sets.next().unwrap();
 
         let buffer_info = vk::DescriptorBufferInfo {
             buffer: uniform_buffer.inner,
@@ -573,6 +580,12 @@ impl UiState {
         let image_info = vk::DescriptorImageInfo {
             sampler,
             image_view,
+            image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+        };
+
+        let atlas_image_info = vk::DescriptorImageInfo {
+            sampler,
+            image_view: atlas_view,
             image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
         };
 
@@ -588,11 +601,20 @@ impl UiState {
             },
             vk::WriteDescriptorSet {
                 dst_set: img_set,
-                dst_binding: 1,
+                dst_binding: 0,
                 dst_array_element: 0,
                 descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
                 descriptor_count: 1,
                 p_image_info: &image_info,
+                ..Default::default()
+            },
+            vk::WriteDescriptorSet {
+                dst_set: atl_set,
+                dst_binding: 0,
+                dst_array_element: 0,
+                descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+                descriptor_count: 1,
+                p_image_info: &atlas_image_info,
                 ..Default::default()
             },
         ];
@@ -601,6 +623,7 @@ impl UiState {
 
         self.ubo_set = ubo_set;
         self.img_set = img_set;
+        self.atl_set = atl_set;
     }
 }
 

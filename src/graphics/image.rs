@@ -1,9 +1,17 @@
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt::{Debug, Formatter},
+    fs::File,
+    io::BufWriter,
+};
 
 use ash::vk::{self, ImageView};
+use png::Encoder;
+
+use crate::graphics::SinlgeTimeCommands;
 
 use super::{Buffer, VkBase};
 
+#[derive(Clone)]
 pub struct Image {
     pub inner: vk::Image,
     pub mem: vk::DeviceMemory,
@@ -166,6 +174,14 @@ impl Image {
 
             source_stage = vk::PipelineStageFlags::TOP_OF_PIPE;
             destination_stage = vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS;
+        } else if self.layout == vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
+            && new_layout == vk::ImageLayout::TRANSFER_SRC_OPTIMAL
+        {
+            barrier.src_access_mask = vk::AccessFlags::SHADER_READ;
+            barrier.dst_access_mask = vk::AccessFlags::TRANSFER_READ;
+
+            source_stage = vk::PipelineStageFlags::FRAGMENT_SHADER;
+            destination_stage = vk::PipelineStageFlags::TRANSFER;
         } else {
             panic!(
                 "From layout: {:?} to layout: {:?} is not implemented!",
@@ -217,6 +233,84 @@ impl Image {
                 &[region],
             )
         };
+    }
+
+    pub fn save_to_png(
+        &self,
+        base: &VkBase,
+        cmd_pool: vk::CommandPool,
+        extent: vk::Extent3D,
+        path: &str,
+    ) {
+        let image_size = extent.width as u64 * extent.height as u64 * 4;
+
+        let mut staging_buffer = Buffer::create(
+            base,
+            image_size,
+            vk::BufferUsageFlags::TRANSFER_DST,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
+
+        let cmd_buf = SinlgeTimeCommands::begin(base, cmd_pool);
+
+        let mut img = self.clone();
+
+        img.trasition_layout(base, cmd_buf, vk::ImageLayout::TRANSFER_SRC_OPTIMAL);
+
+        let region = vk::BufferImageCopy {
+            buffer_offset: 0,
+            buffer_row_length: 0,
+            buffer_image_height: 0,
+            image_subresource: vk::ImageSubresourceLayers {
+                aspect_mask: vk::ImageAspectFlags::COLOR,
+                mip_level: 0,
+                base_array_layer: 0,
+                layer_count: 1,
+            },
+            image_offset: vk::Offset3D { x: 0, y: 0, z: 0 },
+            image_extent: extent,
+        };
+        unsafe {
+            base.device.cmd_copy_image_to_buffer(
+                cmd_buf,
+                self.inner,
+                vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
+                staging_buffer.inner,
+                &[region],
+            );
+        }
+
+        let cmd_buf = SinlgeTimeCommands::begin(base, cmd_pool);
+        img.trasition_layout(base, cmd_buf, self.layout);
+        SinlgeTimeCommands::end(base, cmd_pool, cmd_buf);
+
+        let data_ptr = unsafe {
+            base.device
+                .map_memory(
+                    staging_buffer.mem,
+                    0,
+                    image_size,
+                    vk::MemoryMapFlags::empty(),
+                )
+                .unwrap()
+        };
+        let data =
+            unsafe { std::slice::from_raw_parts(data_ptr as *const u8, image_size as usize) };
+        unsafe {
+            base.device.unmap_memory(staging_buffer.mem);
+        }
+
+        // 6. PNG schreiben
+        let file = File::create(path).expect("Failed to create PNG file");
+        let mut w = BufWriter::new(file);
+
+        let mut encoder = Encoder::new(&mut w, extent.width, extent.height);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().unwrap();
+        writer.write_image_data(data).unwrap();
+
+        staging_buffer.destroy(&base.device);
     }
 
     #[inline]
