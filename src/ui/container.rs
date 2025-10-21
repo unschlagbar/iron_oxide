@@ -36,9 +36,9 @@ impl Element for Container {
             self.height.pixely(space)
         };
 
-        let outer_size = Vec2::new(width, height);
+        let size = Vec2::new(width, height);
 
-        let size = outer_size - self.margin.size(space);
+        let outer_size = size + self.margin.size(space);
         let mut pos = self.margin.start(space) + context.child_start_pos;
 
         context.fits_in_line(&mut pos, outer_size);

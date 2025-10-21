@@ -95,7 +95,7 @@ impl Element for Text {
         }
         width = width.max(cursor_pos.x);
 
-        let mut offset = context.child_start_pos;
+        let mut offset = context.child_start_pos + context.used_space;
         if self.align.is_horizontal_centered() {
             offset.x += (context.available_size.x - cursor_pos.x) * 0.5;
         }

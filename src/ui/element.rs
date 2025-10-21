@@ -55,14 +55,14 @@ pub trait Element {
 pub trait TypeConst: Default + 'static {
     const ELEMENT_TYPE: ElementType;
     const DEFAULT_TICKING: bool = false;
-    fn wrap(self, name: &'static str, ui_state: &UiState) -> UiElement
+    fn wrap(self, name: &'static str, ui: &UiState) -> UiElement
     where
         Self: Element + Sized,
     {
         UiElement {
-            id: ui_state.get_id(),
+            id: ui.get_id(),
             name,
-            ui: NonNull::from_ref(ui_state),
+            ui: NonNull::from_ref(ui),
             typ: Self::ELEMENT_TYPE,
             visible: true,
             size: Vec2::zero(),
@@ -247,7 +247,11 @@ impl UiElement {
     }
 
     pub fn get_text(&self) -> Option<&str> {
-        let child = self.element.childs().get(0)?;
+        self.get_text_at_pos(0)
+    }
+
+    pub fn get_text_at_pos(&self, pos: usize) -> Option<&str> {
+        let child = self.element.childs().get(pos)?;
         if !matches!(child.typ, ElementType::Text) {
             return None;
         }

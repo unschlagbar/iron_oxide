@@ -4,8 +4,8 @@ use crate::primitives::Vec2;
 #[derive(Debug, Clone, Copy)]
 pub struct OutArea {
     pub left: UiUnit,
-    pub right: UiUnit,
     pub top: UiUnit,
+    pub right: UiUnit,
     pub bottom: UiUnit,
 }
 
@@ -19,11 +19,30 @@ impl OutArea {
         }
     }
 
+    pub const fn from(pixel: &[f32]) -> Self {
+        match pixel.len() {
+            1 => Self::new(pixel[0]),
+            2 => Self {
+            left: UiUnit::Px(pixel[0]),
+            top: UiUnit::Px(pixel[1]),
+            right: UiUnit::Px(pixel[0]),
+            bottom: UiUnit::Px(pixel[1]),
+        },
+            4 => Self {
+                left: UiUnit::Px(pixel[0]),
+                top: UiUnit::Px(pixel[1]),
+                right: UiUnit::Px(pixel[2]),
+                bottom: UiUnit::Px(pixel[3]),
+            },
+            _ => panic!("Invalid layout")
+        }
+    }
+
     pub const fn horizontal(value: UiUnit) -> Self {
         Self {
             left: value,
-            right: value,
             top: UiUnit::Zero,
+            right: value,
             bottom: UiUnit::Zero,
         }
     }
@@ -31,8 +50,8 @@ impl OutArea {
     pub const fn vertical(value: UiUnit) -> Self {
         Self {
             left: UiUnit::Zero,
-            right: UiUnit::Zero,
             top: value,
+            right: UiUnit::Zero,
             bottom: value,
         }
     }

@@ -48,7 +48,8 @@ impl TextureAtlas {
                 let height = decoder.read_header_info().unwrap().height;
                 let name = path.file_stem().unwrap().to_str().unwrap().to_string();
 
-                pngs.push((height, decoder, name));
+                pngs.push((height, decoder, name.clone()));
+                self.images.push(AtlasImage { uv_start: (0, 0), uv_size: (0, 0), name });
             }
         }
 
@@ -79,11 +80,10 @@ impl TextureAtlas {
                     panic!("Texture atlas is full!");
                 }
             }
-            let entry = AtlasImage {
-                uv_start: start_pos,
-                uv_size: (width, height),
-                name,
-            };
+            let idx = self.images.iter().position(|x| x.name == name).unwrap();
+            let entry = &mut self.images[idx];
+            entry.uv_start = start_pos;
+            entry.uv_size = (width, height);
 
             let mut info = png.read_info().unwrap();
             let mut buf = vec![0; info.output_buffer_size().unwrap()];
@@ -101,7 +101,6 @@ impl TextureAtlas {
                     }
                 }
             }
-            self.images.push(entry);
             start_pos.0 += width;
         }
 
