@@ -84,25 +84,25 @@ impl TextureAtlas {
                 uv_size: (width, height),
                 name,
             };
-            start_pos.0 += width;
-
+            
             let mut info = png.read_info().unwrap();
             let mut buf = vec![0; info.output_buffer_size().unwrap()];
             info.next_frame(&mut buf).unwrap();
-
+            
             for x in 0..entry.uv_size.0 {
                 for y in 0..entry.uv_size.1 {
                     let flat_idx = (y * width + x) as usize * 4;
-
+                    
                     for i in 0..bytes_per_pixel {
                         let px_color = buf[flat_idx + i];
                         let flat_idx =
-                            ((start_pos.1 + y) * self.size.0 + (start_pos.0 + x)) as usize * 4 + i;
+                        ((start_pos.1 + y) * self.size.0 + (start_pos.0 + x)) as usize * 4 + i;
                         image_data[flat_idx] = px_color;
                     }
                 }
             }
             self.images.push(entry);
+            start_pos.0 += width;
         }
 
         let size = image_data.len() as u64;
@@ -132,8 +132,7 @@ impl TextureAtlas {
             Format::R8G8B8A8_UNORM,
             ImageTiling::OPTIMAL,
             ImageUsageFlags::TRANSFER_DST
-                | ImageUsageFlags::SAMPLED
-                | ImageUsageFlags::TRANSFER_SRC,
+                | ImageUsageFlags::SAMPLED,
             MemoryPropertyFlags::DEVICE_LOCAL,
         );
 

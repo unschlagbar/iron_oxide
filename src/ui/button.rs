@@ -159,7 +159,7 @@ impl Element for Button {
         }
 
         if !self.callback.is_none() {
-            let context = CallContext { ui, element, event };
+            let context = CallContext { element, event };
             self.callback.call(context);
         }
 

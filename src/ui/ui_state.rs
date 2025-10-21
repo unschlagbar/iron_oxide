@@ -1,7 +1,7 @@
 use ash::vk;
 use cgmath::Matrix4;
 use std::{
-    ptr,
+    ptr::{self, NonNull},
     sync::atomic::{AtomicU32, Ordering},
     time::Instant,
 };
@@ -73,8 +73,6 @@ impl UiState {
     }
 
     pub fn add_element<T: Element + TypeConst>(&mut self, element: T, name: &'static str) -> u32 {
-        let self_2 = unsafe { &mut *ptr::from_mut(self) };
-
         let id = self.get_id();
         let z_index = if matches!(T::ELEMENT_TYPE, ElementType::Absolute) {
             0.5
@@ -84,6 +82,7 @@ impl UiState {
         let mut element = UiElement {
             id,
             name,
+            ui: NonNull::from_mut(self),
             typ: T::ELEMENT_TYPE,
             visible: true,
             size: Vec2::default(),
@@ -99,8 +98,7 @@ impl UiState {
         let element = self.elements.last_mut().unwrap();
 
         if T::DEFAULT_TICKING {
-            let child = ptr::from_mut(element);
-            self_2.set_ticking(child);
+            element.set_ticking();
         }
 
         if T::ELEMENT_TYPE == ElementType::Absolute && element.is_in(self.cursor_pos) {
@@ -119,10 +117,13 @@ impl UiState {
         element: u32,
     ) -> Option<u32> {
         let id = self.get_id();
+        let ui = NonNull::from_mut(self);
         let element = self.get_element(element)?;
+
         let mut child = UiElement {
             id,
             name,
+            ui,
             typ: T::ELEMENT_TYPE,
             visible: true,
             size: Vec2::default(),
@@ -137,8 +138,7 @@ impl UiState {
 
         if let Some(child) = child {
             if T::DEFAULT_TICKING {
-                let child = ptr::from_mut(child);
-                self.set_ticking(child);
+                child.set_ticking();
             }
         }
 
@@ -147,12 +147,12 @@ impl UiState {
     }
 
     pub fn remove_element(&mut self, element: &mut UiElement) -> Option<UiElement> {
-        if let Some(mut parent) = element.parent {
+        let r = if let Some(mut parent) = element.parent {
             let parent_mut = unsafe { parent.as_mut() };
 
             if let Some(childs) = parent_mut.element.childs_mut() {
                 if let Some(pos) = childs.iter().position(|c| c.id == element.id) {
-                    element.remove_tick(self);
+                    element.remove_tick();
                     let out = Some(childs.remove(pos));
 
                     for child in &mut childs[pos..] {
@@ -169,19 +169,23 @@ impl UiState {
             }
         } else {
             if let Some(pos) = self.elements.iter().position(|c| c.id == element.id) {
-                element.remove_tick(self);
+                element.remove_tick();
                 Some(self.elements.remove(pos))
             } else {
                 println!("Child to remove not found: {}", element.id);
                 None
             }
+        };
+
+        if r.is_some() {
+            self.dirty = DirtyFlags::Resize;
         }
+        r
     }
 
     pub fn remove_element_by_id(&mut self, id: u32) -> Option<UiElement> {
-        let self2 = unsafe { &mut *ptr::from_mut(self) };
-        let element = self2.get_element(id)?;
-        self.remove_element(element)
+        let element = self.get_element(id)?;
+        element.remove_self()
     }
 
     pub fn get_id(&self) -> u32 {
@@ -291,13 +295,8 @@ impl UiState {
         };
     }
 
-    pub fn set_ticking(&mut self, element: *mut UiElement) {
-        self.tick_queue.push(TickEvent::new(element));
-    }
-
     pub fn process_ticks(&mut self) {
         let ui = unsafe { &mut *ptr::from_mut(self) };
-        let ui2 = unsafe { &mut *ptr::from_mut(self) };
 
         for tick in &self.tick_queue {
             if !tick.done {
@@ -310,7 +309,7 @@ impl UiState {
                 };
                 let element2 = unsafe { &mut *ptr::from_mut(element) };
 
-                element.element.tick(element2, ui2);
+                element.element.tick(element2);
             } else {
                 println!("Tick done: {}", tick.element_id);
             }

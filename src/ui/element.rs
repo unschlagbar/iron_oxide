@@ -11,7 +11,7 @@ use super::{
 };
 use crate::{
     primitives::Vec2,
-    ui::{Image, ScrollPanel, UiUnit},
+    ui::{ui_state::TickEvent, DirtyFlags, Image, ScrollPanel, UiUnit},
 };
 
 pub trait Element {
@@ -49,7 +49,7 @@ pub trait Element {
     }
 
     #[allow(unused)]
-    fn tick(&mut self, element: &mut UiElement, ui: &mut UiState) {}
+    fn tick(&mut self, element: &mut UiElement) {}
 }
 
 pub trait TypeConst: Default + 'static {
@@ -62,6 +62,7 @@ pub trait TypeConst: Default + 'static {
         UiElement {
             id: ui_state.get_id(),
             name,
+            ui: NonNull::from_ref(ui_state),
             typ: Self::ELEMENT_TYPE,
             visible: true,
             size: Vec2::zero(),
@@ -76,6 +77,7 @@ pub trait TypeConst: Default + 'static {
 pub struct UiElement {
     pub id: u32,
     pub name: &'static str,
+    pub ui: NonNull<UiState>,
     pub typ: ElementType,
     pub visible: bool,
     pub size: Vec2,
@@ -114,12 +116,20 @@ impl UiElement {
         }
     }
 
-    pub fn parent(&mut self) -> &mut UiElement {
+    const fn parent(&mut self) -> &mut UiElement {
         if let Some(parent) = &mut self.parent {
             unsafe { parent.as_mut() }
         } else {
             panic!()
         }
+    }
+
+    pub const fn ui(&mut self) -> &mut UiState {
+        unsafe { self.ui.as_mut() }
+    }
+
+    pub const fn set_changed(&mut self) {
+        self.ui().dirty = DirtyFlags::Color
     }
 
     pub fn build(&mut self, context: &mut BuildContext) {
@@ -245,6 +255,12 @@ impl UiElement {
         Some(&text_element.text)
     }
 
+    pub fn add_text(&mut self, text: Text) {
+        let text = text.wrap("", self.ui());
+        self.element.add_child(text);
+        self.ui().dirty = DirtyFlags::Resize;
+    }
+
     pub fn update_cursor(&mut self, ui: &mut UiState, event: UiEvent) -> EventResult {
         if !self.visible {
             return EventResult::None;
@@ -302,19 +318,26 @@ impl UiElement {
         }
     }
 
-    pub fn remove_self(&mut self, ui: &mut UiState) -> Option<UiElement> {
+    pub fn remove_self(&mut self) -> Option<UiElement> {
+        let ui = unsafe { &mut *self.ui.as_ptr() };
         ui.remove_element(self)
     }
 
-    pub fn remove_tick(&mut self, ui: &mut UiState) {
-        ui.remove_tick(self.id);
-        ui.selection.check_removed(self.id);
+    pub fn remove_tick(&mut self) {
+        let id = self.id;
+        self.ui().remove_tick(id);
+        self.ui().selection.check_removed(id);
 
         if let Some(childs) = self.element.childs_mut() {
             for child in childs {
-                child.remove_tick(ui);
+                child.remove_tick();
             }
         }
+    }
+
+    pub fn set_ticking(&mut self) {
+        let ptr = ptr::from_mut(self);
+        self.ui().tick_queue.push(TickEvent::new(ptr));
     }
 
     pub fn init(&mut self) {

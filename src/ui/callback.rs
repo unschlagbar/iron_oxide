@@ -1,4 +1,4 @@
-use super::{UiElement, UiEvent, UiState};
+use super::{UiElement, UiEvent};
 
 /// ErasedFnPointer can either points to a free function or associated one that
 /// `&mut self`
@@ -46,17 +46,15 @@ impl CallbackResult {
 }
 
 pub struct CallContext<'a> {
-    pub ui: &'a mut UiState,
     pub element: &'a mut UiElement,
     pub event: UiEvent,
 }
 
 impl CallContext<'_> {
     pub fn new<'a>(
-        ui: &'a mut UiState,
         element: &'a mut UiElement,
         event: UiEvent,
     ) -> CallContext<'a> {
-        CallContext { ui, element, event }
+        CallContext { element, event }
     }
 }

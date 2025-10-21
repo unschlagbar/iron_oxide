@@ -47,10 +47,9 @@ impl<T: Element + TypeConst> Element for Ticking<T> {
         self.inner.add_child(child)
     }
 
-    fn tick(&mut self, element: &mut UiElement, ui: &mut UiState) {
+    fn tick(&mut self, element: &mut UiElement) {
         if !self.tick.is_none() {
             let context = CallContext {
-                ui,
                 element,
                 event: UiEvent::Tick,
             };
