@@ -51,10 +51,7 @@ pub struct CallContext<'a> {
 }
 
 impl CallContext<'_> {
-    pub fn new<'a>(
-        element: &'a mut UiElement,
-        event: UiEvent,
-    ) -> CallContext<'a> {
+    pub fn new<'a>(element: &'a mut UiElement, event: UiEvent) -> CallContext<'a> {
         CallContext { element, event }
     }
 }

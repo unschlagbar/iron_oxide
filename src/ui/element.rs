@@ -11,7 +11,7 @@ use super::{
 };
 use crate::{
     primitives::Vec2,
-    ui::{ui_state::TickEvent, DirtyFlags, Image, ScrollPanel, UiUnit},
+    ui::{DirtyFlags, Image, ScrollPanel, UiUnit, ui_state::TickEvent},
 };
 
 pub trait Element {
