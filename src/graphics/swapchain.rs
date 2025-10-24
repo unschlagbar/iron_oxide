@@ -117,30 +117,28 @@ impl Swapchain {
         }
     }
 
-    pub fn update_caps(&mut self, base: &VkBase) {
+    pub fn update_caps(&mut self, base: &VkBase, size: PhysicalSize<u32>) {
         unsafe {
             self.capabilities = self
                 .surface_loader
                 .get_physical_device_surface_capabilities(base.physical_device, self.surface)
                 .unwrap();
         }
+
+        // Wayland tells with width == u32::MAY that we can decide the size
+        if self.capabilities.current_extent.width == u32::MAX {
+            self.capabilities.current_extent.width = size.width;
+            self.capabilities.current_extent.height = size.height;
+        }
     }
 
     pub fn recreate(
         &mut self,
         base: &VkBase,
-        window_size: PhysicalSize<u32>,
         render_pass: RenderPass,
         attachment: ImageView,
     ) {
-        let image_extent = if self.capabilities.current_extent.width != u32::MAX {
-            self.capabilities.current_extent
-        } else {
-            Extent2D {
-                width: window_size.width,
-                height: window_size.height,
-            }
-        };
+        let image_extent = self.capabilities.current_extent;
 
         let min_image_count = if self.capabilities.min_image_count > 0 {
             self.capabilities.min_image_count

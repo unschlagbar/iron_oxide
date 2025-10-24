@@ -149,8 +149,6 @@ impl TextureAtlas {
         atlas.create_view(base, vk::ImageAspectFlags::COLOR);
 
         self.atlas = Some(atlas);
-
-        println!("{:?}", self.images)
     }
 
     pub fn destroy(&self, device: &ash::Device) {
