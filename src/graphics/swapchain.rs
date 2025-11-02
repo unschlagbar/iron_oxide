@@ -132,12 +132,7 @@ impl Swapchain {
         }
     }
 
-    pub fn recreate(
-        &mut self,
-        base: &VkBase,
-        render_pass: RenderPass,
-        attachment: ImageView,
-    ) {
+    pub fn recreate(&mut self, base: &VkBase, render_pass: RenderPass, attachment: ImageView) {
         let image_extent = self.capabilities.current_extent;
 
         let min_image_count = if self.capabilities.min_image_count > 0 {

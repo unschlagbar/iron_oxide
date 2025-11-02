@@ -23,18 +23,18 @@ impl OutArea {
         match pixel.len() {
             1 => Self::new(pixel[0]),
             2 => Self {
-            left: UiUnit::Px(pixel[0]),
-            top: UiUnit::Px(pixel[1]),
-            right: UiUnit::Px(pixel[0]),
-            bottom: UiUnit::Px(pixel[1]),
-        },
+                left: UiUnit::Px(pixel[0]),
+                top: UiUnit::Px(pixel[1]),
+                right: UiUnit::Px(pixel[0]),
+                bottom: UiUnit::Px(pixel[1]),
+            },
             4 => Self {
                 left: UiUnit::Px(pixel[0]),
                 top: UiUnit::Px(pixel[1]),
                 right: UiUnit::Px(pixel[2]),
                 bottom: UiUnit::Px(pixel[3]),
             },
-            _ => panic!("Invalid layout")
+            _ => panic!("Invalid layout"),
         }
     }
 

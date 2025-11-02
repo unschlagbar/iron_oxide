@@ -49,7 +49,11 @@ impl TextureAtlas {
                 let name = path.file_stem().unwrap().to_str().unwrap().to_string();
 
                 pngs.push((height, decoder, name.clone()));
-                self.images.push(AtlasImage { uv_start: (0, 0), uv_size: (0, 0), name });
+                self.images.push(AtlasImage {
+                    uv_start: (0, 0),
+                    uv_size: (0, 0),
+                    name,
+                });
             }
         }
 

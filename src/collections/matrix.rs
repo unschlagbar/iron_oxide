@@ -196,8 +196,8 @@ impl Matrix {
     }
 
     pub fn split_at_owned(mut self, index: usize) -> (Self, Self) {
-        assert!(self.rows > index);
-        assert!(index != 0);
+        debug_assert!(self.rows > index);
+        debug_assert!(index != 0);
 
         let second = Self {
             data: unsafe { self.data.add(index * self.cols) },
@@ -222,7 +222,7 @@ impl Matrix {
 
     #[track_caller]
     pub fn concat_horizontal(&self, other: &Self) -> Self {
-        assert_eq!(self.rows, other.rows);
+        debug_assert_eq!(self.rows, other.rows);
         let rows = self.rows;
         let cols_left = self.cols;
         let cols_right = other.cols;
@@ -236,11 +236,11 @@ impl Matrix {
 
     #[track_caller]
     pub fn hadamard(&self, b: &Self, out: &mut Self) {
-        assert_eq!(self.rows, b.rows);
-        assert_eq!(self.rows, out.rows);
+        debug_assert_eq!(self.rows, b.rows);
+        debug_assert_eq!(self.rows, out.rows);
 
-        assert_eq!(self.cols, b.cols);
-        assert_eq!(self.cols, out.cols);
+        debug_assert_eq!(self.cols, b.cols);
+        debug_assert_eq!(self.cols, out.cols);
 
         let a = self.as_slice();
         let b = b.as_slice();
@@ -253,8 +253,8 @@ impl Matrix {
 
     #[track_caller]
     pub fn hadamard_new(&self, b: &Self) -> Self {
-        assert_eq!(self.rows, b.rows);
-        assert_eq!(self.cols, b.cols);
+        debug_assert_eq!(self.rows, b.rows);
+        debug_assert_eq!(self.cols, b.cols);
 
         let mut output = Self::uninit(self.rows, self.cols);
 
@@ -314,8 +314,8 @@ impl Matrix {
 
     #[track_caller]
     pub fn add_inplace_scaled(&mut self, other: &Self, scale: f32) {
-        assert_eq!(self.rows, other.rows);
-        assert_eq!(self.cols, other.cols);
+        debug_assert_eq!(self.rows, other.rows);
+        debug_assert_eq!(self.cols, other.cols);
         let a = self.as_slice_mut();
         let b = other.as_slice();
         for i in 0..a.len() {
@@ -325,12 +325,12 @@ impl Matrix {
 
     #[track_caller]
     pub fn add_inplace(&mut self, other: &Self) {
-        assert_eq!(
+        debug_assert_eq!(
             self.rows, other.rows,
             "rows do not match, {} to {}",
             self.rows, other.rows
         );
-        assert_eq!(
+        debug_assert_eq!(
             self.cols, other.cols,
             "cols do not match, {} to {}",
             self.cols, other.cols
@@ -346,12 +346,12 @@ impl Matrix {
 
     #[track_caller]
     pub fn sub_inplace(&mut self, other: &Self) {
-        assert_eq!(
+        debug_assert_eq!(
             self.rows, other.rows,
             "rows do not match, {} to {}",
             self.rows, other.rows
         );
-        assert_eq!(
+        debug_assert_eq!(
             self.cols, other.cols,
             "cols do not match, {} to {}",
             self.cols, other.cols
@@ -367,8 +367,8 @@ impl Matrix {
 
     #[track_caller]
     pub fn add(&self, other: &Self) -> Self {
-        assert_eq!(self.rows, other.rows);
-        assert_eq!(self.cols, other.cols);
+        debug_assert_eq!(self.rows, other.rows);
+        debug_assert_eq!(self.cols, other.cols);
 
         let this = self.as_slice();
         let other = other.as_slice();
@@ -396,15 +396,19 @@ impl Matrix {
 
     #[track_caller]
     pub fn row_mul(&self, row: &[f32], out: &mut [f32]) {
-        assert_eq!(self.rows, row.len());
-        assert_eq!(self.cols, out.len());
+        debug_assert_eq!(self.rows, row.len());
+        debug_assert_eq!(self.cols, out.len());
 
-        (0..self.cols).for_each(|j| {
-            out[j] = 0.0;
-            for i in 0..row.len() {
-                out[j] += row[i] * self[i][j];
+        out.fill(0.0);
+
+        for i in 0..self.rows {
+            let weight_row = &self[i];
+            let factor = row[i];
+
+            for j in 0..self.cols {
+                out[j] += factor * weight_row[j];
             }
-        })
+        }
     }
 }
 
