@@ -38,7 +38,7 @@ impl Element for ScrollPanel {
 
         let mut child_context = BuildContext::new_from(
             context,
-            Vec2::new(available_size.x, f32::MAX),
+            available_size,
             child_start_pos + self.scroll_offset,
             element,
             FlexDirection::Vertical,
@@ -48,7 +48,7 @@ impl Element for ScrollPanel {
             element.build(&mut child_context);
         }
 
-        self.size.y = child_context.used_space.y + self.padding.size(space).y;
+        self.size.y = child_context.used_main + self.padding.size(space).y;
 
         // if we resize the element we dont want the scroll offset to be larger it should be
         if element.size.y < self.size.y {

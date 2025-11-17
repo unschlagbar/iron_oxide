@@ -1,6 +1,9 @@
 #[cfg(feature = "graphics")]
 use cgmath::Vector3;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::{
+    fmt,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec3 {
@@ -237,8 +240,13 @@ impl Neg for Vec3 {
     }
 }
 
-#[cfg(feature = "graphics")]
+impl fmt::Display for Vec3 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Vec{{x: {}, y: {}, z: {}}}", self.x, self.y, self.z)
+    }
+}
 
+#[cfg(feature = "graphics")]
 impl From<Vector3<f32>> for Vec3 {
     fn from(v: Vector3<f32>) -> Self {
         Self {
@@ -250,7 +258,6 @@ impl From<Vector3<f32>> for Vec3 {
 }
 
 #[cfg(feature = "graphics")]
-
 impl From<Vec3> for Vector3<f32> {
     fn from(v: Vec3) -> Self {
         Self {

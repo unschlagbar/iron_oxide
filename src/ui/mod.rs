@@ -1,4 +1,3 @@
-#![cfg(feature = "graphics")]
 mod build_context;
 mod callback;
 mod element;
@@ -13,6 +12,8 @@ mod ui_unit;
 pub mod building;
 pub mod materials;
 mod selection;
+pub mod test;
+pub mod text_layout;
 
 mod absolute;
 mod button;

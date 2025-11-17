@@ -190,11 +190,9 @@ impl VkBase {
                     .collect()
             };
 
-            let all_supported = extension.iter().all(|&required| {
-                supported_extensions
-                    .iter()
-                    .any(|&supported| supported == required)
-            });
+            let all_supported = extension
+                .iter()
+                .all(|&required| supported_extensions.contains(&required));
 
             if all_supported {
                 return (device, capabilities);

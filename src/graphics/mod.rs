@@ -1,4 +1,3 @@
-#![cfg(feature = "graphics")]
 mod buffer;
 mod camera;
 pub mod formats;

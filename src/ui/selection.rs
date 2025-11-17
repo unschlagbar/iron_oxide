@@ -56,10 +56,10 @@ impl Selection {
     }
 
     pub fn check_removed(&mut self, id: u32) {
-        if let Some(hovered) = &self.hovered {
-            if unsafe { hovered.as_ref().id } == id {
-                self.hovered = None;
-            }
+        if let Some(hovered) = &self.hovered
+            && unsafe { hovered.as_ref().id } == id
+        {
+            self.hovered = None;
         }
     }
 }

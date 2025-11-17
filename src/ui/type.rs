@@ -12,10 +12,6 @@ pub enum ElementType {
 
 impl ElementType {
     pub const fn has_interaction(&self) -> bool {
-        match self {
-            Self::Button => true,
-            Self::ScrollPanel => true,
-            _ => false,
-        }
+        matches!(self, Self::Button | Self::ScrollPanel)
     }
 }

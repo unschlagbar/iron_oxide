@@ -57,11 +57,11 @@ impl Element for Absolute {
         }
 
         if rework_x {
-            size.x = child_context.used_space.x;
+            //size.x = child_context.used_space.x;
         }
 
         if rework_y {
-            size.y = child_context.used_space.y;
+            //size.y = child_context.used_space.y;
         }
 
         context.apply_data(pos, size);

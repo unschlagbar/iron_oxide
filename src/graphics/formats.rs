@@ -135,6 +135,12 @@ impl RGBA {
         b: 0,
         a: 0,
     };
+    pub const LIGHTBLUE: RGBA = RGBA {
+        r: 150,
+        g: 180,
+        b: 255,
+        a: 255,
+    };
 
     pub const fn rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
         RGBA { r, g, b, a }

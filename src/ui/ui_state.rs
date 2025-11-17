@@ -61,7 +61,7 @@ impl UiState {
             event: None,
             tick_queue: Vec::new(),
 
-            font: Font::parse_from_bytes(include_bytes!("../../font/std1.fef")),
+            font: Font::parse_from_bytes(include_bytes!("../../font/std1.fef2")),
             texture_atlas: TextureAtlas::new((1024, 1024)),
 
             desc_pool: vk::DescriptorPool::null(),
@@ -136,10 +136,10 @@ impl UiState {
         child.init();
         let child = element.add_child(child);
 
-        if let Some(child) = child {
-            if T::DEFAULT_TICKING {
-                child.set_ticking();
-            }
+        if let Some(child) = child
+            && T::DEFAULT_TICKING
+        {
+            child.set_ticking();
         }
 
         self.dirty = DirtyFlags::Resize;
@@ -167,14 +167,12 @@ impl UiState {
             } else {
                 None
             }
+        } else if let Some(pos) = self.elements.iter().position(|c| c.id == element.id) {
+            element.remove_tick();
+            Some(self.elements.remove(pos))
         } else {
-            if let Some(pos) = self.elements.iter().position(|c| c.id == element.id) {
-                element.remove_tick();
-                Some(self.elements.remove(pos))
-            } else {
-                println!("Child to remove not found: {}", element.id);
-                None
-            }
+            println!("Child to remove not found: {}", element.id);
+            None
         };
 
         if r.is_some() {
@@ -205,7 +203,7 @@ impl UiState {
     pub fn get_instaces(&mut self) {
         self.dirty = DirtyFlags::None;
 
-        if !self.visible || self.elements.len() == 0 {
+        if !self.visible || self.elements.is_empty() {
             return;
         }
 

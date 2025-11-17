@@ -83,7 +83,7 @@ impl<T: VertexDescription + Copy> Material for Basic<T> {
             buf.extend_from_slice(&batch.data);
         }
 
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return;
         }
 

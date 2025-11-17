@@ -23,52 +23,62 @@ pub struct Container {
 
 impl Element for Container {
     fn build(&mut self, context: &mut BuildContext, element: &UiElement) {
-        let space = context.available_size;
+        // compute outer size
+        let margin = self.margin.size(context.available_size);
+        let padding = self.padding.size(context.available_size);
 
-        let width = if matches!(self.width, UiUnit::Fill) {
-            element.size.x
-        } else {
-            self.width.pixelx(space)
-        };
-        let height = if matches!(self.height, UiUnit::Fill) {
-            element.size.y
-        } else {
-            self.height.pixely(space)
+        // determine explicit width/height or auto
+        let mut final_w = match self.width {
+            UiUnit::Fill => context.available_size.x - margin.x,
+            _ => self.width.pixelx(context.available_size),
         };
 
-        let size = Vec2::new(width, height);
+        let mut final_h = match self.height {
+            UiUnit::Fill => context.available_size.y - margin.y,
+            _ => self.height.pixely(context.available_size),
+        };
 
-        let outer_size = size + self.margin.size(space);
-        let mut pos = self.margin.start(space) + context.child_start_pos;
+        let pos = context.pos_child();
 
-        context.fits_in_line(&mut pos, outer_size);
+        let child_start = pos + self.padding.start(context.available_size);
 
-        let available_size = size - self.padding.size(space);
-        let child_start_pos = pos + self.padding.start(space);
-
-        let mut child_context = BuildContext::new_from(
+        // CHILD LAYOUT CONTEXT
+        let mut child_ctx = BuildContext::new_from(
             context,
-            available_size,
-            child_start_pos,
+            Vec2::new(final_w, final_h) - self.padding.size(context.available_size),
+            child_start,
             element,
             self.flex_direction,
         );
 
-        for element in self.childs.iter_mut() {
-            let (width, height) = element.element.get_size();
-            if matches!(width, UiUnit::Fill) {
-                element.size.x =
-                    (child_context.available_size.x - child_context.used_space.x).abs();
+        // BUILD CHILDREN
+        for c in &mut self.childs {
+            let (cw, ch) = c.element.get_size();
+
+            if matches!(cw, UiUnit::Fill) {
+                c.size.x = child_ctx.available_size.x;
             }
 
-            if matches!(height, UiUnit::Fill) {
-                element.size.y =
-                    (child_context.available_size.y - child_context.used_space.y).abs();
+            if matches!(ch, UiUnit::Fill) {
+                c.size.y = child_ctx.available_size.y;
             }
-            element.build(&mut child_context);
+
+            c.build(&mut child_ctx);
         }
 
-        context.apply_data(pos, size);
+        // use autosize if width or height was auto
+        if !matches!(self.width, UiUnit::Fill | UiUnit::Px(_)) {
+            final_w = child_ctx.final_size().x + padding.x;
+        }
+
+        if !matches!(self.height, UiUnit::Fill | UiUnit::Px(_)) {
+            final_h = child_ctx.final_size().y + padding.y;
+        }
+
+        context.place_child(Vec2::new(final_w, final_h) + margin);
+
+        // Save data
+        context.apply_data(pos, Vec2::new(final_w, final_h));
     }
 
     fn get_size(&mut self) -> (UiUnit, UiUnit) {

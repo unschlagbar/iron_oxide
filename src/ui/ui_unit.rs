@@ -54,7 +54,7 @@ impl UiUnit {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 #[repr(u8)]
 pub enum Align {
     Center,
@@ -65,6 +65,7 @@ pub enum Align {
     Bottom,
     BottomLeft,
     Left,
+    #[default]
     TopLeft,
 }
 
@@ -92,21 +93,11 @@ impl Align {
         }
     }
 
-    pub fn is_horizontal_centered(&self) -> bool {
-        match self {
-            Self::Center => true,
-            Self::Top => true,
-            Self::Bottom => true,
-            _ => false,
-        }
+    pub fn horizontal_centered(&self) -> bool {
+        matches!(self, Self::Center | Self::Top | Self::Bottom)
     }
 
-    pub fn is_vertical_centered(&self) -> bool {
-        match self {
-            Self::Center => true,
-            Self::Right => true,
-            Self::Left => true,
-            _ => false,
-        }
+    pub fn vertical_centered(&self) -> bool {
+        matches!(self, Self::Center | Self::Right | Self::Left)
     }
 }

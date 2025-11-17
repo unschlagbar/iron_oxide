@@ -57,7 +57,7 @@ impl TextureAtlas {
             }
         }
 
-        pngs.sort_by(|(a, _, _), (b, _, _)| b.cmp(&a));
+        pngs.sort_by(|(a, _, _), (b, _, _)| b.cmp(a));
         let mut start_pos: (u16, u16) = (0, 0);
         let mut image_data = vec![0; self.size.0 as usize * self.size.1 as usize * 4];
 
@@ -114,7 +114,7 @@ impl TextureAtlas {
             height: self.size.1 as _,
             depth: 1,
         };
-        let cmd_buf = SinlgeTimeCommands::begin(&base, cmd_pool);
+        let cmd_buf = SinlgeTimeCommands::begin(base, cmd_pool);
 
         let mut staging_buffer = Buffer::create(
             base,

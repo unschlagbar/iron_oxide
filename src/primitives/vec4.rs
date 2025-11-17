@@ -1,6 +1,9 @@
 #[cfg(feature = "graphics")]
 use cgmath::Vector4;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::{
+    fmt,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec4 {
@@ -253,6 +256,16 @@ impl Neg for Vec4 {
 
     fn neg(self) -> Vec4 {
         Vec4::new(-self.x, -self.y, -self.z, -self.w)
+    }
+}
+
+impl fmt::Display for Vec4 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Vec{{x: {}, y: {}, z: {}, w: {}}}",
+            self.x, self.y, self.z, self.w
+        )
     }
 }
 

@@ -51,7 +51,7 @@ impl Image {
         let allocate_info = vk::MemoryAllocateInfo {
             allocation_size: memory_requirements.size,
             memory_type_index: super::buffer::find_memory_type(
-                &base,
+                base,
                 memory_requirements.memory_type_bits,
                 properties,
             ),

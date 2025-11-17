@@ -9,14 +9,25 @@ use super::Font;
 
 #[derive(Debug)]
 pub struct BuildContext {
+    /// Size of current element
     pub element_size: Vec2,
+    /// Final position of current element
     pub element_pos: Vec2,
 
+    /// Available layout space given by parent (content box)
     pub available_size: Vec2,
+
+    /// Absolute start position for children
     pub child_start_pos: Vec2,
-    pub line_offset: f32,
-    pub used_space: Vec2,
+
+    /// For measuring in the current flex-direction
+    pub used_main: f32,
+    /// For measuring the cross side (max child size)
+    pub used_cross: f32,
+
+    /// flex axis
     pub flex_direction: FlexDirection,
+
     pub parent: *const UiElement,
     font: *const Font,
 }
@@ -24,80 +35,75 @@ pub struct BuildContext {
 impl BuildContext {
     pub fn default(font: &Font, parent_size: Vec2) -> Self {
         Self {
-            element_size: Vec2::default(),
-            element_pos: Vec2::default(),
+            element_size: Vec2::zero(),
+            element_pos: Vec2::zero(),
+
             available_size: parent_size,
-            child_start_pos: Vec2::default(),
-            line_offset: 0.0,
-            used_space: Vec2::default(),
+            child_start_pos: Vec2::zero(),
+
+            used_main: 0.0,
+            used_cross: 0.0,
+
             flex_direction: FlexDirection::Vertical,
             parent: null(),
             font: font as _,
         }
     }
 
-    pub fn font(&self) -> &Font {
-        unsafe { &*self.font }
-    }
-
     pub fn new_from(
-        context: &Self,
-        available_size: Vec2,
-        child_start_pos: Vec2,
-        parent: &UiElement,
-        flex_direction: FlexDirection,
+        parent: &Self,
+        available: Vec2,
+        start: Vec2,
+        parent_element: &UiElement,
+        dir: FlexDirection,
     ) -> Self {
         Self {
-            element_size: Vec2::default(),
-            element_pos: Vec2::default(),
-            available_size,
-            child_start_pos,
-            line_offset: 0.0,
-            used_space: Vec2::default(),
-            flex_direction,
-            parent: ptr::from_ref(parent),
-            font: context.font,
+            element_size: Vec2::zero(),
+            element_pos: Vec2::zero(),
+
+            available_size: available,
+            child_start_pos: start,
+
+            used_main: 0.0,
+            used_cross: 0.0,
+
+            flex_direction: dir,
+            parent: ptr::from_ref(parent_element),
+            font: parent.font,
         }
     }
 
     #[inline]
-    pub fn fits_in_line(&mut self, pos: &mut Vec2, size: Vec2) -> bool {
+    pub fn font(&self) -> &Font {
+        unsafe { &*self.font }
+    }
+
+    /// Places an element in the flow layout (similar to CSS block-level flex positioning)
+    pub fn place_child(&mut self, child_size: Vec2) {
         match self.flex_direction {
             FlexDirection::Horizontal => {
-                if self.available_size.x - self.used_space.x >= size.x {
-                    *pos += self.used_space;
-
-                    self.line_offset = self.line_offset.max(size.y);
-                    self.used_space.x += size.x;
-
-                    true
-                } else {
-                    self.used_space.y += self.line_offset;
-                    pos.y += self.used_space.y;
-
-                    self.line_offset = size.y;
-                    self.used_space.x = size.x;
-
-                    false
-                }
+                self.used_main += child_size.x;
+                self.used_cross = self.used_cross.max(child_size.y);
             }
             FlexDirection::Vertical => {
-                if self.available_size.y - self.used_space.y >= size.y {
-                    *pos += self.used_space;
+                self.used_main += child_size.y;
+                self.used_cross = self.used_cross.max(child_size.x);
+            }
+        }
+    }
 
-                    self.line_offset = self.line_offset.max(size.x);
-                    self.used_space.y += size.y;
-
-                    true
-                } else {
-                    self.used_space.x += self.line_offset;
-                    pos.x += self.used_space.x;
-
-                    self.line_offset = size.x;
-                    self.used_space.y = size.y;
-
-                    false
-                }
+    /// Places an element in the flow layout (similar to CSS block-level flex positioning)
+    pub fn pos_child(&mut self) -> Vec2 {
+        match self.flex_direction {
+            FlexDirection::Horizontal => {
+                let x = self.child_start_pos.x + self.used_main;
+                let y = self.child_start_pos.y;
+                Vec2::new(x, y)
+            }
+            FlexDirection::Vertical => {
+                let x = self.child_start_pos.x;
+                let y = self.child_start_pos.y + self.used_main;
+                Vec2::new(x, y)
             }
         }
     }
@@ -105,5 +111,12 @@ impl BuildContext {
     pub fn apply_data(&mut self, pos: Vec2, size: Vec2) {
         self.element_pos = pos;
         self.element_size = size;
+    }
+
+    pub fn final_size(&self) -> Vec2 {
+        match self.flex_direction {
+            FlexDirection::Horizontal => Vec2::new(self.used_main, self.used_cross),
+            FlexDirection::Vertical => Vec2::new(self.used_cross, self.used_main),
+        }
     }
 }

@@ -1,4 +1,7 @@
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::{
+    fmt,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec2 {
@@ -191,6 +194,12 @@ impl Neg for Vec2 {
 
     fn neg(self) -> Vec2 {
         Vec2::new(-self.x, -self.y)
+    }
+}
+
+impl fmt::Display for Vec2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Vec{{x: {}, y: {}}}", self.x, self.y)
     }
 }
 

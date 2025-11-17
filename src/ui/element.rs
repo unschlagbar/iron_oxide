@@ -89,7 +89,7 @@ pub struct UiElement {
 
 impl UiElement {
     #[track_caller]
-    pub fn downcast<'a, T: Element + TypeConst>(&'a self) -> &'a T {
+    pub fn downcast<T: Element + TypeConst>(&self) -> &T {
         if T::ELEMENT_TYPE != self.typ {
             panic!(
                 "Invalid downcast from {:?} to {:?}",
@@ -103,7 +103,7 @@ impl UiElement {
     }
 
     #[track_caller]
-    pub fn downcast_mut<'a, T: Element + TypeConst>(&'a mut self) -> &'a mut T {
+    pub fn downcast_mut<T: Element + TypeConst>(&mut self) -> &mut T {
         if T::ELEMENT_TYPE != self.typ {
             panic!(
                 "Invalid downcast from {:?} to {:?}",
@@ -238,10 +238,9 @@ impl UiElement {
 
     #[inline]
     pub fn is_in(&self, pos: Vec2) -> bool {
-        if self.pos <= pos {
-            if self.pos.x + self.size.x >= pos.x && self.pos.y + self.size.y >= pos.y {
-                return true;
-            }
+        if self.pos <= pos && self.pos.x + self.size.x >= pos.x && self.pos.y + self.size.y >= pos.y
+        {
+            return true;
         }
         false
     }

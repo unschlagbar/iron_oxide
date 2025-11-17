@@ -47,7 +47,7 @@ impl Element for Button {
         let size = outer_size - self.margin.size(space);
         let mut pos = self.margin.start(space) + context.child_start_pos;
 
-        context.fits_in_line(&mut pos, outer_size);
+        //context.fit_in_line(&mut pos, outer_size);
 
         let available_size = size - self.padding.size(space);
         let child_start_pos = pos + self.padding.start(space);
@@ -63,13 +63,13 @@ impl Element for Button {
         for element in self.childs.iter_mut() {
             let (width, height) = element.element.get_size();
             if matches!(width, UiUnit::Fill) {
-                element.size.x =
-                    (child_context.available_size.x - child_context.used_space.x).abs();
+                //element.size.x =
+                //(child_context.available_size.x - child_context.used_space.x).abs();
             }
 
             if matches!(height, UiUnit::Fill) {
-                element.size.y =
-                    (child_context.available_size.y - child_context.used_space.y).abs();
+                //element.size.y =
+                //(child_context.available_size.y - child_context.used_space.y).abs();
             }
             element.build(&mut child_context);
         }

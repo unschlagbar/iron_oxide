@@ -121,8 +121,8 @@ impl Buffer {
             );
         }
 
-        let cmd_buf = SinlgeTimeCommands::begin(&base, cmd_pool);
-        staging_buffer.copy(base, &self, buffer_size, 0, cmd_buf);
+        let cmd_buf = SinlgeTimeCommands::begin(base, cmd_pool);
+        staging_buffer.copy(base, self, buffer_size, 0, cmd_buf);
         SinlgeTimeCommands::end(base, cmd_pool, cmd_buf);
 
         staging_buffer.destroy(&base.device);
@@ -145,7 +145,7 @@ impl Buffer {
             staging_buffer.unmap_memory(&base.device);
         };
 
-        staging_buffer.copy(base, &self, buffer_size, 0, cmd_buf);
+        staging_buffer.copy(base, self, buffer_size, 0, cmd_buf);
     }
 
     #[track_caller]
@@ -172,7 +172,7 @@ impl Buffer {
             MemoryPropertyFlags::DEVICE_LOCAL,
         );
 
-        let cmd_buf = SinlgeTimeCommands::begin(&base, cmd_pool);
+        let cmd_buf = SinlgeTimeCommands::begin(base, cmd_pool);
         staging_buffer.copy(base, &device_local_buffer, buffer_size, 0, cmd_buf);
         SinlgeTimeCommands::end(base, cmd_pool, cmd_buf);
 

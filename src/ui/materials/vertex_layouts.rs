@@ -87,6 +87,7 @@ impl VertexDescription for UiInstance {
 
 #[derive(Debug, Clone, Copy)]
 pub struct AtlasInstance {
+    pub color: RGBA,
     pub pos: Vec2,
     pub size: Vec2,
     pub uv_start: (u16, u16),
@@ -106,30 +107,36 @@ impl VertexDescription for AtlasInstance {
         VertexInputAttributeDescription {
             binding: 0,
             location: 0,
-            format: Format::R32G32_SFLOAT,
-            offset: offset_of!(Self, pos) as u32,
+            format: Format::R8G8B8A8_UNORM,
+            offset: offset_of!(FontInstance, color) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 1,
             format: Format::R32G32_SFLOAT,
-            offset: offset_of!(Self, size) as u32,
+            offset: offset_of!(Self, pos) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 2,
-            format: Format::R32_UINT,
-            offset: offset_of!(Self, uv_start) as u32,
+            format: Format::R32G32_SFLOAT,
+            offset: offset_of!(Self, size) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 3,
             format: Format::R32_UINT,
-            offset: offset_of!(Self, uv_size) as u32,
+            offset: offset_of!(Self, uv_start) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 4,
+            format: Format::R32_UINT,
+            offset: offset_of!(Self, uv_size) as u32,
+        },
+        VertexInputAttributeDescription {
+            binding: 0,
+            location: 5,
             format: Format::R32_SFLOAT,
             offset: offset_of!(Self, z_index) as u32,
         },
