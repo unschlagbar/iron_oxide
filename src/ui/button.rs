@@ -45,7 +45,7 @@ impl Element for Button {
         let outer_size = Vec2::new(width, height);
 
         let size = outer_size - self.margin.size(space);
-        let mut pos = self.margin.start(space) + context.child_start_pos;
+        let pos = self.margin.start(space) + context.child_start_pos;
 
         //context.fit_in_line(&mut pos, outer_size);
 

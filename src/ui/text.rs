@@ -95,8 +95,6 @@ impl Element for Text {
 
         context.place_child(layout.size);
         context.apply_data(offset, layout.size);
-
-        println!("{}, {}", offset, layout.size);
     }
 }
 
