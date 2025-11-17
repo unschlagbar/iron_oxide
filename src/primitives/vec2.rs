@@ -203,17 +203,17 @@ impl fmt::Display for Vec2 {
     }
 }
 
-#[cfg(feature = "graphics")]
+#[cfg(feature = "vulkan")]
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 
-#[cfg(feature = "graphics")]
+#[cfg(feature = "vulkan")]
 impl From<PhysicalSize<u32>> for Vec2 {
     fn from(size: PhysicalSize<u32>) -> Self {
         Vec2::new(size.width as f32, size.height as f32)
     }
 }
 
-#[cfg(feature = "graphics")]
+#[cfg(feature = "vulkan")]
 impl From<PhysicalPosition<f64>> for Vec2 {
     fn from(size: PhysicalPosition<f64>) -> Self {
         Vec2::new(size.x as f32, size.y as f32)

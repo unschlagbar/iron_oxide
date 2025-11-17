@@ -1,9 +1,4 @@
-use std::ptr::{self, null};
-
-use crate::{
-    primitives::Vec2,
-    ui::{FlexDirection, UiElement},
-};
+use crate::{primitives::Vec2, ui::FlexDirection};
 
 use super::Font;
 
@@ -13,6 +8,8 @@ pub struct BuildContext {
     pub element_size: Vec2,
     /// Final position of current element
     pub element_pos: Vec2,
+    /// Depth
+    pub z_index: f32,
 
     /// Available layout space given by parent (content box)
     pub available_size: Vec2,
@@ -28,7 +25,6 @@ pub struct BuildContext {
     /// flex axis
     pub flex_direction: FlexDirection,
 
-    pub parent: *const UiElement,
     font: *const Font,
 }
 
@@ -37,6 +33,7 @@ impl BuildContext {
         Self {
             element_size: Vec2::zero(),
             element_pos: Vec2::zero(),
+            z_index: 0.0,
 
             available_size: parent_size,
             child_start_pos: Vec2::zero(),
@@ -45,21 +42,15 @@ impl BuildContext {
             used_cross: 0.0,
 
             flex_direction: FlexDirection::Vertical,
-            parent: null(),
             font: font as _,
         }
     }
 
-    pub fn new_from(
-        parent: &Self,
-        available: Vec2,
-        start: Vec2,
-        parent_element: &UiElement,
-        dir: FlexDirection,
-    ) -> Self {
+    pub fn new_from(parent: &Self, available: Vec2, start: Vec2, dir: FlexDirection) -> Self {
         Self {
             element_size: Vec2::zero(),
             element_pos: Vec2::zero(),
+            z_index: 0.0,
 
             available_size: available,
             child_start_pos: start,
@@ -68,7 +59,6 @@ impl BuildContext {
             used_cross: 0.0,
 
             flex_direction: dir,
-            parent: ptr::from_ref(parent_element),
             font: parent.font,
         }
     }

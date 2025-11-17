@@ -23,11 +23,9 @@ pub struct Absolute {
 }
 
 impl Element for Absolute {
-    fn build(&mut self, context: &mut BuildContext, element: &UiElement) {
+    fn build(&mut self, context: &mut BuildContext) {
         let space = context.available_size;
-
-        let rework_x = self.width.child_dependent();
-        let rework_y = self.height.child_dependent();
+        let padding = self.padding.size(space);
 
         let width = self.width.pixelx(space);
         let height = self.height.pixely(space);
@@ -41,27 +39,33 @@ impl Element for Absolute {
                 Vec2::new(self.x.pixelx(space), self.y.pixely(space)),
             );
 
-        let mut child_context = BuildContext::new_from(
+        let mut child_ctx = BuildContext::new_from(
             context,
-            size,
+            size - padding,
             pos + self.padding.start(size),
-            element,
             FlexDirection::Vertical,
         );
 
-        size.x += self.padding.x(child_context.available_size);
-        size.y += self.padding.y(child_context.available_size);
+        for c in &mut self.childs {
+            let (cw, ch) = c.element.get_size();
 
-        for element in &mut self.childs {
-            element.build(&mut child_context);
+            if matches!(cw, UiUnit::Fill) {
+                c.size.x = child_ctx.available_size.x;
+            }
+
+            if matches!(ch, UiUnit::Fill) {
+                c.size.y = child_ctx.available_size.y;
+            }
+
+            c.build(&mut child_ctx);
+        }
+        // use autosize if width or height was auto
+        if matches!(self.width, UiUnit::Auto) {
+            size.x = child_ctx.final_size().x + padding.x;
         }
 
-        if rework_x {
-            //size.x = child_context.used_space.x;
-        }
-
-        if rework_y {
-            //size.y = child_context.used_space.y;
+        if matches!(self.height, UiUnit::Auto) {
+            size.y = child_ctx.final_size().y + padding.y;
         }
 
         context.apply_data(pos, size);
@@ -84,7 +88,7 @@ impl Element for Absolute {
             corner: self.corner[0].pixelx(element.size),
             z_index: element.z_index,
         };
-        material.add(&to_add as *const _ as *const _, 0, clip);
+        material.add(&to_add, 0, clip);
     }
 
     fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {

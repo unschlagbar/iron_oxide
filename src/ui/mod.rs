@@ -2,18 +2,19 @@ mod build_context;
 mod callback;
 mod element;
 mod font;
+mod selection;
 mod style;
 mod r#type;
 mod ui_events;
 mod ui_pipeline;
 mod ui_state;
 mod ui_unit;
-#[macro_use]
-pub mod building;
+
 pub mod materials;
-mod selection;
-pub mod test;
 pub mod text_layout;
+
+#[cfg(test)]
+pub mod tests;
 
 mod absolute;
 mod button;

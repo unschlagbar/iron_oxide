@@ -1,4 +1,4 @@
-#[cfg(feature = "graphics")]
+#[cfg(feature = "vulkan")]
 use cgmath::Vector4;
 use std::{
     fmt,
@@ -269,7 +269,7 @@ impl fmt::Display for Vec4 {
     }
 }
 
-#[cfg(feature = "graphics")]
+#[cfg(feature = "vulkan")]
 impl From<Vector4<f32>> for Vec4 {
     fn from(v: Vector4<f32>) -> Self {
         Self {
@@ -281,7 +281,7 @@ impl From<Vector4<f32>> for Vec4 {
     }
 }
 
-#[cfg(feature = "graphics")]
+#[cfg(feature = "vulkan")]
 impl From<Vec4> for Vector4<f32> {
     fn from(v: Vec4) -> Self {
         Self {

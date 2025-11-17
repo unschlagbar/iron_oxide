@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use ash::{
     Device,
     vk::{self, Rect2D},
@@ -20,7 +22,7 @@ pub trait Material {
 
     fn size_of(&self) -> u32;
 
-    fn add(&mut self, to_add: *const (), descriptor: u32, clip: Option<Rect2D>);
+    fn add(&mut self, to_add: &dyn Any, descriptor: u32, clip: Option<Rect2D>);
     fn clear(&mut self);
 
     fn update(&mut self, base: &VkBase, cmd_buf: vk::CommandBuffer);

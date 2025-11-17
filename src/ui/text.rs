@@ -1,7 +1,7 @@
 use ash::vk::Rect2D;
 
 use super::{
-    BuildContext, ElementType, UiElement, UiState,
+    BuildContext, ElementType, UiState,
     element::{Element, TypeConst},
 };
 use crate::{
@@ -30,21 +30,20 @@ impl Text {
         parent_size: Vec2,
         parent_pos: Vec2,
         ui: &mut UiState,
-        element: &UiElement,
         clip: Option<Rect2D>,
     ) {
         match self.dirty_flags {
             TextDirtyFlags::None => {
                 for inst in &self.font_instances {
-                    ui.materials[1].add(inst as *const _ as *const _, 0, clip)
+                    ui.materials[1].add(inst, 0, clip)
                 }
             }
             TextDirtyFlags::TextChanged => {
                 let mut context = BuildContext::default(&ui.font, parent_size);
                 context.child_start_pos = parent_pos;
-                self.build(&mut context, element);
+                self.build(&mut context);
                 for inst in &self.font_instances {
-                    ui.materials[1].add(inst as *const _ as *const _, 0, clip)
+                    ui.materials[1].add(inst, 0, clip)
                 }
             }
             TextDirtyFlags::AddedChar => todo!(),
@@ -59,13 +58,12 @@ impl Text {
 }
 
 impl Element for Text {
-    fn build(&mut self, context: &mut BuildContext, element: &UiElement) {
+    fn build(&mut self, context: &mut BuildContext) {
         self.dirty_flags = TextDirtyFlags::None;
         self.font_instances.clear();
 
         let align = self.align;
-        let mut offset = context.child_start_pos;
-        offset.y += context.used_main;
+        let mut offset = context.pos_child();
 
         let font_size = self.layout.font_size;
         let layout = self.layout.build(&self.text, context);
@@ -88,7 +86,7 @@ impl Element for Text {
                     size: c.size,
                     uv_start: c.uv_start,
                     uv_size: c.uv_size,
-                    z_index: element.z_index,
+                    z_index: context.z_index,
                 });
             }
         }

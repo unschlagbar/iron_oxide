@@ -1,7 +1,7 @@
 use crate::{
     graphics::formats::RGBA,
     ui::{
-        ElementType, TypeConst, UiElement, UiState, UiUnit, element::Element,
+        BuildContext, ElementType, TypeConst, UiElement, UiState, UiUnit, element::Element,
         materials::AtlasInstance,
     },
 };
@@ -15,7 +15,7 @@ pub struct Image {
 }
 
 impl Element for Image {
-    fn build(&mut self, context: &mut super::BuildContext, _: &super::UiElement) {
+    fn build(&mut self, context: &mut BuildContext) {
         context.apply_data(context.child_start_pos, context.available_size);
     }
 
@@ -30,7 +30,7 @@ impl Element for Image {
             uv_size: atlas_entry.uv_size,
             z_index: element.z_index,
         };
-        material.add(&to_add as *const _ as *const _, 0, clip);
+        material.add(&to_add, 0, clip);
     }
 }
 

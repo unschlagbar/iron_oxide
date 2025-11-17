@@ -5,12 +5,15 @@ use crate::{
     ui::{
         Container, OutArea, ScrollPanel, Text, UiState,
         UiUnit::*,
+        tests::test_env::TestApp,
         text_layout::{OverflowWrap, TextLayout, TextOverflow, WhiteSpace},
     },
 };
 
-pub fn build_text_test(ui_rc: Rc<RefCell<UiState>>) {
-    let mut ui = ui_rc.borrow_mut();
+#[test]
+pub fn text_test() {
+    let mut global_ui = Rc::new(RefCell::new(UiState::create(true)));
+    let mut ui = global_ui.borrow_mut();
 
     let root = ui.add_element(
         Container {
@@ -191,4 +194,7 @@ pub fn build_text_test(ui_rc: Rc<RefCell<UiState>>) {
         ..Default::default()
     };
     add_sample(&mut ui, scroll, "text-overflow: Clip", t9);
+
+    drop(ui);
+    TestApp::run(global_ui)
 }

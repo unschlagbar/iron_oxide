@@ -5,17 +5,14 @@ use std::{
 
 use ash::vk::{self, Rect2D};
 
-use super::{
-    Absolute, BuildContext, Button, Container, ElementType, Text, UiEvent, UiState,
-    ui_state::EventResult,
-};
+use super::{BuildContext, ElementType, Text, UiEvent, UiState, ui_state::EventResult};
 use crate::{
     primitives::Vec2,
-    ui::{DirtyFlags, Image, ScrollPanel, UiUnit, ui_state::TickEvent},
+    ui::{DirtyFlags, UiUnit, ui_state::TickEvent},
 };
 
 pub trait Element {
-    fn build(&mut self, context: &mut BuildContext, element: &UiElement);
+    fn build(&mut self, context: &mut BuildContext);
 
     fn get_size(&mut self) -> (UiUnit, UiUnit) {
         (UiUnit::Undefined, UiUnit::Undefined)
@@ -133,34 +130,11 @@ impl UiElement {
     }
 
     pub fn build(&mut self, context: &mut BuildContext) {
-        let element = unsafe { ptr::from_ref(self).as_ref().unwrap() };
-        match &self.typ {
-            ElementType::Block => {
-                let div: &mut Container = self.downcast_mut();
-                div.build(context, element);
-            }
-            ElementType::Absolute => {
-                let div: &mut Absolute = self.downcast_mut();
-                div.build(context, element);
-            }
-            ElementType::Button => {
-                let div: &mut Button = self.downcast_mut();
-                div.build(context, element);
-            }
-            ElementType::Text => {
-                let div: &mut Text = self.downcast_mut();
-                div.build(context, element);
-            }
-            ElementType::ScrollPanel => {
-                let div: &mut ScrollPanel = self.downcast_mut();
-                div.build(context, element);
-            }
-            ElementType::Image => {
-                let div: &mut Image = self.downcast_mut();
-                div.build(context, element);
-            }
-            _ => unimplemented!(),
-        }
+        context.z_index = self.z_index;
+        context.element_pos = self.pos;
+        context.element_size = self.size;
+
+        self.element.build(context);
 
         self.pos = context.element_pos;
         self.size = context.element_size;
@@ -171,9 +145,8 @@ impl UiElement {
             if self.typ == ElementType::Text {
                 let size = self.parent().size;
                 let pos = self.parent().pos;
-                let element = unsafe { &*ptr::from_mut(self) };
                 let text: &mut Text = self.downcast_mut();
-                text.get_font_instances(size, pos, ui, element, clip);
+                text.get_font_instances(size, pos, ui, clip);
             } else {
                 self.element.instance(self, ui, clip);
             }

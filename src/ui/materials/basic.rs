@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use ash::vk::{self, Rect2D};
 use winit::dpi::PhysicalSize;
 
@@ -6,7 +8,7 @@ use crate::{
     ui::{materials::Material, ui_pipeline::Pipeline},
 };
 
-pub struct Basic<T: VertexDescription + Copy> {
+pub struct Basic<T: VertexDescription + Copy + 'static> {
     pub buffer: Buffer,
     pub staging_buffer: Buffer,
     pub pipeline: Pipeline,
@@ -26,18 +28,22 @@ impl<T: VertexDescription + Copy> Material for Basic<T> {
         &self.pipeline
     }
 
-    fn add(&mut self, to_add: *const (), _: u32, clip: Option<Rect2D>) {
-        let to_add = unsafe { *(to_add as *mut T) };
-        if let Some(group) = self.groups.iter_mut().find(|x| x.clip == clip) {
-            group.data.push(to_add);
+    fn add(&mut self, to_add: &dyn Any, _: u32, clip: Option<Rect2D>) {
+        if let Some(v) = to_add.downcast_ref::<T>() {
+            if let Some(group) = self.groups.iter_mut().find(|x| x.clip == clip) {
+                group.data.push(*v);
+            } else {
+                self.groups.push(BasicDrawGroup {
+                    //desc,
+                    clip,
+                    data: vec![*v],
+                    size: 0,
+                    offset: 0,
+                });
+            }
         } else {
-            self.groups.push(BasicDrawGroup {
-                //desc,
-                clip,
-                data: vec![to_add],
-                size: 0,
-                offset: 0,
-            });
+            panic!("Material::add_any: falscher Vertex-Typ (downcast fehlgeschlagen)");
+            // Alternative: return Result<(), Error>
         }
     }
 

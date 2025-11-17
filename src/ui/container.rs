@@ -22,7 +22,7 @@ pub struct Container {
 }
 
 impl Element for Container {
-    fn build(&mut self, context: &mut BuildContext, element: &UiElement) {
+    fn build(&mut self, context: &mut BuildContext) {
         // compute outer size
         let margin = self.margin.size(context.available_size);
         let padding = self.padding.size(context.available_size);
@@ -38,20 +38,17 @@ impl Element for Container {
             _ => self.height.pixely(context.available_size),
         };
 
-        let pos = context.pos_child();
+        let pos = context.pos_child() + self.margin.start(context.available_size);
 
         let child_start = pos + self.padding.start(context.available_size);
 
-        // CHILD LAYOUT CONTEXT
         let mut child_ctx = BuildContext::new_from(
             context,
             Vec2::new(final_w, final_h) - self.padding.size(context.available_size),
             child_start,
-            element,
             self.flex_direction,
         );
 
-        // BUILD CHILDREN
         for c in &mut self.childs {
             let (cw, ch) = c.element.get_size();
 
@@ -67,18 +64,18 @@ impl Element for Container {
         }
 
         // use autosize if width or height was auto
-        if !matches!(self.width, UiUnit::Fill | UiUnit::Px(_)) {
+        if matches!(self.width, UiUnit::Auto) {
             final_w = child_ctx.final_size().x + padding.x;
         }
 
-        if !matches!(self.height, UiUnit::Fill | UiUnit::Px(_)) {
+        if matches!(self.height, UiUnit::Auto) {
             final_h = child_ctx.final_size().y + padding.y;
         }
 
-        context.place_child(Vec2::new(final_w, final_h) + margin);
+        let final_size = Vec2::new(final_w, final_h);
 
-        // Save data
-        context.apply_data(pos, Vec2::new(final_w, final_h));
+        context.place_child(final_size + margin);
+        context.apply_data(pos, final_size);
     }
 
     fn get_size(&mut self) -> (UiUnit, UiUnit) {
@@ -98,7 +95,7 @@ impl Element for Container {
             corner: self.corner[0].pixelx(element.size),
             z_index: element.z_index,
         };
-        material.add(&to_add as *const _ as *const _, 0, clip);
+        material.add(&to_add, 0, clip);
     }
 
     fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {

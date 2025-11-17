@@ -28,53 +28,60 @@ pub struct Button {
 }
 
 impl Element for Button {
-    fn build(&mut self, context: &mut BuildContext, element: &UiElement) {
-        let space = context.available_size;
+    fn build(&mut self, context: &mut BuildContext) {
+        // compute outer size
+        let margin = self.margin.size(context.available_size);
+        let padding = self.padding.size(context.available_size);
 
-        let width = if matches!(self.width, UiUnit::Fill) {
-            element.size.x
-        } else {
-            self.width.pixelx(space)
-        };
-        let height = if matches!(self.height, UiUnit::Fill) {
-            element.size.y
-        } else {
-            self.height.pixely(space)
+        // determine explicit width/height or auto
+        let mut final_w = match self.width {
+            UiUnit::Fill => context.available_size.x - margin.x,
+            _ => self.width.pixelx(context.available_size),
         };
 
-        let outer_size = Vec2::new(width, height);
+        let mut final_h = match self.height {
+            UiUnit::Fill => context.available_size.y - margin.y,
+            _ => self.height.pixely(context.available_size),
+        };
 
-        let size = outer_size - self.margin.size(space);
-        let pos = self.margin.start(space) + context.child_start_pos;
+        let pos = context.pos_child() + self.margin.start(context.available_size);
 
-        //context.fit_in_line(&mut pos, outer_size);
+        let child_start = pos + self.padding.start(context.available_size);
 
-        let available_size = size - self.padding.size(space);
-        let child_start_pos = pos + self.padding.start(space);
-
-        let mut child_context = BuildContext::new_from(
+        let mut child_ctx = BuildContext::new_from(
             context,
-            available_size,
-            child_start_pos,
-            element,
+            Vec2::new(final_w, final_h) - self.padding.size(context.available_size),
+            child_start,
             self.flex_direction,
         );
 
-        for element in self.childs.iter_mut() {
-            let (width, height) = element.element.get_size();
-            if matches!(width, UiUnit::Fill) {
-                //element.size.x =
-                //(child_context.available_size.x - child_context.used_space.x).abs();
+        for c in &mut self.childs {
+            let (cw, ch) = c.element.get_size();
+
+            if matches!(cw, UiUnit::Fill) {
+                c.size.x = child_ctx.available_size.x;
             }
 
-            if matches!(height, UiUnit::Fill) {
-                //element.size.y =
-                //(child_context.available_size.y - child_context.used_space.y).abs();
+            if matches!(ch, UiUnit::Fill) {
+                c.size.y = child_ctx.available_size.y;
             }
-            element.build(&mut child_context);
+
+            c.build(&mut child_ctx);
         }
 
-        context.apply_data(pos, size);
+        // use autosize if width or height was auto
+        if matches!(self.width, UiUnit::Auto) {
+            final_w = child_ctx.final_size().x + padding.x;
+        }
+
+        if matches!(self.height, UiUnit::Auto) {
+            final_h = child_ctx.final_size().y + padding.y;
+        }
+
+        let final_size = Vec2::new(final_w, final_h);
+
+        context.place_child(final_size + margin);
+        context.apply_data(pos, final_size);
     }
 
     fn get_size(&mut self) -> (UiUnit, UiUnit) {
@@ -94,7 +101,7 @@ impl Element for Button {
             corner: self.corner[0].pixelx(element.size),
             z_index: element.z_index,
         };
-        material.add(&to_add as *const _ as *const _, 0, clip);
+        material.add(&to_add, 0, clip);
     }
 
     fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {

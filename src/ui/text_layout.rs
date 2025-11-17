@@ -139,46 +139,48 @@ impl TextLayout {
                     if split_point != i32::MAX {
                         let current_line = layout.last();
                         let at = current_line.content.len() - split_point as usize;
-        
+
                         let mut new_line = current_line.content.split_off(at);
-        
+
                         // remove leading spaces in split line (CSS behavior)
                         if self.white_space.collapses_spaces() {
-                            if let Some(g) = current_line.content.last() && g.char.is_whitespace() {
+                            if let Some(g) = current_line.content.last()
+                                && g.char.is_whitespace()
+                            {
                                 current_line.content.pop();
                             }
                         }
-        
+
                         let mut new_width = 0.0;
                         for g in &mut new_line {
                             g.pos.x = new_width;
                             g.pos.y += line_height;
                             new_width += g.size.x;
                         }
-        
+
                         current_line.width -= new_width;
-        
+
                         layout.lines.push(TextLine {
                             content: new_line,
                             width: new_width,
                         });
-        
+
                         layout.size.y += line_height;
                         layout.size.x = layout.size.x.max(current_width);
-        
+
                         current_width = new_width;
                         split_point = i32::MAX;
-        
+
                     // Try split in words
                     } else if matches!(self.overflow_wrap, OverflowWrap::BreakWord) {
                         layout.lines.push(TextLine::default());
-        
+
                         layout.size.y += line_height;
                         layout.size.x = layout.size.x.max(current_width);
-        
+
                         current_width = 0.0;
                         split_point = i32::MAX;
-        
+
                     // Hanlde overflow
                     } else {
                         overflowed = true;
@@ -196,9 +198,8 @@ impl TextLayout {
                         TextOverflow::Ellipsis => (),
                     }
                 }
-
             }
-            
+
             if !overflowed {
                 let y = layout.size.y - self.font_size;
                 let line = layout.last();

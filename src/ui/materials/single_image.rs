@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use ash::vk;
 use winit::dpi::PhysicalSize;
 
@@ -9,7 +11,7 @@ use crate::{
     },
 };
 
-pub struct SingleImage<T: VertexDescription + Copy> {
+pub struct SingleImage<T: VertexDescription + Copy + 'static> {
     pub basic: Basic<T>,
     pub desc_set: vk::DescriptorSet,
 }
@@ -31,7 +33,7 @@ impl<T: VertexDescription + Copy> Material for SingleImage<T> {
         self.basic.size_of()
     }
 
-    fn add(&mut self, to_add: *const (), descriptor: u32, clip: Option<vk::Rect2D>) {
+    fn add(&mut self, to_add: &dyn Any, descriptor: u32, clip: Option<vk::Rect2D>) {
         self.basic.add(to_add, descriptor, clip);
     }
 

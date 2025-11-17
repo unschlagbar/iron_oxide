@@ -14,8 +14,8 @@ pub struct Ticking<T: Element + TypeConst> {
 }
 
 impl<T: Element + TypeConst> Element for Ticking<T> {
-    fn build(&mut self, context: &mut BuildContext, element: &UiElement) {
-        self.inner.build(context, element);
+    fn build(&mut self, context: &mut BuildContext) {
+        self.inner.build(context);
     }
 
     fn interaction(
