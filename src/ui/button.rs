@@ -30,30 +30,32 @@ pub struct Button {
 impl Element for Button {
     fn build(&mut self, context: &mut BuildContext) {
         // compute outer size
+        let margin_start = self.margin.start(context.available_size);
         let margin = self.margin.size(context.available_size);
         let padding = self.padding.size(context.available_size);
+        let padding_start = self.padding.start(context.available_size);
+
+        let space = context.available_size - margin;
 
         // determine explicit width/height or auto
-        let mut final_w = match self.width {
-            UiUnit::Fill => context.available_size.x - margin.x,
-            _ => self.width.pixelx(context.available_size),
+        let width = match self.width {
+            UiUnit::Fill => space.x,
+            _ => self.width.pixelx(space),
         };
 
-        let mut final_h = match self.height {
-            UiUnit::Fill => context.available_size.y - margin.y,
-            _ => self.height.pixely(context.available_size),
+        let height = match self.height {
+            UiUnit::Fill => space.y,
+            _ => self.height.pixely(space),
         };
 
-        let pos = context.pos_child() + self.margin.start(context.available_size);
+        let mut size = Vec2::new(width, height);
 
-        let child_start = pos + self.padding.start(context.available_size);
+        let pos = context.pos_child() + margin_start;
 
-        let mut child_ctx = BuildContext::new_from(
-            context,
-            Vec2::new(final_w, final_h) - self.padding.size(context.available_size),
-            child_start,
-            self.flex_direction,
-        );
+        let child_start = pos + padding_start;
+
+        let mut child_ctx =
+            BuildContext::new_from(context, size - padding, child_start, self.flex_direction);
 
         for c in &mut self.childs {
             let (cw, ch) = c.element.get_size();
@@ -71,17 +73,15 @@ impl Element for Button {
 
         // use autosize if width or height was auto
         if matches!(self.width, UiUnit::Auto) {
-            final_w = child_ctx.final_size().x + padding.x;
+            size.x = child_ctx.final_size().x + padding.x;
         }
 
         if matches!(self.height, UiUnit::Auto) {
-            final_h = child_ctx.final_size().y + padding.y;
+            size.y = child_ctx.final_size().y + padding.y;
         }
 
-        let final_size = Vec2::new(final_w, final_h);
-
-        context.place_child(final_size + margin);
-        context.apply_data(pos, final_size);
+        context.place_child(size + margin);
+        context.apply_data(pos, size);
     }
 
     fn get_size(&mut self) -> (UiUnit, UiUnit) {
