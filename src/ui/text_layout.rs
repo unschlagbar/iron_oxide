@@ -87,14 +87,14 @@ impl TextLayout {
 
         let font = context.font();
         let uv_height = font.height;
-        let mut layout = LayoutText::new(font.height, self.font_size);
+        let mut layout = LayoutText::new(uv_height, self.font_size);
 
         let mut current_width = 0.0;
         let mut last_whitespace = true;
         let mut last_splitable = false;
         let mut split_point = i32::MAX;
 
-        let line_height = self.font_size + self.line_spacing;
+        let line_height = self.font_size + self.font_size / 8.0 * self.line_spacing;
         let uv_scale = self.font_size / uv_height as f32;
 
         for mut c in text.chars() {
@@ -220,6 +220,8 @@ impl TextLayout {
             last_splitable = last_whitespace || c == '-'
         }
 
+        layout.size.x = layout.size.x.max(current_width);
+
         layout
     }
 }
@@ -228,7 +230,7 @@ impl Default for TextLayout {
     fn default() -> Self {
         Self {
             font_size: 16.0,
-            line_spacing: 3.0,
+            line_spacing: 1.0,
             overflow: TextOverflow::default(),
             overflow_wrap: OverflowWrap::default(),
             white_space: WhiteSpace::default(),
@@ -237,13 +239,14 @@ impl Default for TextLayout {
 }
 
 /// Represents a single line of processed text after layout.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct TextLine {
     pub content: Vec<Glyph>,
     pub width: f32,
 }
 
 /// Represents the result of text layout before rendering.
+#[derive(Debug)]
 pub struct LayoutText {
     pub lines: Vec<TextLine>,
     pub size: Vec2,
@@ -264,6 +267,7 @@ impl LayoutText {
     }
 }
 
+#[derive(Debug)]
 pub struct Glyph {
     pub char: char,
     pub pos: Vec2,

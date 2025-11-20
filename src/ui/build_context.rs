@@ -76,6 +76,18 @@ impl BuildContext {
         }
     }
 
+    /// Gets the remaining space
+    pub fn size(&self) -> Vec2 {
+        if self.used_cross > 0.0 {
+            match self.flex_direction {
+                FlexDirection::Horizontal => Vec2::new(self.used_main, self.used_cross),
+                FlexDirection::Vertical => Vec2::new(self.used_cross, self.used_main),
+            }
+        } else {
+            self.available_size
+        }
+    }
+
     /// Places an element in the flow layout (similar to CSS block-level flex positioning)
     pub fn place_child(&mut self, child_size: Vec2) {
         match self.flex_direction {

@@ -49,6 +49,7 @@ impl Element for Absolute {
         for c in &mut self.childs {
             c.build(&mut child_ctx);
         }
+
         // use autosize if width or height was auto
         if matches!(self.width, UiUnit::Auto) {
             size.x = child_ctx.final_size().x + padding.x;

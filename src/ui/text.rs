@@ -68,15 +68,17 @@ impl Element for Text {
         let font_size = self.layout.font_size;
         let layout = self.layout.build(&self.text, context);
 
+        let align_size = context.size();
+
         if align.vertical_centered() {
             offset.y +=
-                (context.available_size.y - font_size * layout.lines.len() as f32).max(0.0) * 0.5;
+                (align_size.y - font_size * layout.lines.len() as f32).max(0.0) * 0.5;
         }
 
         for line in &layout.lines {
             let mut offset = offset;
             if align.horizontal_centered() {
-                offset.x += (context.available_size.x - line.width) * 0.5;
+                offset.x += (align_size.x - line.width) * 0.5;
             }
 
             for c in &line.content {

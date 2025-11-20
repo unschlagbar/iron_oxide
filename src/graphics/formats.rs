@@ -152,7 +152,12 @@ impl RGBA {
     }
 
     pub const fn grey(g: u8) -> Self {
-        RGBA { r: g, g, b: g, a: 255 }
+        RGBA {
+            r: g,
+            g,
+            b: g,
+            a: 255,
+        }
     }
 
     pub fn as_color(&self) -> Color {

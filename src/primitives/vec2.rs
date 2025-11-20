@@ -39,6 +39,20 @@ impl Vec2 {
         if self.x > self.y { self.x } else { self.y }
     }
 
+    pub const fn max_other(&self, other: &Self) -> Vec2 {
+        Vec2::new(
+            self.x.max(other.x),
+            self.y.max(other.y),
+        )
+    }
+
+    pub const fn min_other(&self, other: &Self) -> Vec2 {
+        Vec2::new(
+            self.x.min(other.x),
+            self.y.min(other.y),
+        )
+    }
+
     #[inline(always)]
     pub fn len(&self) -> f32 {
         (self.x.powi(2) + self.y.powi(2)).sqrt()
