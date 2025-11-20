@@ -4,7 +4,7 @@ use std::{
     io::BufWriter,
 };
 
-use ash::vk::{self, ImageView};
+use ash::vk::{self, ImageLayout, ImageView};
 use png::Encoder;
 
 use crate::graphics::SinlgeTimeCommands;
@@ -17,7 +17,7 @@ pub struct Image {
     pub mem: vk::DeviceMemory,
     pub view: vk::ImageView,
     pub format: vk::Format,
-    pub layout: vk::ImageLayout,
+    pub layout: ImageLayout,
 }
 
 impl Image {
@@ -40,7 +40,7 @@ impl Image {
                 tiling,
                 usage,
                 sharing_mode: vk::SharingMode::EXCLUSIVE,
-                initial_layout: vk::ImageLayout::UNDEFINED,
+                initial_layout: ImageLayout::UNDEFINED,
                 ..Default::default()
             };
             unsafe { base.device.create_image(&create_info, None).unwrap() }
@@ -90,7 +90,7 @@ impl Image {
         &mut self,
         base: &VkBase,
         cmd_buf: vk::CommandBuffer,
-        new_layout: vk::ImageLayout,
+        new_layout: ImageLayout,
     ) {
         let mut barrier = vk::ImageMemoryBarrier {
             old_layout: self.layout,
@@ -117,76 +117,58 @@ impl Image {
 
         let source_stage;
         let destination_stage;
-        if self.layout == vk::ImageLayout::UNDEFINED
-            && new_layout == vk::ImageLayout::TRANSFER_DST_OPTIMAL
-        {
-            barrier.src_access_mask = vk::AccessFlags::NONE;
-            barrier.dst_access_mask = vk::AccessFlags::TRANSFER_WRITE;
 
-            source_stage = vk::PipelineStageFlags::TOP_OF_PIPE;
-            destination_stage = vk::PipelineStageFlags::TRANSFER;
-        } else if self.layout == vk::ImageLayout::TRANSFER_DST_OPTIMAL
-            && new_layout == vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
-        {
-            barrier.src_access_mask = vk::AccessFlags::TRANSFER_WRITE;
-            barrier.dst_access_mask = vk::AccessFlags::SHADER_READ;
+        match (new_layout, self.layout) {
+            (ImageLayout::TRANSFER_DST_OPTIMAL, ImageLayout::UNDEFINED) => {
+                barrier.src_access_mask = vk::AccessFlags::NONE;
+                barrier.dst_access_mask = vk::AccessFlags::TRANSFER_WRITE;
 
-            source_stage = vk::PipelineStageFlags::TRANSFER;
-            destination_stage = vk::PipelineStageFlags::FRAGMENT_SHADER;
-        } else if self.layout == vk::ImageLayout::TRANSFER_DST_OPTIMAL
-            && new_layout == vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
-        {
-            barrier.src_access_mask = vk::AccessFlags::TRANSFER_WRITE;
-            barrier.dst_access_mask = vk::AccessFlags::SHADER_READ;
+                source_stage = vk::PipelineStageFlags::TOP_OF_PIPE;
+                destination_stage = vk::PipelineStageFlags::TRANSFER;
+            }
+            (
+                ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                ImageLayout::TRANSFER_DST_OPTIMAL | ImageLayout::TRANSFER_SRC_OPTIMAL,
+            ) => {
+                barrier.src_access_mask = vk::AccessFlags::TRANSFER_WRITE;
+                barrier.dst_access_mask = vk::AccessFlags::SHADER_READ;
 
-            source_stage = vk::PipelineStageFlags::TRANSFER;
-            destination_stage = vk::PipelineStageFlags::FRAGMENT_SHADER;
-        } else if self.layout == vk::ImageLayout::TRANSFER_SRC_OPTIMAL
-            && new_layout == vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
-        {
-            barrier.src_access_mask = vk::AccessFlags::TRANSFER_WRITE;
-            barrier.dst_access_mask = vk::AccessFlags::SHADER_READ;
+                source_stage = vk::PipelineStageFlags::TRANSFER;
+                destination_stage = vk::PipelineStageFlags::FRAGMENT_SHADER;
+            }
+            (ImageLayout::GENERAL, ImageLayout::UNDEFINED) => {
+                barrier.src_access_mask = vk::AccessFlags::TRANSFER_WRITE;
+                barrier.dst_access_mask = vk::AccessFlags::SHADER_READ;
 
-            source_stage = vk::PipelineStageFlags::TRANSFER;
-            destination_stage = vk::PipelineStageFlags::FRAGMENT_SHADER;
-        } else if self.layout == vk::ImageLayout::UNDEFINED
-            && new_layout == vk::ImageLayout::GENERAL
-        {
-            barrier.src_access_mask = vk::AccessFlags::TRANSFER_WRITE;
-            barrier.dst_access_mask = vk::AccessFlags::SHADER_READ;
+                source_stage = vk::PipelineStageFlags::TRANSFER;
+                destination_stage = vk::PipelineStageFlags::FRAGMENT_SHADER;
+            }
+            (ImageLayout::TRANSFER_SRC_OPTIMAL, ImageLayout::UNDEFINED) => {
+                barrier.src_access_mask = vk::AccessFlags::TRANSFER_WRITE;
+                barrier.dst_access_mask = vk::AccessFlags::SHADER_READ;
 
-            source_stage = vk::PipelineStageFlags::TRANSFER;
-            destination_stage = vk::PipelineStageFlags::FRAGMENT_SHADER;
-        } else if self.layout == vk::ImageLayout::UNDEFINED
-            && new_layout == vk::ImageLayout::TRANSFER_SRC_OPTIMAL
-        {
-            barrier.src_access_mask = vk::AccessFlags::TRANSFER_WRITE;
-            barrier.dst_access_mask = vk::AccessFlags::SHADER_READ;
+                source_stage = vk::PipelineStageFlags::TRANSFER;
+                destination_stage = vk::PipelineStageFlags::FRAGMENT_SHADER;
+            }
+            (ImageLayout::TRANSFER_SRC_OPTIMAL, ImageLayout::SHADER_READ_ONLY_OPTIMAL) => {
+                barrier.src_access_mask = vk::AccessFlags::SHADER_READ;
+                barrier.dst_access_mask = vk::AccessFlags::TRANSFER_READ;
 
-            source_stage = vk::PipelineStageFlags::TRANSFER;
-            destination_stage = vk::PipelineStageFlags::FRAGMENT_SHADER;
-        } else if self.layout == vk::ImageLayout::UNDEFINED
-            && new_layout == vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-        {
-            barrier.src_access_mask = vk::AccessFlags::NONE;
-            barrier.dst_access_mask = vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
-                | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE;
+                source_stage = vk::PipelineStageFlags::FRAGMENT_SHADER;
+                destination_stage = vk::PipelineStageFlags::TRANSFER;
+            }
+            (ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL, ImageLayout::UNDEFINED) => {
+                barrier.src_access_mask = vk::AccessFlags::NONE;
+                barrier.dst_access_mask = vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+                    | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE;
 
-            source_stage = vk::PipelineStageFlags::TOP_OF_PIPE;
-            destination_stage = vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS;
-        } else if self.layout == vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
-            && new_layout == vk::ImageLayout::TRANSFER_SRC_OPTIMAL
-        {
-            barrier.src_access_mask = vk::AccessFlags::SHADER_READ;
-            barrier.dst_access_mask = vk::AccessFlags::TRANSFER_READ;
-
-            source_stage = vk::PipelineStageFlags::FRAGMENT_SHADER;
-            destination_stage = vk::PipelineStageFlags::TRANSFER;
-        } else {
-            panic!(
+                source_stage = vk::PipelineStageFlags::TOP_OF_PIPE;
+                destination_stage = vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS;
+            }
+            _ => panic!(
                 "From layout: {:?} to layout: {:?} is not implemented!",
                 self.layout, new_layout
-            );
+            ),
         }
         self.layout = new_layout;
         unsafe {
@@ -229,7 +211,7 @@ impl Image {
                 cmd_buf,
                 buffer.inner,
                 self.inner,
-                vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                ImageLayout::TRANSFER_DST_OPTIMAL,
                 &[region],
             )
         };
@@ -255,7 +237,7 @@ impl Image {
 
         let mut img = self.clone();
 
-        img.trasition_layout(base, cmd_buf, vk::ImageLayout::TRANSFER_SRC_OPTIMAL);
+        img.trasition_layout(base, cmd_buf, ImageLayout::TRANSFER_SRC_OPTIMAL);
 
         let region = vk::BufferImageCopy {
             buffer_offset: 0,
@@ -274,7 +256,7 @@ impl Image {
             base.device.cmd_copy_image_to_buffer(
                 cmd_buf,
                 self.inner,
-                vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
+                ImageLayout::TRANSFER_SRC_OPTIMAL,
                 staging_buffer.inner,
                 &[region],
             );

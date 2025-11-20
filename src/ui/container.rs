@@ -23,45 +23,30 @@ pub struct Container {
 
 impl Element for Container {
     fn build(&mut self, context: &mut BuildContext) {
-        // compute outer size
-        let margin_start = self.margin.start(context.available_size);
-        let margin = self.margin.size(context.available_size);
-        let padding = self.padding.size(context.available_size);
-        let padding_start = self.padding.start(context.available_size);
+        let margin_start = self.margin.start(context);
+        let margin = self.margin.size(context);
+        let padding = self.padding.size(context);
+        let padding_start = self.padding.start(context);
 
-        let space = context.available_size - margin;
-
-        // determine explicit width/height or auto
         let width = match self.width {
-            UiUnit::Fill => space.x,
-            _ => self.width.pixelx(space),
+            UiUnit::Fill => context.remaining_space().x - margin.x,
+            _ => self.width.px(context.available_size - margin),
         };
 
         let height = match self.height {
-            UiUnit::Fill => space.y,
-            _ => self.height.pixely(space),
+            UiUnit::Fill => context.remaining_space().y - margin.y,
+            _ => self.height.py(context.available_size - margin),
         };
 
         let mut size = Vec2::new(width, height);
 
         let pos = context.pos_child() + margin_start;
-
         let child_start = pos + padding_start;
 
         let mut child_ctx =
             BuildContext::new_from(context, size - padding, child_start, self.flex_direction);
 
         for c in &mut self.childs {
-            let (cw, ch) = c.element.get_size();
-
-            if matches!(cw, UiUnit::Fill) {
-                c.size.x = child_ctx.available_size.x;
-            }
-
-            if matches!(ch, UiUnit::Fill) {
-                c.size.y = child_ctx.available_size.y;
-            }
-
             c.build(&mut child_ctx);
         }
 
@@ -92,7 +77,7 @@ impl Element for Container {
             y: element.pos.y as _,
             width: element.size.x as _,
             height: element.size.y as _,
-            corner: self.corner[0].pixelx(element.size),
+            corner: self.corner[0].px(element.size),
             z_index: element.z_index,
         };
         material.add(&to_add, 0, clip);

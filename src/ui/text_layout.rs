@@ -143,12 +143,11 @@ impl TextLayout {
                         let mut new_line = current_line.content.split_off(at);
 
                         // remove leading spaces in split line (CSS behavior)
-                        if self.white_space.collapses_spaces() {
-                            if let Some(g) = current_line.content.last()
-                                && g.char.is_whitespace()
-                            {
-                                current_line.content.pop();
-                            }
+                        if self.white_space.collapses_spaces()
+                            && let Some(g) = current_line.content.last()
+                            && g.char.is_whitespace()
+                        {
+                            current_line.content.pop();
                         }
 
                         let mut new_width = 0.0;

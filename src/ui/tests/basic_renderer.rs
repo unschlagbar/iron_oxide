@@ -376,15 +376,6 @@ impl VulkanRender {
             p_image_indices: &image_index,
             ..Default::default()
         };
-
-        if unsafe {
-            self.swapchain
-                .loader
-                .queue_present(self.base.queue, &present_info)
-                .is_err()
-        } {
-            return;
-        }
     }
 
     fn record_command_buffer(&mut self, index: u32, command_buffer: vk::CommandBuffer) {

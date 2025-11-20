@@ -25,10 +25,10 @@ pub struct Absolute {
 impl Element for Absolute {
     fn build(&mut self, context: &mut BuildContext) {
         let space = context.available_size;
-        let padding = self.padding.size(space);
+        let padding = self.padding.size(context);
 
-        let width = self.width.pixelx(space);
-        let height = self.height.pixely(space);
+        let width = self.width.pixelx(context);
+        let height = self.height.pixely(context);
 
         let mut size = Vec2::new(width, height);
 
@@ -36,27 +36,17 @@ impl Element for Absolute {
             + self.align.get_pos(
                 space,
                 size,
-                Vec2::new(self.x.pixelx(space), self.y.pixely(space)),
+                Vec2::new(self.x.pixelx(context), self.y.pixely(context)),
             );
 
         let mut child_ctx = BuildContext::new_from(
             context,
             size - padding,
-            pos + self.padding.start(size),
-            FlexDirection::Vertical,
+            pos + self.padding.start(context),
+            FlexDirection::default(),
         );
 
         for c in &mut self.childs {
-            let (cw, ch) = c.element.get_size();
-
-            if matches!(cw, UiUnit::Fill) {
-                c.size.x = child_ctx.available_size.x;
-            }
-
-            if matches!(ch, UiUnit::Fill) {
-                c.size.y = child_ctx.available_size.y;
-            }
-
             c.build(&mut child_ctx);
         }
         // use autosize if width or height was auto
@@ -85,7 +75,7 @@ impl Element for Absolute {
             y: element.pos.y as _,
             width: element.size.x as _,
             height: element.size.y as _,
-            corner: self.corner[0].pixelx(element.size),
+            corner: self.corner[0].px(element.size),
             z_index: element.z_index,
         };
         material.add(&to_add, 0, clip);
@@ -108,7 +98,7 @@ impl Default for Absolute {
     fn default() -> Self {
         Self {
             childs: Default::default(),
-            align: Align::TopLeft,
+            align: Align::default(),
             x: UiUnit::Px(10.0),
             y: UiUnit::Px(10.0),
             width: UiUnit::Px(100.0),

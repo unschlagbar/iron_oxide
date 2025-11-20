@@ -47,7 +47,7 @@ impl Selection {
         }
     }
 
-    pub fn get_hovered(&self) -> Option<&mut UiElement> {
+    pub fn get_hovered(&mut self) -> Option<&mut UiElement> {
         self.hovered.map(|mut x| unsafe { x.as_mut() })
     }
 

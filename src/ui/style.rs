@@ -1,5 +1,5 @@
 use super::UiUnit;
-use crate::primitives::Vec2;
+use crate::{primitives::Vec2, ui::BuildContext};
 
 #[derive(Debug, Clone, Copy)]
 pub struct OutArea {
@@ -56,26 +56,26 @@ impl OutArea {
         }
     }
 
-    pub fn x(&self, space: Vec2) -> f32 {
-        self.left.pixelx(space) + self.right.pixelx(space)
+    pub fn x(&self, context: &BuildContext) -> f32 {
+        self.left.pixelx(context) + self.right.pixelx(context)
     }
 
-    pub fn y(&self, space: Vec2) -> f32 {
-        self.top.pixely(space) + self.bottom.pixely(space)
+    pub fn y(&self, context: &BuildContext) -> f32 {
+        self.top.pixely(context) + self.bottom.pixely(context)
     }
 
-    pub fn start(&self, space: Vec2) -> Vec2 {
-        Vec2::new(self.left.pixelx(space), self.top.pixely(space))
+    pub fn start(&self, context: &BuildContext) -> Vec2 {
+        Vec2::new(self.left.pixelx(context), self.top.pixely(context))
     }
 
-    pub fn end(&self, space: Vec2) -> Vec2 {
-        Vec2::new(self.right.pixelx(space), self.bottom.pixely(space))
+    pub fn end(&self, context: &BuildContext) -> Vec2 {
+        Vec2::new(self.right.pixelx(context), self.bottom.pixely(context))
     }
 
-    pub fn size(&self, space: Vec2) -> Vec2 {
+    pub fn size(&self, context: &BuildContext) -> Vec2 {
         Vec2::new(
-            self.left.pixelx(space) + self.right.pixelx(space),
-            self.top.pixely(space) + self.bottom.pixelx(space),
+            self.left.pixelx(context) + self.right.pixelx(context),
+            self.top.pixely(context) + self.bottom.pixelx(context),
         )
     }
 

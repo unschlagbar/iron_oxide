@@ -1,4 +1,4 @@
-use crate::primitives::Vec2;
+use crate::{primitives::Vec2, ui::BuildContext};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(u8)]
@@ -18,39 +18,68 @@ pub enum UiUnit {
 
 impl UiUnit {
     #[inline]
-    pub fn pixelx(&self, space: Vec2) -> f32 {
+    pub fn pixelx(&self, context: &BuildContext) -> f32 {
+        let parent_size = context.available_size;
         match self {
             Self::Zero => 0.0,
             Self::Undefined => 100.0,
             Self::Auto => f32::MAX,
-            Self::Fill => 1.77,
+            Self::Fill => context.remaining_space().x,
             Self::Px(pixel) => *pixel,
-            Self::Relative(percent) | Self::RelativeWidth(percent) => space.x * percent,
-            Self::RelativeHeight(percent) => space.y * percent,
-            Self::RelativeMax(percent) => space.max() * percent,
-            Self::RelativeMin(percent) => space.min() * percent,
+            Self::Relative(percent) | Self::RelativeWidth(percent) => parent_size.x * percent,
+            Self::RelativeHeight(percent) => parent_size.y * percent,
+            Self::RelativeMax(percent) => parent_size.max() * percent,
+            Self::RelativeMin(percent) => parent_size.min() * percent,
             Self::Rem(rem) => *rem,
         }
     }
 
     #[inline]
-    pub fn pixely(&self, space: Vec2) -> f32 {
+    pub fn pixely(&self, context: &BuildContext) -> f32 {
+        let parent_size = context.available_size;
         match self {
             Self::Zero => 0.0,
             Self::Undefined => 100.0,
             Self::Auto => f32::MAX,
-            Self::Fill => 1.77,
+            Self::Fill => context.remaining_space().y,
             Self::Px(pixel) => *pixel,
-            Self::Relative(percent) | Self::RelativeHeight(percent) => space.y * percent,
-            Self::RelativeWidth(percent) => space.x * percent,
-            Self::RelativeMax(percent) => space.max() * percent,
-            Self::RelativeMin(percent) => space.min() * percent,
+            Self::Relative(percent) | Self::RelativeHeight(percent) => parent_size.y * percent,
+            Self::RelativeWidth(percent) => parent_size.x * percent,
+            Self::RelativeMax(percent) => parent_size.max() * percent,
+            Self::RelativeMin(percent) => parent_size.min() * percent,
             Self::Rem(rem) => *rem,
         }
     }
 
-    pub fn child_dependent(&self) -> bool {
-        matches!(self, Self::Auto)
+    #[inline]
+    pub fn py(&self, size: Vec2) -> f32 {
+        match self {
+            Self::Zero => 0.0,
+            Self::Undefined => 100.0,
+            Self::Auto => f32::MAX,
+            Self::Fill => size.y,
+            Self::Px(pixel) => *pixel,
+            Self::Relative(percent) | Self::RelativeHeight(percent) => size.y * percent,
+            Self::RelativeWidth(percent) => size.x * percent,
+            Self::RelativeMax(percent) => size.max() * percent,
+            Self::RelativeMin(percent) => size.min() * percent,
+            Self::Rem(rem) => *rem,
+        }
+    }
+
+    pub fn px(&self, size: Vec2) -> f32 {
+        match self {
+            Self::Zero => 0.0,
+            Self::Undefined => 100.0,
+            Self::Auto => f32::MAX,
+            Self::Fill => size.x,
+            Self::Px(pixel) => *pixel,
+            Self::Relative(percent) | Self::RelativeWidth(percent) => size.x * percent,
+            Self::RelativeHeight(percent) => size.y * percent,
+            Self::RelativeMax(percent) => size.max() * percent,
+            Self::RelativeMin(percent) => size.min() * percent,
+            Self::Rem(rem) => *rem,
+        }
     }
 }
 

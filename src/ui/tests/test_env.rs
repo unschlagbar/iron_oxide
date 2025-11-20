@@ -70,10 +70,10 @@ impl TestApp {
     }
 
     fn get_framerate(&mut self, window: &Window) {
-        if let Some(monitor) = window.current_monitor() {
-            if let Some(refresh_rate) = monitor.refresh_rate_millihertz() {
-                self.target_frame_time = 1000.0 / refresh_rate as f32;
-            }
+        if let Some(monitor) = window.current_monitor()
+            && let Some(refresh_rate) = monitor.refresh_rate_millihertz()
+        {
+            self.target_frame_time = 1000.0 / refresh_rate as f32;
         }
     }
 

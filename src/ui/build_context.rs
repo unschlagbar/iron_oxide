@@ -68,6 +68,14 @@ impl BuildContext {
         unsafe { &*self.font }
     }
 
+    /// Gets the remaining space
+    pub fn remaining_space(&self) -> Vec2 {
+        match self.flex_direction {
+            FlexDirection::Horizontal => self.available_size - Vec2::new(self.used_main, 0.0),
+            FlexDirection::Vertical => self.available_size - Vec2::new(0.0, self.used_main),
+        }
+    }
+
     /// Places an element in the flow layout (similar to CSS block-level flex positioning)
     pub fn place_child(&mut self, child_size: Vec2) {
         match self.flex_direction {
@@ -83,7 +91,7 @@ impl BuildContext {
     }
 
     /// Places an element in the flow layout (similar to CSS block-level flex positioning)
-    pub fn pos_child(&mut self) -> Vec2 {
+    pub fn pos_child(&self) -> Vec2 {
         match self.flex_direction {
             FlexDirection::Horizontal => {
                 let x = self.child_start_pos.x + self.used_main;

@@ -1,5 +1,5 @@
 use std::{
-    fmt::Debug,
+    fmt::{self, Debug},
     ptr::{self, NonNull},
 };
 
@@ -49,13 +49,11 @@ pub trait Element {
     fn tick(&mut self, element: &mut UiElement) {}
 }
 
-pub trait TypeConst: Default + 'static {
+pub trait TypeConst: Default + Element + Sized + 'static {
     const ELEMENT_TYPE: ElementType;
     const DEFAULT_TICKING: bool = false;
-    fn wrap(self, name: &'static str, ui: &UiState) -> UiElement
-    where
-        Self: Element + Sized,
-    {
+
+    fn wrap(self, name: &'static str, ui: &UiState) -> UiElement {
         UiElement {
             id: ui.get_id(),
             name,
@@ -346,7 +344,7 @@ impl UiElement {
 }
 
 impl Debug for UiElement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("UiElement")
             .field("id", &self.id)
             .field("name", &self.name)

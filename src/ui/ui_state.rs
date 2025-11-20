@@ -337,6 +337,7 @@ impl UiState {
 
 //Vulkan & graphics Stuff!!
 impl UiState {
+    #[allow(clippy::too_many_arguments)]
     pub fn init_graphics(
         &mut self,
         base: &VkBase,
@@ -658,7 +659,7 @@ pub enum DirtyFlags {
 pub struct TickEvent {
     pub element_id: u32,
     pub done: bool,
-    element: *mut UiElement,
+    pub element: *mut UiElement,
 }
 
 impl TickEvent {
@@ -669,10 +670,6 @@ impl TickEvent {
             done: false,
             element,
         }
-    }
-
-    pub fn element(&self) -> &mut UiElement {
-        unsafe { &mut *self.element }
     }
 }
 

@@ -20,9 +20,8 @@ pub struct ScrollPanel {
 
 impl Element for ScrollPanel {
     fn build(&mut self, context: &mut BuildContext) {
-        let space = context.available_size;
-
-        let padding = self.padding.size(space);
+        let space = context.remaining_space();
+        let padding = self.padding.size(context);
 
         let child_hash: u32 = if let Some(child) = self.childs.first() {
             child.id
@@ -35,8 +34,10 @@ impl Element for ScrollPanel {
             self.child_hash = child_hash;
         }
 
-        let available_size = context.element_size - padding;
-        let child_start_pos = context.child_start_pos + self.padding.start(space);
+        let pos = context.pos_child();
+
+        let available_size = space - padding;
+        let child_start_pos = pos + self.padding.start(context);
 
         let mut child_context = BuildContext::new_from(
             context,
@@ -49,17 +50,14 @@ impl Element for ScrollPanel {
             element.build(&mut child_context);
         }
 
-        self.size.y = child_context.used_main + padding.y;
+        self.size.y = child_context.final_size().y + padding.y;
 
         // if we resize the element we dont want the scroll offset to be larger it should be
-        if context.element_size.y < self.size.y {
-            self.scroll_offset.y = self
-                .scroll_offset
-                .y
-                .max(context.element_size.y - self.size.y);
+        if space.y < self.size.y {
+            self.scroll_offset.y = self.scroll_offset.y.max(space.y - self.size.y);
         }
 
-        context.apply_data(context.child_start_pos, context.element_size);
+        context.apply_data(pos, space);
     }
 
     fn interaction(

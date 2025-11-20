@@ -142,12 +142,17 @@ impl RGBA {
         a: 255,
     };
 
+    #[allow(clippy::self_named_constructors)]
     pub const fn rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
         RGBA { r, g, b, a }
     }
 
     pub const fn rgb(r: u8, g: u8, b: u8) -> Self {
         RGBA { r, g, b, a: 255 }
+    }
+
+    pub const fn grey(g: u8) -> Self {
+        RGBA { r: g, g, b: g, a: 255 }
     }
 
     pub fn as_color(&self) -> Color {
