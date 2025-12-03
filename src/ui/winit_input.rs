@@ -1,0 +1,88 @@
+use winit::{event::{MouseButton, WindowEvent}, window::Window};
+
+use crate::{primitives::Vec2, ui::{UiEvent, UiState, ui_state::EventResult}};
+
+
+impl UiState {
+    pub fn window_event(&mut self, event: &WindowEvent, window: &Window) -> EventResult {
+        match event {
+            WindowEvent::CursorMoved {
+                device_id: _,
+                position,
+            } => {
+                //self.cursor_pos = (*position).into();
+
+                let result = self.update_cursor((*position).into(), UiEvent::Move);
+
+                if result.is_new() {
+                    self.different_dirty = true;
+                    window.request_redraw();
+                } else if self.different_dirty && result.is_none() {
+                    window.request_redraw();
+                    self.different_dirty = false;
+                }
+                result
+            }
+            WindowEvent::CursorLeft { device_id: _ } => {
+                let result = self.update_cursor(Vec2::new(1000.0, 1000.0), UiEvent::Move);
+
+                if result.is_new() {
+                    self.different_dirty = true;
+                    window.request_redraw();
+                } else if self.different_dirty && result.is_none() {
+                    window.request_redraw();
+                    self.different_dirty = false;
+                }
+                result
+            }
+            WindowEvent::MouseWheel {
+                device_id: _,
+                delta,
+                phase: _,
+            } => {
+                let result = self.update_cursor(self.cursor_pos, UiEvent::Scroll(*delta));
+
+                if result.is_new() {
+                    self.different_dirty = true;
+                    window.request_redraw();
+                } else if self.different_dirty && result.is_none() {
+                    window.request_redraw();
+                    self.different_dirty = false;
+                }
+                result
+            }
+            WindowEvent::MouseInput {
+                device_id: _,
+                state,
+                button,
+            } => {
+                match button {
+                    MouseButton::Left => {
+                        let result = self.update_cursor(self.cursor_pos, (*state).into());
+
+                        if result.is_new() {
+                            window.request_redraw();
+                        }
+                        result
+                    }
+                    _ => EventResult::None,
+                }
+            }
+            WindowEvent::Touch(_touch) => {
+                //let cursor_pos = touch.location.into();
+                //match touch.phase {
+                //    TouchPhase::Started => {
+                //        if self.touch_id == 0 {
+                //            self.touch_id = touch.id;
+                //        }
+                //    }
+                //    TouchPhase::Moved => (),
+                //    TouchPhase::Ended | TouchPhase::Cancelled => self.touch_id = 0,
+                //}
+                //self.update_cursor(cursor_pos, touch.phase.into());
+                EventResult::None
+            }
+            _ => EventResult::None,
+        }
+    }
+}

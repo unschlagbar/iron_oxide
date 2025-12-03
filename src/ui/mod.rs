@@ -9,6 +9,7 @@ mod ui_events;
 mod ui_pipeline;
 mod ui_state;
 mod ui_unit;
+mod winit_input;
 
 pub mod materials;
 pub mod text_layout;
@@ -36,6 +37,7 @@ pub use ui_events::UiEvent;
 pub use ui_state::DirtyFlags;
 pub use ui_state::QueuedEvent;
 pub use ui_state::UiState;
+pub use ui_state::EventResult;
 pub use ui_unit::Align;
 pub use ui_unit::UiUnit;
 

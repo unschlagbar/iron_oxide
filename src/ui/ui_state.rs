@@ -24,12 +24,13 @@ use crate::{
 pub const MAX_IMGS: u32 = 2;
 
 pub struct UiState {
-    elements: Vec<UiElement>,
+    pub(crate) elements: Vec<UiElement>,
     pub size: Vec2,
     pub cursor_pos: Vec2,
     pub font: Font,
     pub visible: bool,
     pub dirty: DirtyFlags,
+    pub different_dirty: bool,
 
     // All this needs to be checke before element removal
     // If not checked this will result in undefined behavior!
@@ -38,12 +39,12 @@ pub struct UiState {
     pub tick_queue: Vec<TickEvent>,
 
     pub texture_atlas: TextureAtlas,
-    id_gen: AtomicU32,
+    pub(crate) id_gen: AtomicU32,
 
-    desc_pool: vk::DescriptorPool,
-    ubo_set: vk::DescriptorSet,
-    img_set: vk::DescriptorSet,
-    atl_set: vk::DescriptorSet,
+    pub(crate) desc_pool: vk::DescriptorPool,
+    pub(crate) ubo_set: vk::DescriptorSet,
+    pub(crate) img_set: vk::DescriptorSet,
+    pub(crate) atl_set: vk::DescriptorSet,
     pub materials: Vec<Box<dyn Material>>,
 }
 
@@ -53,6 +54,7 @@ impl UiState {
             visible,
             elements: Vec::new(),
             dirty: DirtyFlags::Resize,
+            different_dirty: false,
             size: Vec2::zero(),
             id_gen: AtomicU32::new(1),
             cursor_pos: Vec2::default(),
