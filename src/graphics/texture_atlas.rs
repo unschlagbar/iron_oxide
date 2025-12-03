@@ -2,6 +2,7 @@ use std::{
     fs::{self, File},
     io::BufReader,
     ptr, vec,
+    ffi::CStr,
 };
 
 use ash::vk::{
@@ -11,6 +12,9 @@ use ash::vk::{
 use png::{BitDepth, ColorType, Decoder};
 
 use crate::graphics::{Buffer, Image, SinlgeTimeCommands, VkBase};
+
+#[cfg(target_os = "android")]
+use ndk::asset::AssetManager;
 
 #[derive(Debug)]
 pub struct TextureAtlas {
@@ -28,32 +32,78 @@ impl TextureAtlas {
         }
     }
 
-    pub fn load_directory(&mut self, path: &str, base: &VkBase, cmd_pool: CommandPool) {
-        let files = if let Ok(dir) = fs::read_dir(path) {
-            dir
-        } else {
-            println!("Couldnt load textures");
-            return;
-        };
-
+    pub fn load_directory(
+        &mut self,
+        #[cfg(target_os = "android")]
+        assets: &AssetManager,
+        #[cfg(target_os = "android")]
+        path: &CStr,
+        #[cfg(not(target_os = "android"))]
+        path: &str,
+        base: &VkBase,
+        cmd_pool: CommandPool
+    ) {
         let mut pngs = Vec::new();
 
-        for file in files {
-            let file = file.unwrap();
-            let path = file.path();
-            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("png") {
-                let file = File::open(&path).unwrap();
+        #[cfg(not(target_os = "android"))]
+        {
+            let files = if let Ok(dir) = fs::read_dir(path) {
+                dir
+            } else {
+                println!("Couldnt load textures");
+                return;
+            };
+    
+    
+            for file in files {
+                let file = file.unwrap();
+                let path = file.path();
+                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("png") {
+                    let file = File::open(&path).unwrap();
+    
+                    let mut decoder = Decoder::new(BufReader::new(file));
+                    let height = decoder.read_header_info().unwrap().height;
+                    let name = path.file_stem().unwrap().to_str().unwrap().to_string();
+    
+                    pngs.push((height, decoder, name.clone()));
+                    self.images.push(AtlasImage {
+                        uv_start: (0, 0),
+                        uv_size: (0, 0),
+                        name,
+                    });
+                }
+            }
+        }
 
-                let mut decoder = Decoder::new(BufReader::new(file));
-                let height = decoder.read_header_info().unwrap().height;
-                let name = path.file_stem().unwrap().to_str().unwrap().to_string();
+        #[cfg(target_os = "android")]
+        {
+            let files = if let Some(dir) = assets.open_dir(path) {
+                dir
+            } else {
+                println!("Couldnt load textures");
+                return;
+            };
+    
+    
+            for file in files {
+                use std::path::PathBuf;
 
-                pngs.push((height, decoder, name.clone()));
-                self.images.push(AtlasImage {
-                    uv_start: (0, 0),
-                    uv_size: (0, 0),
-                    name,
-                });
+                let path = PathBuf::from(file.to_str().unwrap());
+                let mut file = assets.open(&file).unwrap();
+                let gg = file.buffer().unwrap();
+
+                if path.extension().and_then(|s| s.to_str()) == Some("png") {
+                    let mut decoder = Decoder::new(BufReader::new(std::io::Cursor::new(gg)));
+                    let height = decoder.read_header_info().unwrap().height;
+                    let name = path.file_stem().unwrap().to_str().unwrap().to_string();
+    
+                    pngs.push((height, decoder, name.clone()));
+                    self.images.push(AtlasImage {
+                        uv_start: (0, 0),
+                        uv_size: (0, 0),
+                        name,
+                    });
+                }
             }
         }
 
