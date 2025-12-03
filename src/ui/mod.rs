@@ -13,15 +13,13 @@ mod ui_unit;
 pub mod materials;
 pub mod text_layout;
 
-#[cfg(test)]
-pub mod tests;
-
 mod absolute;
 mod button;
 mod container;
 mod image;
 mod scroll_panel;
 mod text;
+mod text_input;
 mod ticking;
 
 pub use build_context::BuildContext;
@@ -48,4 +46,5 @@ pub use container::Container;
 pub use image::Image;
 pub use scroll_panel::ScrollPanel;
 pub use text::Text;
+pub use text_input::TextInput;
 pub use ticking::Ticking;

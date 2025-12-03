@@ -10,7 +10,7 @@ use crate::{
 pub struct UiInstance {
     pub color: RGBA,
     pub border_color: RGBA,
-    pub border: [i8; 4],
+    pub border: [u8; 4],
     pub x: i16,
     pub y: i16,
     pub width: i16,
@@ -43,7 +43,7 @@ impl VertexDescription for UiInstance {
         VertexInputAttributeDescription {
             binding: 0,
             location: 2,
-            format: Format::R8G8B8A8_SINT,
+            format: Format::R8G8B8A8_UINT,
             offset: offset_of!(Self, border) as u32,
         },
         VertexInputAttributeDescription {

@@ -1,32 +1,21 @@
 use ash::vk::Rect2D;
 
-use super::{
-    BuildContext, ElementType, UiState,
-    element::{Element, TypeConst},
-};
-use crate::{
-    graphics::formats::RGBA,
-    primitives::Vec2,
-    ui::{
-        Align,
-        materials::FontInstance,
-        text_layout::{TextDirtyFlags, TextLayout},
-    },
-};
+use crate::{graphics::formats::RGBA, primitives::Vec2, ui::{Align, BuildContext, ElementType, TypeConst, UiState, element::Element, materials::FontInstance, text_layout::{TextDirtyFlags, TextLayout}}};
 
-pub struct Text {
+pub struct TextInput {
     pub text: String,
     pub color: RGBA,
     pub layout: TextLayout,
     pub align: Align,
 
     pub selectable: bool,
+    pub cursor: Option<(u32, u32)>,
 
     pub dirty_flags: TextDirtyFlags,
     pub font_instances: Vec<FontInstance>,
 }
 
-impl Text {
+impl TextInput {
     pub fn get_font_instances(
         &mut self,
         parent_size: Vec2,
@@ -59,7 +48,7 @@ impl Text {
     }
 }
 
-impl Element for Text {
+impl Element for TextInput {
     fn build(&mut self, context: &mut BuildContext) {
         self.dirty_flags = TextDirtyFlags::None;
         self.font_instances.clear();
@@ -100,11 +89,11 @@ impl Element for Text {
     }
 }
 
-impl TypeConst for Text {
+impl TypeConst for TextInput {
     const ELEMENT_TYPE: ElementType = ElementType::Text;
 }
 
-impl Default for Text {
+impl Default for TextInput {
     fn default() -> Self {
         Self {
             text: "Text".to_string(),
@@ -113,6 +102,7 @@ impl Default for Text {
             align: Align::default(),
 
             selectable: true,
+            cursor: None,
 
             dirty_flags: TextDirtyFlags::TextChanged,
             font_instances: Vec::new(),

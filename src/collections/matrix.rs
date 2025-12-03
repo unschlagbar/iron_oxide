@@ -26,7 +26,7 @@ impl Matrix {
         let data = unsafe {
             let ptr = alloc(layout) as *mut f32;
 
-            //#[cfg(debug_assertions)]
+            #[cfg(debug_assertions)]
             if ptr.is_null() {
                 panic!("Speicherallokation fehlgeschlagen");
             }
@@ -44,7 +44,7 @@ impl Matrix {
         let data = unsafe {
             let ptr = alloc(layout) as *mut f32;
 
-            //#[cfg(debug_assertions)]
+            #[cfg(debug_assertions)]
             if ptr.is_null() {
                 panic!("Speicherallokation fehlgeschlagen");
             }
@@ -58,11 +58,7 @@ impl Matrix {
 
     pub fn random(rows: usize, cols: usize, scale: f32) -> Self {
         let mut this = Self::uninit(rows, cols);
-        for x in 0..this.rows {
-            for y in 0..this.cols {
-                this[x][y] = rand::random_range(-scale..scale);
-            }
-        }
+        this.as_slice_mut().iter_mut().for_each(|x| *x = rand::random_range(-scale..scale));
         this
     }
 

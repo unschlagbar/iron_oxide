@@ -19,7 +19,7 @@ pub struct Button {
     pub color: RGBA,
     pub border_color: RGBA,
     pub flex_direction: FlexDirection,
-    pub border: [i8; 4],
+    pub border: [u8; 4],
     pub corner: [UiUnit; 4],
     pub state: ButtonState,
     pub callback: FnPtr,

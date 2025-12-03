@@ -242,14 +242,13 @@ impl UiElement {
 
         if self.is_in(ui.cursor_pos) {
             if let Some(childs) = self.element.childs_mut() {
-                for child in childs.iter_mut().rev() {
-                    if child.id == ui.selection.hover_id() {
-                        break;
+                if !childs.iter().any(|c| c.id == ui.selection.hover_id()) {
+                    for child in childs {
+                        let result = child.update_cursor(ui, event);
+                        if !result.is_none() {
+                            return result;
+                        };
                     }
-                    let result = child.update_cursor(ui, event);
-                    if !result.is_none() {
-                        return result;
-                    };
                 }
             }
 
