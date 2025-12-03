@@ -341,7 +341,7 @@ impl UiState {
     pub fn init_graphics(
         &mut self,
         base: &VkBase,
-        cmd_pool: vk::CommandPool,
+        texture_atlas: TextureAtlas,
         window_size: PhysicalSize<u32>,
         render_pass: vk::RenderPass,
         uniform_buffer: &Buffer,
@@ -355,8 +355,7 @@ impl UiState {
         let ubo_layout = Self::create_ubo_desc_layout(&base.device);
         let img_layout = Self::create_img_desc_layout(&base.device);
 
-        self.texture_atlas
-            .load_directory("../home_storage_vulkan/textures", base, cmd_pool);
+        self.texture_atlas = texture_atlas;
         let atlas_view = self.texture_atlas.atlas.as_ref().unwrap().view;
 
         self.create_desc_pool(&base.device);
