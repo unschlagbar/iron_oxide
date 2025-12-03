@@ -2,7 +2,6 @@ use std::{
     fs::{self, File},
     io::BufReader,
     ptr, vec,
-    ffi::CStr,
 };
 
 use ash::vk::{
@@ -34,18 +33,12 @@ impl TextureAtlas {
 
     pub fn load_directory(
         &mut self,
-        #[cfg(target_os = "android")]
-        assets: &AssetManager,
-        #[cfg(target_os = "android")]
-        path: &CStr,
-        #[cfg(not(target_os = "android"))]
         path: &str,
         base: &VkBase,
         cmd_pool: CommandPool
     ) {
         let mut pngs = Vec::new();
 
-        #[cfg(not(target_os = "android"))]
         {
             let files = if let Ok(dir) = fs::read_dir(path) {
                 dir
@@ -62,38 +55,6 @@ impl TextureAtlas {
                     let file = File::open(&path).unwrap();
     
                     let mut decoder = Decoder::new(BufReader::new(file));
-                    let height = decoder.read_header_info().unwrap().height;
-                    let name = path.file_stem().unwrap().to_str().unwrap().to_string();
-    
-                    pngs.push((height, decoder, name.clone()));
-                    self.images.push(AtlasImage {
-                        uv_start: (0, 0),
-                        uv_size: (0, 0),
-                        name,
-                    });
-                }
-            }
-        }
-
-        #[cfg(target_os = "android")]
-        {
-            let files = if let Some(dir) = assets.open_dir(path) {
-                dir
-            } else {
-                println!("Couldnt load textures");
-                return;
-            };
-    
-    
-            for file in files {
-                use std::path::PathBuf;
-
-                let path = PathBuf::from(file.to_str().unwrap());
-                let mut file = assets.open(&file).unwrap();
-                let gg = file.buffer().unwrap();
-
-                if path.extension().and_then(|s| s.to_str()) == Some("png") {
-                    let mut decoder = Decoder::new(BufReader::new(std::io::Cursor::new(gg)));
                     let height = decoder.read_header_info().unwrap().height;
                     let name = path.file_stem().unwrap().to_str().unwrap().to_string();
     
