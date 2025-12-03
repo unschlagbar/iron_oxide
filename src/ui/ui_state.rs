@@ -186,6 +186,12 @@ impl UiState {
         element.remove_self()
     }
 
+    pub fn remove_all(&mut self) {
+        for element in &mut self.elements {
+            element.remove_self();
+        }
+    }
+
     pub fn get_id(&self) -> u32 {
         self.id_gen.fetch_add(1, Ordering::Relaxed)
     }
@@ -207,10 +213,10 @@ impl UiState {
             return;
         }
 
-        let self_copy = unsafe { &mut *ptr::from_mut(self) };
+        let ui = unsafe { &mut *ptr::from_mut(self) };
 
         for raw_e in &mut self.elements {
-            raw_e.get_instances(self_copy, None);
+            raw_e.get_instances(ui, None);
         }
     }
 
@@ -242,34 +248,26 @@ impl UiState {
     }
 
     pub fn check_selected(&mut self, event: UiEvent) -> EventResult {
-        let self2 = unsafe { &mut *ptr::from_mut(self) };
-        self.selection.check(self2, event)
-    }
-
-    pub fn end_selection(&mut self) -> EventResult {
-        let self2 = unsafe { ptr::from_mut(self).as_mut().unwrap() };
-
-        self.cursor_pos = Vec2::new(f32::MAX, f32::MAX);
-
-        self.selection.end(self2)
+        let ui = unsafe { &mut *ptr::from_mut(self) };
+        self.selection.check(ui, event)
     }
 
     pub fn update_cursor(&mut self, cursor_pos: Vec2, event: UiEvent) -> EventResult {
-        let self_clone = unsafe { ptr::from_mut(self).as_mut().unwrap() };
+        let ui = unsafe { &mut *ptr::from_mut(self) };
         self.cursor_pos = cursor_pos;
 
         let mut result = self.check_selected(event);
 
         for element in self.elements.iter_mut() {
             if element.typ == ElementType::Absolute && element.is_in(cursor_pos) {
-                self.selection.end(self_clone);
-                let r = element.update_cursor(self_clone, event);
+                self.selection.end(ui);
+                let r = element.update_cursor(ui, event);
                 if !r.is_none() {
                     result = r;
                 }
                 break;
             } else {
-                let r = element.update_cursor(self_clone, event);
+                let r = element.update_cursor(ui, event);
                 if !r.is_none() {
                     result = r;
                 }

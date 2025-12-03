@@ -16,7 +16,7 @@ pub struct Absolute {
     pub height: UiUnit,
     pub color: RGBA,
     pub border_color: RGBA,
-    pub border: [i8; 4],
+    pub border: [u8; 4],
     pub corner: [UiUnit; 4],
     pub padding: OutArea,
     pub childs: Vec<UiElement>,
