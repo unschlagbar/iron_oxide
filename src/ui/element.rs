@@ -1,6 +1,9 @@
 use std::{
+    any::Any,
     fmt::{self, Debug},
+    mem::{self},
     ptr::{self, NonNull},
+    u32,
 };
 
 use ash::vk::{self, Rect2D};
@@ -8,10 +11,10 @@ use ash::vk::{self, Rect2D};
 use super::{BuildContext, ElementType, Text, UiEvent, UiState, ui_state::EventResult};
 use crate::{
     primitives::Vec2,
-    ui::{DirtyFlags, UiUnit, ui_state::TickEvent},
+    ui::{TextInput, UiRef, UiUnit},
 };
 
-pub trait Element {
+pub trait Element: Any + 'static {
     fn build(&mut self, context: &mut BuildContext);
 
     fn get_size(&mut self) -> (UiUnit, UiUnit) {
@@ -29,35 +32,33 @@ pub trait Element {
         &[]
     }
 
-    fn add_child(&mut self, child: UiElement) -> Option<&mut UiElement> {
+    fn add_child(&mut self, child: UiElement) -> Option<UiRef> {
         let childs = self.childs_mut()?;
         childs.push(child);
-        childs.last_mut()
+        Some(UiRef::new(childs.last()?))
     }
 
     #[allow(unused)]
-    fn interaction(
-        &mut self,
-        element: &mut UiElement,
-        ui: &mut UiState,
-        event: UiEvent,
-    ) -> EventResult {
+    fn interaction(&mut self, element: UiRef, ui: &mut UiState, event: UiEvent) -> EventResult {
         EventResult::None
     }
 
     #[allow(unused)]
-    fn tick(&mut self, element: &mut UiElement) {}
+    fn tick(&mut self, element: UiRef, ui: &mut UiState) {}
+
+    #[allow(unused)]
+    fn is_ticking(&self) -> bool {
+        false
+    }
 }
 
 pub trait TypeConst: Default + Element + Sized + 'static {
     const ELEMENT_TYPE: ElementType;
-    const DEFAULT_TICKING: bool = false;
 
-    fn wrap(self, name: &'static str, ui: &UiState) -> UiElement {
+    fn wrap(self, name: &'static str) -> UiElement {
         UiElement {
-            id: ui.get_id(),
+            id: u32::MAX,
             name,
-            ui: NonNull::from_ref(ui),
             typ: Self::ELEMENT_TYPE,
             visible: true,
             size: Vec2::zero(),
@@ -72,14 +73,13 @@ pub trait TypeConst: Default + Element + Sized + 'static {
 pub struct UiElement {
     pub id: u32,
     pub name: &'static str,
-    pub ui: NonNull<UiState>,
     pub typ: ElementType,
     pub visible: bool,
     pub size: Vec2,
     pub pos: Vec2,
     pub z_index: f32,
     pub parent: Option<NonNull<UiElement>>,
-    pub element: Box<dyn Element>,
+    pub(crate) element: Box<dyn Element>,
 }
 
 impl UiElement {
@@ -117,14 +117,6 @@ impl UiElement {
         } else {
             panic!()
         }
-    }
-
-    pub const fn ui(&mut self) -> &mut UiState {
-        unsafe { self.ui.as_mut() }
-    }
-
-    pub const fn set_changed(&mut self) {
-        self.ui().dirty = DirtyFlags::Color
     }
 
     pub fn build(&mut self, context: &mut BuildContext) {
@@ -177,7 +169,7 @@ impl UiElement {
 
     pub fn get_offset(&mut self) -> Vec2 {
         let mut offset = Vec2::default();
-        if let Some(parent) = &mut self.parent {
+        if let Some(mut parent) = self.parent {
             let id = self.id;
             let parent = unsafe { parent.as_mut() };
 
@@ -209,30 +201,52 @@ impl UiElement {
 
     #[inline]
     pub fn is_in(&self, pos: Vec2) -> bool {
-        if self.pos <= pos && self.pos.x + self.size.x >= pos.x && self.pos.y + self.size.y >= pos.y
-        {
-            return true;
-        }
-        false
+        self.pos <= pos && self.pos.x + self.size.x >= pos.x && self.pos.y + self.size.y >= pos.y
+    }
+
+    pub fn replace_type<F: FnMut(V) -> R, V: Element, R: Element + TypeConst>(
+        &mut self,
+        mut call: F,
+    ) {
+        let this = mem::replace(&mut self.element, Box::new(()));
+
+        println!("{:?}", self.typ);
+
+        let raw = this as Box<dyn Any>;
+        let arg = raw.downcast().unwrap();
+
+        let _ = mem::replace(&mut self.element, Box::new(call(*arg)));
+        self.typ = R::ELEMENT_TYPE;
     }
 
     pub fn get_text(&self) -> Option<&str> {
         self.get_text_at_pos(0)
     }
 
+    pub fn get_child(&self, index: usize) -> Option<UiRef> {
+        Some(UiRef::new(self.element.childs().get(index)?))
+    }
+
+    pub fn get_first_child(&mut self) -> Option<UiRef> {
+        self.get_child(0)
+    }
+
     pub fn get_text_at_pos(&self, pos: usize) -> Option<&str> {
         let child = self.element.childs().get(pos)?;
-        if !matches!(child.typ, ElementType::Text) {
+        if matches!(child.typ, ElementType::Text) {
+            let text_element: &Text = child.downcast();
+            Some(&text_element.text)
+        } else if matches!(child.typ, ElementType::TextInput) {
+            let text_element: &TextInput = child.downcast();
+            Some(&text_element.text)
+        } else {
             return None;
         }
-        let text_element: &Text = child.downcast();
-        Some(&text_element.text)
     }
 
     pub fn add_text(&mut self, text: Text) {
-        let text = text.wrap("", self.ui());
+        let text = text.wrap("");
         self.element.add_child(text);
-        self.ui().dirty = DirtyFlags::Resize;
     }
 
     pub fn update_cursor(&mut self, ui: &mut UiState, event: UiEvent) -> EventResult {
@@ -253,7 +267,7 @@ impl UiElement {
             }
 
             let mut result = EventResult::None;
-            let element = unsafe { ptr::from_mut(self).as_mut().unwrap() };
+            let element = UiRef::new(self);
 
             if self.typ.has_interaction() {
                 result = self.element.interaction(element, ui, event);
@@ -280,7 +294,7 @@ impl UiElement {
         }
     }
 
-    pub fn add_child(&mut self, mut child: UiElement) -> Option<&mut UiElement> {
+    pub fn add_child(&mut self, mut child: UiElement) -> Option<UiRef> {
         child.parent = Some(NonNull::from_mut(self));
         self.element.add_child(child)
     }
@@ -291,50 +305,38 @@ impl UiElement {
         }
     }
 
-    pub fn remove_self(&mut self) -> Option<UiElement> {
-        let ui = unsafe { &mut *self.ui.as_ptr() };
-        ui.remove_element(self)
-    }
-
-    pub fn remove_tick(&mut self) {
-        let id = self.id;
-        self.ui().remove_tick(id);
-        self.ui().selection.check_removed(id);
+    pub fn remove_tick(&mut self, ui: &mut UiState) {
+        ui.remove_tick(self.id);
+        ui.selection.check_removed(self.id);
 
         if let Some(childs) = self.element.childs_mut() {
             for child in childs {
-                child.remove_tick();
+                child.remove_tick(ui);
             }
         }
     }
 
-    pub fn set_ticking(&mut self) {
-        let ptr = ptr::from_mut(self);
-        self.ui().tick_queue.push(TickEvent::new(ptr));
-    }
-
-    pub fn init(&mut self) {
+    pub fn init(&mut self, ui: &UiState) {
         let parent = Some(NonNull::from_mut(self));
         let z_index = self.z_index + 0.01;
         if let Some(childs) = self.element.childs_mut() {
             for child in childs {
                 child.parent = parent;
+                child.id = ui.get_id();
                 child.z_index = z_index;
-                child.init();
+                child.init(ui);
             }
         }
     }
 
-    pub fn get_child_by_id(&mut self, id: u32) -> Option<&mut UiElement> {
-        if let Some(childs) = self.element.childs_mut() {
-            for child in childs {
-                if child.id == id {
-                    return Some(child);
-                } else {
-                    let result = child.get_child_by_id(id);
-                    if result.is_some() {
-                        return result;
-                    }
+    pub fn get_child_by_id(&self, id: u32) -> Option<UiRef> {
+        for child in self.element.childs() {
+            if child.id == id {
+                return Some(UiRef::new(child));
+            } else {
+                let result = child.get_child_by_id(id);
+                if result.is_some() {
+                    return result;
                 }
             }
         }
@@ -353,4 +355,8 @@ impl Debug for UiElement {
             .field("pos", &self.pos)
             .finish()
     }
+}
+
+impl Element for () {
+    fn build(&mut self, _: &mut BuildContext) {}
 }

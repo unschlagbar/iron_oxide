@@ -6,7 +6,7 @@ use super::{
 };
 use crate::{
     primitives::Vec2,
-    ui::{DirtyFlags, FlexDirection, OutArea, UiEvent, UiState, ui_state::EventResult},
+    ui::{DirtyFlags, FlexDirection, OutArea, UiEvent, UiRef, UiState, ui_state::EventResult},
 };
 
 #[derive(Default)]
@@ -60,12 +60,7 @@ impl Element for ScrollPanel {
         context.apply_data(pos, space);
     }
 
-    fn interaction(
-        &mut self,
-        element: &mut UiElement,
-        ui: &mut UiState,
-        event: UiEvent,
-    ) -> EventResult {
+    fn interaction(&mut self, element: UiRef, ui: &mut UiState, event: UiEvent) -> EventResult {
         match event {
             UiEvent::Scroll(delta) => {
                 let delta = match delta {

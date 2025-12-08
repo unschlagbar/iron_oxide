@@ -6,7 +6,7 @@ use crate::{
     graphics::formats::RGBA,
     primitives::Vec2,
     ui::{
-        CallContext, FlexDirection, QueuedEvent, UiEvent, UiState, materials::UiInstance,
+        CallContext, FlexDirection, QueuedEvent, UiEvent, UiRef, UiState, materials::UiInstance,
         ui_state::EventResult,
     },
 };
@@ -97,15 +97,10 @@ impl Element for Button {
         &self.childs
     }
 
-    fn interaction(
-        &mut self,
-        element: &mut UiElement,
-        ui: &mut UiState,
-        event: UiEvent,
-    ) -> EventResult {
+    fn interaction(&mut self, element: UiRef, ui: &mut UiState, event: UiEvent) -> EventResult {
         let mut result;
 
-        ui.set_event(QueuedEvent::new(element, event, self.message));
+        ui.set_event(QueuedEvent::new(&element, event, self.message));
 
         if event == UiEvent::Press || event == UiEvent::Release {
             result = EventResult::New
@@ -118,12 +113,12 @@ impl Element for Button {
         match event {
             UiEvent::Press => {
                 self.state = ButtonState::Pressed;
-                ui.selection.set_hover(element);
+                ui.selection.set_hover(&element);
             }
             UiEvent::Release => {
                 if element.is_in(ui.cursor_pos) {
                     self.state = ButtonState::Hovered;
-                    ui.selection.set_hover(element);
+                    ui.selection.set_hover(&element);
                 } else {
                     result = EventResult::None;
                     self.state = ButtonState::Normal;
@@ -134,7 +129,7 @@ impl Element for Button {
                 if self.state != ButtonState::Pressed {
                     if result == EventResult::New || element.is_in(ui.cursor_pos) {
                         self.state = ButtonState::Hovered;
-                        ui.selection.set_hover(element);
+                        ui.selection.set_hover(&element);
                     } else {
                         result = EventResult::None;
                         self.state = ButtonState::Normal;
@@ -151,7 +146,7 @@ impl Element for Button {
         }
 
         if !self.callback.is_none() {
-            let context = CallContext { element, event };
+            let context = CallContext { ui, element, event };
             self.callback.call(context);
         }
 

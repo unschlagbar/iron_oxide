@@ -1,7 +1,12 @@
-use winit::{event::{MouseButton, WindowEvent}, window::Window};
+use winit::{
+    event::{ElementState, MouseButton, WindowEvent},
+    window::Window,
+};
 
-use crate::{primitives::Vec2, ui::{UiEvent, UiState, ui_state::EventResult}};
-
+use crate::{
+    primitives::Vec2,
+    ui::{ElementType, TextInput, UiEvent, UiState, ui_state::EventResult},
+};
 
 impl UiState {
     pub fn window_event(&mut self, event: &WindowEvent, window: &Window) -> EventResult {
@@ -55,19 +60,17 @@ impl UiState {
                 device_id: _,
                 state,
                 button,
-            } => {
-                match button {
-                    MouseButton::Left => {
-                        let result = self.update_cursor(self.cursor_pos, (*state).into());
+            } => match button {
+                MouseButton::Left => {
+                    let result = self.update_cursor(self.cursor_pos, (*state).into());
 
-                        if result.is_new() {
-                            window.request_redraw();
-                        }
-                        result
+                    if result.is_new() {
+                        window.request_redraw();
                     }
-                    _ => EventResult::None,
+                    result
                 }
-            }
+                _ => EventResult::None,
+            },
             WindowEvent::Touch(_touch) => {
                 //let cursor_pos = touch.location.into();
                 //match touch.phase {
@@ -80,6 +83,28 @@ impl UiState {
                 //    TouchPhase::Ended | TouchPhase::Cancelled => self.touch_id = 0,
                 //}
                 //self.update_cursor(cursor_pos, touch.phase.into());
+                EventResult::None
+            }
+            WindowEvent::KeyboardInput {
+                device_id: _,
+                event,
+                is_synthetic: _,
+            } => {
+                if event.state == ElementState::Pressed
+                    && let Some(txt) = &event.text
+                {
+                    if let Some(element) = self.get_hovered() {
+                        if let Some(childs) = element.element.childs_mut() {
+                            if let Some(child) = childs.first_mut() {
+                                if child.typ == ElementType::TextInput {
+                                    let text: &mut TextInput = child.downcast_mut();
+                                    text.handle_input(&txt);
+                                }
+                            }
+                        }
+                    }
+                    println!("{}", txt);
+                }
                 EventResult::None
             }
             _ => EventResult::None,

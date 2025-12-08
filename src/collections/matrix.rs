@@ -58,7 +58,9 @@ impl Matrix {
 
     pub fn random(rows: usize, cols: usize, scale: f32) -> Self {
         let mut this = Self::uninit(rows, cols);
-        this.as_slice_mut().iter_mut().for_each(|x| *x = rand::random_range(-scale..scale));
+        this.as_slice_mut()
+            .iter_mut()
+            .for_each(|x| *x = rand::random_range(-scale..scale));
         this
     }
 

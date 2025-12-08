@@ -8,7 +8,7 @@ use crate::{
     graphics::formats::RGBA,
     primitives::Vec2,
     ui::{
-        Align,
+        Align, TextInput,
         materials::FontInstance,
         text_layout::{TextDirtyFlags, TextLayout},
     },
@@ -57,6 +57,19 @@ impl Text {
         self.text = text;
         self.dirty_flags = TextDirtyFlags::TextChanged;
     }
+
+    pub fn to_input(self) -> TextInput {
+        TextInput {
+            text: self.text,
+            color: self.color,
+            layout: self.layout,
+            align: self.align,
+            selectable: self.selectable,
+            cursor: None,
+            dirty_flags: self.dirty_flags,
+            font_instances: self.font_instances,
+        }
+    }
 }
 
 impl Element for Text {
@@ -73,8 +86,7 @@ impl Element for Text {
         let align_size = context.size();
 
         if align.vertical_centered() {
-            offset.y +=
-                (align_size.y - font_size * layout.lines.len() as f32).max(0.0) * 0.5;
+            offset.y += (align_size.y - font_size * layout.lines.len() as f32).max(0.0) * 0.5;
         }
 
         for line in &layout.lines {

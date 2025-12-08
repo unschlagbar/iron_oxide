@@ -1,6 +1,15 @@
 use ash::vk::Rect2D;
 
-use crate::{graphics::formats::RGBA, primitives::Vec2, ui::{Align, BuildContext, ElementType, TypeConst, UiState, element::Element, materials::FontInstance, text_layout::{TextDirtyFlags, TextLayout}}};
+use crate::{
+    graphics::formats::RGBA,
+    primitives::Vec2,
+    ui::{
+        Align, BuildContext, ElementType, Text, TypeConst, UiState,
+        element::Element,
+        materials::FontInstance,
+        text_layout::{TextDirtyFlags, TextLayout},
+    },
+};
 
 pub struct TextInput {
     pub text: String,
@@ -46,6 +55,22 @@ impl TextInput {
         self.text = text;
         self.dirty_flags = TextDirtyFlags::TextChanged;
     }
+
+    pub fn handle_input(&mut self, input: &str) {
+        println!("Text {}", input);
+    }
+
+    pub fn to_text(self) -> Text {
+        Text {
+            text: self.text,
+            color: self.color,
+            layout: self.layout,
+            align: self.align,
+            selectable: self.selectable,
+            dirty_flags: self.dirty_flags,
+            font_instances: self.font_instances,
+        }
+    }
 }
 
 impl Element for TextInput {
@@ -62,8 +87,7 @@ impl Element for TextInput {
         let align_size = context.size();
 
         if align.vertical_centered() {
-            offset.y +=
-                (align_size.y - font_size * layout.lines.len() as f32).max(0.0) * 0.5;
+            offset.y += (align_size.y - font_size * layout.lines.len() as f32).max(0.0) * 0.5;
         }
 
         for line in &layout.lines {

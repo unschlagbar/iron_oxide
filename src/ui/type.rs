@@ -6,12 +6,13 @@ pub enum ElementType {
     Absolute,
     Button,
     Text,
+    TextInput,
     ScrollPanel,
     Image,
 }
 
 impl ElementType {
     pub const fn has_interaction(&self) -> bool {
-        matches!(self, Self::Button | Self::ScrollPanel)
+        matches!(self, Self::Button | Self::ScrollPanel | Self::TextInput)
     }
 }

@@ -1,6 +1,6 @@
 use std::ptr::NonNull;
 
-use crate::ui::{UiElement, UiEvent, UiState, ui_state::EventResult};
+use crate::ui::{UiElement, UiEvent, UiRef, UiState, ui_state::EventResult};
 
 #[derive(Default)]
 pub struct Selection {
@@ -19,7 +19,7 @@ impl Selection {
                 hovered
                     .as_mut()
                     .element
-                    .interaction(hovered.as_mut(), ui, event)
+                    .interaction(UiRef::new(hovered.as_ref()), ui, event)
             }
         } else {
             EventResult::None
@@ -32,7 +32,7 @@ impl Selection {
                 hovered
                     .as_mut()
                     .element
-                    .interaction(hovered.as_mut(), ui, UiEvent::End)
+                    .interaction(UiRef::new(hovered.as_ref()), ui, UiEvent::End)
             }
         } else {
             EventResult::None
@@ -51,8 +51,8 @@ impl Selection {
         self.hovered.map(|mut x| unsafe { x.as_mut() })
     }
 
-    pub fn set_hover(&mut self, element: &mut UiElement) {
-        self.hovered = Some(NonNull::from_mut(element))
+    pub fn set_hover(&mut self, element: &UiElement) {
+        self.hovered = Some(NonNull::from_ref(element))
     }
 
     pub fn check_removed(&mut self, id: u32) {

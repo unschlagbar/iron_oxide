@@ -40,17 +40,11 @@ impl Vec2 {
     }
 
     pub const fn max_other(&self, other: &Self) -> Vec2 {
-        Vec2::new(
-            self.x.max(other.x),
-            self.y.max(other.y),
-        )
+        Vec2::new(self.x.max(other.x), self.y.max(other.y))
     }
 
     pub const fn min_other(&self, other: &Self) -> Vec2 {
-        Vec2::new(
-            self.x.min(other.x),
-            self.y.min(other.y),
-        )
+        Vec2::new(self.x.min(other.x), self.y.min(other.y))
     }
 
     #[inline(always)]

@@ -4,7 +4,7 @@ use super::{
     BuildContext, ElementType, UiElement, UiUnit,
     element::{Element, TypeConst},
 };
-use crate::ui::{CallContext, FnPtr, UiEvent, UiState, ui_state::EventResult};
+use crate::ui::{CallContext, FnPtr, UiEvent, UiRef, UiState, ui_state::EventResult};
 
 pub struct Ticking<T: Element + TypeConst> {
     pub last_tick: Instant,
@@ -18,12 +18,7 @@ impl<T: Element + TypeConst> Element for Ticking<T> {
         self.inner.build(context);
     }
 
-    fn interaction(
-        &mut self,
-        element: &mut UiElement,
-        ui: &mut UiState,
-        event: UiEvent,
-    ) -> EventResult {
+    fn interaction(&mut self, element: UiRef, ui: &mut UiState, event: UiEvent) -> EventResult {
         self.inner.interaction(element, ui, event)
     }
 
@@ -43,24 +38,28 @@ impl<T: Element + TypeConst> Element for Ticking<T> {
         self.inner.childs()
     }
 
-    fn add_child(&mut self, child: UiElement) -> Option<&mut UiElement> {
+    fn add_child(&mut self, child: UiElement) -> Option<UiRef> {
         self.inner.add_child(child)
     }
 
-    fn tick(&mut self, element: &mut UiElement) {
+    fn tick(&mut self, element: UiRef, ui: &mut UiState) {
         if !self.tick.is_none() {
             let context = CallContext {
+                ui,
                 element,
                 event: UiEvent::Tick,
             };
             self.tick.call(context);
         }
     }
+
+    fn is_ticking(&self) -> bool {
+        true
+    }
 }
 
 impl<T: Element + TypeConst> TypeConst for Ticking<T> {
     const ELEMENT_TYPE: ElementType = T::ELEMENT_TYPE;
-    const DEFAULT_TICKING: bool = true;
 }
 
 impl<T: Element + TypeConst> Default for Ticking<T> {

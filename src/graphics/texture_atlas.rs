@@ -31,12 +31,7 @@ impl TextureAtlas {
         }
     }
 
-    pub fn load_directory(
-        &mut self,
-        path: &str,
-        base: &VkBase,
-        cmd_pool: CommandPool
-    ) {
+    pub fn load_directory(&mut self, path: &str, base: &VkBase, cmd_pool: CommandPool) {
         let mut pngs = Vec::new();
 
         {
@@ -46,18 +41,17 @@ impl TextureAtlas {
                 println!("Couldnt load textures");
                 return;
             };
-    
-    
+
             for file in files {
                 let file = file.unwrap();
                 let path = file.path();
                 if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("png") {
                     let file = File::open(&path).unwrap();
-    
+
                     let mut decoder = Decoder::new(BufReader::new(file));
                     let height = decoder.read_header_info().unwrap().height;
                     let name = path.file_stem().unwrap().to_str().unwrap().to_string();
-    
+
                     pngs.push((height, decoder, name.clone()));
                     self.images.push(AtlasImage {
                         uv_start: (0, 0),

@@ -15,7 +15,7 @@ use crate::{
     graphics::{Buffer, TextureAtlas, VkBase},
     primitives::Vec2,
     ui::{
-        ElementType,
+        ElementType, UiRef,
         materials::{AtlasInstance, Basic, FontInstance, Material, SingleImage, UiInstance},
         selection::Selection,
     },
@@ -74,17 +74,18 @@ impl UiState {
         }
     }
 
-    pub fn add_element<T: Element + TypeConst>(&mut self, element: T, name: &'static str) -> u32 {
+    pub fn add_child_to_root<T: Element + TypeConst>(&mut self, element: T, name: &'static str) -> u32 {
         let id = self.get_id();
         let z_index = if matches!(T::ELEMENT_TYPE, ElementType::Absolute) {
             0.5
         } else {
             0.01
         };
+        let ticking = element.is_ticking();
+
         let mut element = UiElement {
             id,
             name,
-            ui: NonNull::from_mut(self),
             typ: T::ELEMENT_TYPE,
             visible: true,
             size: Vec2::default(),
@@ -94,13 +95,13 @@ impl UiState {
             z_index,
         };
 
-        element.init();
+        element.init(self);
         self.elements.push(element);
 
-        let element = self.elements.last_mut().unwrap();
+        let element = UiRef::new(self.elements.last().unwrap());
 
-        if T::DEFAULT_TICKING {
-            element.set_ticking();
+        if ticking {
+            self.set_ticking(&element);
         }
 
         if T::ELEMENT_TYPE == ElementType::Absolute && element.is_in(self.cursor_pos) {
@@ -119,13 +120,12 @@ impl UiState {
         element: u32,
     ) -> Option<u32> {
         let id = self.get_id();
-        let ui = NonNull::from_mut(self);
         let element = self.get_element(element)?;
+        let ticking = child.is_ticking();
 
         let mut child = UiElement {
             id,
             name,
-            ui,
             typ: T::ELEMENT_TYPE,
             visible: true,
             size: Vec2::default(),
@@ -135,33 +135,28 @@ impl UiState {
             z_index: element.z_index + 0.01,
         };
 
-        child.init();
-        let child = element.add_child(child);
+        child.init(self);
+        let child = element.get_mut(self).add_child(child);
 
         if let Some(child) = child
-            && T::DEFAULT_TICKING
+            && ticking
         {
-            child.set_ticking();
+            self.set_ticking(&child);
         }
 
         self.dirty = DirtyFlags::Resize;
         Some(id)
     }
 
-    pub fn remove_element(&mut self, element: &mut UiElement) -> Option<UiElement> {
-        let r = if let Some(mut parent) = element.parent {
+    pub fn remove_element(&mut self, element: &UiElement) -> Option<UiElement> {
+        if let Some(mut parent) = element.parent {
             let parent_mut = unsafe { parent.as_mut() };
 
             if let Some(childs) = parent_mut.element.childs_mut() {
                 if let Some(pos) = childs.iter().position(|c| c.id == element.id) {
-                    element.remove_tick();
-                    let out = Some(childs.remove(pos));
-
-                    for child in &mut childs[pos..] {
-                        child.set_parent(parent);
-                    }
-
-                    out
+                    self.remove_tick(element.id);
+                    self.dirty = DirtyFlags::Resize;
+                    Some(childs.remove(pos))
                 } else {
                     println!("Child to remove not found: {}", element.id);
                     None
@@ -170,27 +165,23 @@ impl UiState {
                 None
             }
         } else if let Some(pos) = self.elements.iter().position(|c| c.id == element.id) {
-            element.remove_tick();
+            self.remove_tick(element.id);
             Some(self.elements.remove(pos))
         } else {
             println!("Child to remove not found: {}", element.id);
             None
-        };
-
-        if r.is_some() {
-            self.dirty = DirtyFlags::Resize;
         }
-        r
     }
 
     pub fn remove_element_by_id(&mut self, id: u32) -> Option<UiElement> {
         let element = self.get_element(id)?;
-        element.remove_self()
+        self.remove_element(&element)
     }
 
     pub fn remove_all(&mut self) {
-        for element in &mut self.elements {
-            element.remove_self();
+        while !self.elements.is_empty() {
+            let element = UiRef::new(self.elements.last().unwrap());
+            self.remove_element(&element);
         }
     }
 
@@ -222,10 +213,11 @@ impl UiState {
         }
     }
 
-    pub fn get_element(&mut self, id: u32) -> Option<&mut UiElement> {
-        for element in &mut self.elements {
+    /// UiRef
+    pub fn get_element(&self, id: u32) -> Option<UiRef> {
+        for element in &self.elements {
             if element.id == id {
-                return Some(element);
+                return Some(UiRef::new(element));
             } else {
                 let result = element.get_child_by_id(id);
                 if result.is_some() {
@@ -295,6 +287,7 @@ impl UiState {
 
     pub fn process_ticks(&mut self) {
         let ui = unsafe { &mut *ptr::from_mut(self) };
+        let ui2 = unsafe { &mut *ptr::from_mut(self) };
 
         for tick in &self.tick_queue {
             if !tick.done {
@@ -305,14 +298,17 @@ impl UiState {
                     println!("Tick element not found: {}", id);
                     continue;
                 };
-                let element2 = unsafe { &mut *ptr::from_mut(element) };
 
-                element.element.tick(element2);
+                element.get_mut(ui).element.tick(element, ui2);
             } else {
                 println!("Tick done: {}", tick.element_id);
             }
         }
         self.tick_queue.retain(|x| !x.done);
+    }
+
+    pub fn set_ticking(&mut self, element: &UiElement) {
+        self.tick_queue.push(TickEvent::new(element));
     }
 
     pub fn remove_tick(&mut self, id: u32) {
@@ -658,12 +654,13 @@ pub enum DirtyFlags {
 pub struct TickEvent {
     pub element_id: u32,
     pub done: bool,
-    pub element: *mut UiElement,
+    pub element: NonNull<UiElement>,
 }
 
 impl TickEvent {
-    pub fn new(element: *mut UiElement) -> Self {
-        let element_id = unsafe { (*element).id };
+    pub fn new(element: &UiElement) -> Self {
+        let element_id = element.id;
+        let element = NonNull::from_ref(element);
         Self {
             element_id,
             done: false,
