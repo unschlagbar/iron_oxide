@@ -1,8 +1,6 @@
-#[cfg(feature = "vulkan")]
-use cgmath::Vector4;
 use std::{
     fmt,
-    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -269,26 +267,30 @@ impl fmt::Display for Vec4 {
     }
 }
 
-#[cfg(feature = "vulkan")]
-impl From<Vector4<f32>> for Vec4 {
-    fn from(v: Vector4<f32>) -> Self {
-        Self {
-            x: v.x,
-            y: v.y,
-            z: v.z,
-            w: v.w,
+impl Index<usize> for Vec4 {
+    type Output = f32;
+
+    #[track_caller]
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0 => &self.x,
+            1 => &self.y,
+            2 => &self.z,
+            3 => &self.w,
+            _ => panic!("Index out of bounds!"),
         }
     }
 }
 
-#[cfg(feature = "vulkan")]
-impl From<Vec4> for Vector4<f32> {
-    fn from(v: Vec4) -> Self {
-        Self {
-            x: v.x,
-            y: v.y,
-            z: v.z,
-            w: v.w,
+impl IndexMut<usize> for Vec4 {
+    #[track_caller]
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match index {
+            0 => &mut self.x,
+            1 => &mut self.y,
+            2 => &mut self.z,
+            3 => &mut self.w,
+            _ => panic!("Index out of bounds!"),
         }
     }
 }

@@ -1,5 +1,4 @@
 pub mod collections;
-pub mod io;
 pub mod net;
 pub mod physics;
 pub mod physics2d;

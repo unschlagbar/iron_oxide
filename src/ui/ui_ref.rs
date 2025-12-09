@@ -1,5 +1,7 @@
 use std::{
-    fmt::{Debug, Formatter, Result}, ops::{Deref, DerefMut}, ptr::NonNull
+    fmt::{Debug, Formatter, Result},
+    ops::{Deref, DerefMut},
+    ptr::NonNull,
 };
 
 use crate::ui::{UiElement, UiState};

@@ -1,5 +1,6 @@
 mod buffer;
-mod camera;
+//mod camera;
+mod asset_manager;
 pub mod formats;
 mod image;
 mod oxinstance;
@@ -10,7 +11,7 @@ mod texture_atlas;
 mod vertex_description;
 
 pub use buffer::Buffer;
-pub use camera::Camera;
+//pub use camera::Camera;
 pub use image::Image;
 pub use oxinstance::VkBase;
 pub use shader_modul::create_shader_modul;

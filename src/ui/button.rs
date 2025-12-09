@@ -1,5 +1,5 @@
 use super::{
-    BuildContext, ElementType, FnPtr, OutArea, UiElement, UiUnit,
+    BuildContext, ElementType, OutArea, UiElement, UiUnit,
     element::{Element, TypeConst},
 };
 use crate::{
@@ -22,7 +22,7 @@ pub struct Button {
     pub border: [u8; 4],
     pub corner: [UiUnit; 4],
     pub state: ButtonState,
-    pub callback: FnPtr,
+    pub callback: Option<fn(CallContext)>,
     pub message: u16,
     pub childs: Vec<UiElement>,
 }
@@ -145,9 +145,9 @@ impl Element for Button {
             _ => return EventResult::None,
         }
 
-        if !self.callback.is_none() {
+        if let Some(call) = self.callback {
             let context = CallContext { ui, element, event };
-            self.callback.call(context);
+            call(context);
         }
 
         result
@@ -172,7 +172,7 @@ impl Default for Button {
             flex_direction: FlexDirection::Horizontal,
             state: ButtonState::Normal,
             childs: Default::default(),
-            callback: FnPtr::none(),
+            callback: None,
             message: 0,
         }
     }

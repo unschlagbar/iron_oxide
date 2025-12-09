@@ -5,7 +5,10 @@ use ash::{
     vk,
 };
 use std::ffi::{CStr, c_char};
-use winit::raw_window_handle::{RawDisplayHandle, RawWindowHandle};
+use winit::{
+    raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle},
+    window::Window,
+};
 
 pub struct VkBase {
     pub entry: ash::Entry,
@@ -28,8 +31,8 @@ impl VkBase {
     pub fn create(
         required_capabilities: u32,
         api_version: u32,
-        display_handle: RawDisplayHandle,
-        window_handle: RawWindowHandle,
+        app_name: &CStr,
+        window: &Window,
     ) -> (Self, surface::Instance, vk::SurfaceKHR) {
         #[cfg(feature = "linked")]
         let entry = ash::Entry::linked();
@@ -37,7 +40,10 @@ impl VkBase {
         #[cfg(not(feature = "linked"))]
         let entry = unsafe { ash::Entry::load().unwrap() };
 
-        let instance = Self::create_instance(&entry, display_handle, api_version);
+        let display_handle = window.display_handle().unwrap().as_raw();
+        let window_handle = window.window_handle().unwrap().as_raw();
+
+        let instance = Self::create_instance(&entry, display_handle, api_version, app_name);
 
         #[cfg(debug_assertions)]
         let debug_utils = ext::debug_utils::Instance::new(&entry, &instance);
@@ -105,9 +111,8 @@ impl VkBase {
         entry: &ash::Entry,
         display_handle: RawDisplayHandle,
         api_version: u32,
+        app_name: &CStr,
     ) -> ash::Instance {
-        let app_name = c"Home Storage";
-
         let app_info = vk::ApplicationInfo {
             p_application_name: app_name.as_ptr(),
             application_version: vk::make_api_version(0, 1, 0, 0),

@@ -1,0 +1,3 @@
+pub struct _AssetManager {
+    // Optional: Shader, Meshes, Pipelines ...
+}

@@ -8,7 +8,7 @@ use ash::{
         MemoryAllocateInfo, MemoryMapFlags, MemoryPropertyFlags, SharingMode,
     },
 };
-use std::ptr::copy_nonoverlapping;
+use std::ptr::{copy_nonoverlapping, null_mut};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Buffer {
@@ -73,6 +73,27 @@ impl Buffer {
             BufferUsageFlags::TRANSFER_SRC,
             MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
         )
+    }
+
+    pub fn create_uniform<T, const MFIF: usize>(
+        base: &VkBase,
+    ) -> ([Buffer; MFIF], [*mut T; MFIF]) {
+        let buffer_size = std::mem::size_of::<T>() as u64;
+
+        let mut uniform_buffers = [Buffer::null(); MFIF];
+        let mut mapped = [null_mut(); MFIF];
+
+        for i in 0..MFIF {
+            uniform_buffers[i] = Buffer::create(
+                base,
+                buffer_size,
+                vk::BufferUsageFlags::UNIFORM_BUFFER,
+                vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+            );
+            mapped[i] = uniform_buffers[i].map_memory(&base.device, buffer_size, 0);
+        }
+
+        (uniform_buffers, mapped)
     }
 
     pub fn null() -> Self {

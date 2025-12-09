@@ -27,7 +27,6 @@ mod ticking;
 pub use build_context::BuildContext;
 pub use callback::CallContext;
 pub use callback::CallbackResult;
-pub use callback::FnPtr;
 pub use element::TypeConst;
 pub use element::UiElement;
 pub use font::Font;

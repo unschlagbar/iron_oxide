@@ -1,5 +1,4 @@
 use ash::vk;
-use cgmath::Matrix4;
 use std::{
     ptr::{self, NonNull},
     sync::atomic::{AtomicU32, Ordering},
@@ -13,7 +12,7 @@ use super::{
 };
 use crate::{
     graphics::{Buffer, TextureAtlas, VkBase},
-    primitives::Vec2,
+    primitives::{Matrix4, Vec2},
     ui::{
         ElementType, UiRef,
         materials::{AtlasInstance, Basic, FontInstance, Material, SingleImage, UiInstance},
@@ -63,7 +62,7 @@ impl UiState {
             event: None,
             tick_queue: Vec::new(),
 
-            font: Font::parse_from_bytes(include_bytes!("../../font/std1.fef2")),
+            font: Font::parse_from_bytes(include_bytes!("../../font/std.fef")),
             texture_atlas: TextureAtlas::new((1024, 1024)),
 
             desc_pool: vk::DescriptorPool::null(),
@@ -74,7 +73,11 @@ impl UiState {
         }
     }
 
-    pub fn add_child_to_root<T: Element + TypeConst>(&mut self, element: T, name: &'static str) -> u32 {
+    pub fn add_child_to_root<T: Element + TypeConst>(
+        &mut self,
+        element: T,
+        name: &'static str,
+    ) -> u32 {
         let id = self.get_id();
         let z_index = if matches!(T::ELEMENT_TYPE, ElementType::Absolute) {
             0.5
@@ -567,7 +570,7 @@ impl UiState {
         let buffer_info = vk::DescriptorBufferInfo {
             buffer: uniform_buffer.inner,
             offset: 0,
-            range: size_of::<Matrix4<f32>>() as _,
+            range: size_of::<Matrix4>() as u64,
         };
 
         let image_info = vk::DescriptorImageInfo {

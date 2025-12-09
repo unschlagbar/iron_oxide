@@ -4,12 +4,12 @@ use super::{
     BuildContext, ElementType, UiElement, UiUnit,
     element::{Element, TypeConst},
 };
-use crate::ui::{CallContext, FnPtr, UiEvent, UiRef, UiState, ui_state::EventResult};
+use crate::ui::{CallContext, UiEvent, UiRef, UiState, ui_state::EventResult};
 
 pub struct Ticking<T: Element + TypeConst> {
     pub last_tick: Instant,
     pub progress: f32,
-    pub tick: FnPtr,
+    pub tick: Option<fn(CallContext)>,
     pub inner: T,
 }
 
@@ -43,13 +43,13 @@ impl<T: Element + TypeConst> Element for Ticking<T> {
     }
 
     fn tick(&mut self, element: UiRef, ui: &mut UiState) {
-        if !self.tick.is_none() {
+        if let Some(call) = self.tick {
             let context = CallContext {
                 ui,
                 element,
                 event: UiEvent::Tick,
             };
-            self.tick.call(context);
+            call(context);
         }
     }
 
@@ -67,7 +67,7 @@ impl<T: Element + TypeConst> Default for Ticking<T> {
         Self {
             last_tick: Instant::now(),
             progress: 0.0,
-            tick: FnPtr::none(),
+            tick: None,
             inner: T::default(),
         }
     }

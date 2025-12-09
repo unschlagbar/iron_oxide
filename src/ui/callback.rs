@@ -2,33 +2,6 @@ use crate::ui::{UiRef, UiState};
 
 use super::UiEvent;
 
-/// ErasedFnPointer can either points to a free function or associated one that
-/// `&mut self`
-#[derive(Clone, Copy)]
-pub struct FnPtr {
-    fp: Option<fn(CallContext)>,
-}
-
-impl FnPtr {
-    pub fn new(func: fn(CallContext)) -> Self {
-        Self { fp: Some(func) }
-    }
-
-    pub const fn none() -> Self {
-        Self { fp: None }
-    }
-
-    pub fn is_none(&self) -> bool {
-        self.fp.is_none()
-    }
-
-    pub fn call(&self, context: CallContext) {
-        if let Some(func) = self.fp {
-            func(context)
-        }
-    }
-}
-
 pub struct CallbackResult {
     pub rebuild: bool,
 }

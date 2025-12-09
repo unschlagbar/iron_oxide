@@ -1,8 +1,6 @@
-#[cfg(feature = "vulkan")]
-use cgmath::Vector3;
 use std::{
     fmt,
-    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -246,24 +244,28 @@ impl fmt::Display for Vec3 {
     }
 }
 
-#[cfg(feature = "vulkan")]
-impl From<Vector3<f32>> for Vec3 {
-    fn from(v: Vector3<f32>) -> Self {
-        Self {
-            x: v.x,
-            y: v.y,
-            z: v.z,
+impl Index<usize> for Vec3 {
+    type Output = f32;
+
+    #[track_caller]
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0 => &self.x,
+            1 => &self.y,
+            2 => &self.z,
+            _ => panic!("Index out of bounds!"),
         }
     }
 }
 
-#[cfg(feature = "vulkan")]
-impl From<Vec3> for Vector3<f32> {
-    fn from(v: Vec3) -> Self {
-        Self {
-            x: v.x,
-            y: v.y,
-            z: v.z,
+impl IndexMut<usize> for Vec3 {
+    #[track_caller]
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match index {
+            0 => &mut self.x,
+            1 => &mut self.y,
+            2 => &mut self.z,
+            _ => panic!("Index out of bounds!"),
         }
     }
 }

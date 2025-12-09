@@ -1,6 +1,6 @@
 use std::{
     fmt,
-    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -208,6 +208,30 @@ impl Neg for Vec2 {
 impl fmt::Display for Vec2 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Vec{{x: {}, y: {}}}", self.x, self.y)
+    }
+}
+
+impl Index<usize> for Vec2 {
+    type Output = f32;
+
+    #[track_caller]
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0 => &self.x,
+            1 => &self.y,
+            _ => panic!("Index out of bounds!"),
+        }
+    }
+}
+
+impl IndexMut<usize> for Vec2 {
+    #[track_caller]
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match index {
+            0 => &mut self.x,
+            1 => &mut self.y,
+            _ => panic!("Index out of bounds!"),
+        }
     }
 }
 
