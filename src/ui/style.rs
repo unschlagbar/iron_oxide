@@ -2,14 +2,14 @@ use super::UiUnit;
 use crate::{primitives::Vec2, ui::BuildContext};
 
 #[derive(Debug, Clone, Copy)]
-pub struct OutArea {
+pub struct UiRect {
     pub left: UiUnit,
     pub top: UiUnit,
     pub right: UiUnit,
     pub bottom: UiUnit,
 }
 
-impl OutArea {
+impl UiRect {
     pub const fn new(pixel: f32) -> Self {
         Self {
             left: UiUnit::Px(pixel),
@@ -89,7 +89,7 @@ impl OutArea {
     }
 }
 
-impl Default for OutArea {
+impl Default for UiRect {
     fn default() -> Self {
         Self::zero()
     }

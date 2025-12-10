@@ -1,3 +1,5 @@
+use std::ptr;
+
 use super::{SinlgeTimeCommands, VkBase};
 use ash::{
     Device,
@@ -8,7 +10,6 @@ use ash::{
         MemoryAllocateInfo, MemoryMapFlags, MemoryPropertyFlags, SharingMode,
     },
 };
-use std::ptr::{copy_nonoverlapping, null_mut};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Buffer {
@@ -75,13 +76,11 @@ impl Buffer {
         )
     }
 
-    pub fn create_uniform<T, const MFIF: usize>(
-        base: &VkBase,
-    ) -> ([Buffer; MFIF], [*mut T; MFIF]) {
+    pub fn create_uniform<T, const MFIF: usize>(base: &VkBase) -> ([Buffer; MFIF], [*mut T; MFIF]) {
         let buffer_size = std::mem::size_of::<T>() as u64;
 
         let mut uniform_buffers = [Buffer::null(); MFIF];
-        let mut mapped = [null_mut(); MFIF];
+        let mut mapped = [ptr::null_mut(); MFIF];
 
         for i in 0..MFIF {
             uniform_buffers[i] = Buffer::create(
@@ -110,9 +109,10 @@ impl Buffer {
 
         let mapped_memory = self.map_memory(&base.device, self.size, offset);
         unsafe {
-            copy_nonoverlapping(data.as_ptr(), mapped_memory, data.len());
-            self.unmap_memory(&base.device);
+            data.as_ptr()
+                .copy_to_nonoverlapping(mapped_memory, data.len());
         };
+        self.unmap_memory(&base.device);
     }
 
     pub fn update<T>(
@@ -127,9 +127,10 @@ impl Buffer {
 
         let mapped_memory = staging_buffer.map_memory(&base.device, buffer_size, 0);
         unsafe {
-            copy_nonoverlapping(data.as_ptr(), mapped_memory, data.len());
-            staging_buffer.unmap_memory(&base.device);
+            data.as_ptr()
+                .copy_to_nonoverlapping(mapped_memory, data.len());
         };
+        staging_buffer.unmap_memory(&base.device);
 
         if self.size < buffer_size {
             unsafe { base.device.queue_wait_idle(base.queue).unwrap_unchecked() };
@@ -162,9 +163,10 @@ impl Buffer {
 
         let mapped_memory = staging_buffer.map_memory(&base.device, buffer_size, 0);
         unsafe {
-            copy_nonoverlapping(data.as_ptr(), mapped_memory, data.len());
-            staging_buffer.unmap_memory(&base.device);
+            data.as_ptr()
+                .copy_to_nonoverlapping(mapped_memory, data.len());
         };
+        staging_buffer.unmap_memory(&base.device);
 
         staging_buffer.copy(base, self, buffer_size, 0, cmd_buf);
     }
@@ -182,7 +184,8 @@ impl Buffer {
 
         let mapped_memory = staging_buffer.map_memory(&base.device, buffer_size, 0);
         unsafe {
-            copy_nonoverlapping(data.as_ptr(), mapped_memory, data.len());
+            data.as_ptr()
+                .copy_to_nonoverlapping(mapped_memory, data.len());
         };
         staging_buffer.unmap_memory(&base.device);
 

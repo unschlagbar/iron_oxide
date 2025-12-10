@@ -1,5 +1,5 @@
 use super::{
-    BuildContext, ElementType, OutArea, UiElement, UiUnit,
+    BuildContext, ElementType, UiRect, UiElement, UiUnit,
     element::{Element, TypeConst},
 };
 use crate::{
@@ -9,8 +9,8 @@ use crate::{
 };
 
 pub struct Container {
-    pub margin: OutArea,
-    pub padding: OutArea,
+    pub margin: UiRect,
+    pub padding: UiRect,
     pub width: UiUnit,
     pub height: UiUnit,
     pub color: RGBA,
@@ -99,8 +99,8 @@ impl TypeConst for Container {
 impl Default for Container {
     fn default() -> Self {
         Self {
-            margin: OutArea::default(),
-            padding: OutArea::default(),
+            margin: UiRect::default(),
+            padding: UiRect::default(),
             width: UiUnit::Px(100.0),
             height: UiUnit::Px(100.0),
             color: RGBA::DARKGREY,

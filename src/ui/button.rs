@@ -1,5 +1,5 @@
 use super::{
-    BuildContext, ElementType, OutArea, UiElement, UiUnit,
+    BuildContext, ElementType, UiRect, UiElement, UiUnit,
     element::{Element, TypeConst},
 };
 use crate::{
@@ -12,8 +12,8 @@ use crate::{
 };
 
 pub struct Button {
-    pub margin: OutArea,
-    pub padding: OutArea,
+    pub margin: UiRect,
+    pub padding: UiRect,
     pub width: UiUnit,
     pub height: UiUnit,
     pub color: RGBA,
@@ -161,8 +161,8 @@ impl TypeConst for Button {
 impl Default for Button {
     fn default() -> Self {
         Self {
-            margin: OutArea::default(),
-            padding: OutArea::new(5.0),
+            margin: UiRect::default(),
+            padding: UiRect::new(5.0),
             width: UiUnit::Px(100.0),
             height: UiUnit::Px(100.0),
             color: RGBA::DARKGREY,

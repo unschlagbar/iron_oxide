@@ -10,6 +10,7 @@ mod swapchain;
 mod texture_atlas;
 mod vertex_description;
 
+pub use asset_manager::AssetManager;
 pub use buffer::Buffer;
 //pub use camera::Camera;
 pub use image::Image;

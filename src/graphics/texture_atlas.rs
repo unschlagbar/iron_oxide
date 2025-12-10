@@ -1,7 +1,7 @@
 use std::{
     fs::{self, File},
     io::BufReader,
-    ptr, vec,
+    vec,
 };
 
 use ash::vk::{
@@ -130,7 +130,7 @@ impl TextureAtlas {
 
         let mapped_memory = staging_buffer.map_memory(&base.device, size, 0);
         unsafe {
-            ptr::copy_nonoverlapping(image_data.as_ptr(), mapped_memory, image_data.len());
+            image_data.as_ptr().copy_to_nonoverlapping(mapped_memory, image_data.len());
         };
         staging_buffer.unmap_memory(&base.device);
 

@@ -4,7 +4,10 @@ use ash::{
     prelude::VkResult,
     vk,
 };
-use std::ffi::{CStr, c_char};
+use std::{
+    ffi::{CStr, c_char},
+    ptr,
+};
 use winit::{
     raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle},
     window::Window,
@@ -116,7 +119,7 @@ impl VkBase {
         let app_info = vk::ApplicationInfo {
             p_application_name: app_name.as_ptr(),
             application_version: vk::make_api_version(0, 1, 0, 0),
-            p_engine_name: std::ptr::null(),
+            p_engine_name: ptr::null(),
             engine_version: vk::make_api_version(0, 1, 0, 0),
             api_version,
             ..Default::default()
@@ -158,10 +161,10 @@ impl VkBase {
 
         let create_info = vk::InstanceCreateInfo {
             p_application_info: &app_info,
-            enabled_layer_count: active_layers.len() as _,
-            enabled_extension_count: extensions.len() as _,
+            enabled_layer_count: active_layers.len() as u32,
+            enabled_extension_count: extensions.len() as u32,
             pp_enabled_layer_names: active_layers.as_ptr(),
-            pp_enabled_extension_names: extensions.as_ptr() as _,
+            pp_enabled_extension_names: extensions.as_ptr(),
             ..Default::default()
         };
 
@@ -223,20 +226,20 @@ impl VkBase {
         let mut acceleration_structure_features =
             vk::PhysicalDeviceAccelerationStructureFeaturesKHR {
                 acceleration_structure: vk::TRUE,
-                p_next: &mut raytracing_pipeline_structure_features as *mut _ as *mut _,
+                p_next: ptr::from_mut(&mut raytracing_pipeline_structure_features).cast(),
                 ..Default::default()
             };
 
         let mut buffer_device_address_features = vk::PhysicalDeviceBufferDeviceAddressFeaturesKHR {
             buffer_device_address: vk::TRUE,
-            p_next: &mut acceleration_structure_features as *mut _ as _,
+            p_next: ptr::from_mut(&mut acceleration_structure_features).cast(),
             ..Default::default()
         };
 
         let features2 = {
             if capabilities != 0 {
                 vk::PhysicalDeviceFeatures2 {
-                    p_next: &mut buffer_device_address_features as *mut _ as *mut _,
+                    p_next: ptr::from_mut(&mut buffer_device_address_features).cast(),
                     features: vk::PhysicalDeviceFeatures {
                         shader_int64: vk::FALSE,
                         ..Default::default()
@@ -264,18 +267,18 @@ impl VkBase {
         let queue_create_info = vk::DeviceQueueCreateInfo {
             queue_family_index,
             p_queue_priorities: queue_priorities.as_ptr(),
-            queue_count: queue_priorities.len() as _,
+            queue_count: queue_priorities.len() as u32,
             ..Default::default()
         };
 
         let queue_create_infos = [queue_create_info];
 
         let device_create_info = vk::DeviceCreateInfo {
-            pp_enabled_extension_names: extensions.as_ptr() as _,
-            enabled_extension_count: extensions.len() as _,
-            queue_create_info_count: queue_create_infos.len() as _,
+            pp_enabled_extension_names: extensions.as_ptr().cast(),
+            enabled_extension_count: extensions.len() as u32,
+            queue_create_info_count: queue_create_infos.len() as u32,
             p_queue_create_infos: queue_create_infos.as_ptr(),
-            p_next: &features2 as *const _ as *const _,
+            p_next: ptr::from_ref(&features2).cast(),
             ..Default::default()
         };
 

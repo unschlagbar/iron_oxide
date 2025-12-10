@@ -31,7 +31,7 @@ pub use element::TypeConst;
 pub use element::UiElement;
 pub use font::Font;
 pub use style::FlexDirection;
-pub use style::OutArea;
+pub use style::UiRect;
 pub use r#type::ElementType;
 pub use ui_events::UiEvent;
 pub use ui_ref::UiRef;

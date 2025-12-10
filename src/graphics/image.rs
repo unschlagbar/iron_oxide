@@ -29,7 +29,7 @@ impl Image {
         usage: vk::ImageUsageFlags,
         properties: vk::MemoryPropertyFlags,
     ) -> Self {
-        let image = {
+        let image = unsafe {
             let create_info = vk::ImageCreateInfo {
                 image_type: vk::ImageType::TYPE_2D,
                 format,
@@ -43,7 +43,7 @@ impl Image {
                 initial_layout: ImageLayout::UNDEFINED,
                 ..Default::default()
             };
-            unsafe { base.device.create_image(&create_info, None).unwrap() }
+            base.device.create_image(&create_info, None).unwrap()
         };
 
         let memory_requirements = unsafe { base.device.get_image_memory_requirements(image) };
@@ -202,7 +202,7 @@ impl Image {
                 base_array_layer: 0,
                 layer_count: 1,
             },
-            image_offset: vk::Offset3D { x: 0, y: 0, z: 0 },
+            image_offset: vk::Offset3D::default(),
             image_extent: extent,
         };
 
@@ -249,7 +249,7 @@ impl Image {
                 base_array_layer: 0,
                 layer_count: 1,
             },
-            image_offset: vk::Offset3D { x: 0, y: 0, z: 0 },
+            image_offset: vk::Offset3D::default(),
             image_extent: extent,
         };
         unsafe {

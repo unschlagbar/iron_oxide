@@ -94,14 +94,13 @@ impl Swapchain {
         render_pass: RenderPass,
         attachment: ImageView,
     ) {
-        if self.framebuffers.capacity() == 0 {
-            self.framebuffers = vec![vk::Framebuffer::null(); self.image_views.len()];
-        }
-        for i in 0..self.image_views.len() {
-            let attachments = [self.image_views[i], attachment];
+        self.framebuffers = vec![vk::Framebuffer::null(); self.image_views.len()];
+
+        for (frame_buffer, &image_view) in self.framebuffers.iter_mut().zip(&self.image_views) {
+            let attachments = [image_view, attachment];
             let main_create_info = vk::FramebufferCreateInfo {
                 render_pass,
-                attachment_count: attachments.len() as _,
+                attachment_count: attachments.len() as u32,
                 p_attachments: attachments.as_ptr(),
                 width: image_extend.width,
                 height: image_extend.height,
@@ -109,7 +108,7 @@ impl Swapchain {
                 ..Default::default()
             };
 
-            self.framebuffers[i] = unsafe {
+            *frame_buffer = unsafe {
                 base.device
                     .create_framebuffer(&main_create_info, None)
                     .unwrap()
@@ -179,11 +178,11 @@ impl Swapchain {
 
     fn create_image_views(&mut self, base: &VkBase) {
         let present_images = unsafe { self.loader.get_swapchain_images(self.inner).unwrap() };
-        if self.image_views.capacity() == 0 {
+        if self.image_views.is_empty() {
             self.image_views = vec![vk::ImageView::null(); present_images.len()];
         }
 
-        for (i, image) in present_images.into_iter().enumerate() {
+        for (image, image_view) in present_images.into_iter().zip(&mut self.image_views) {
             let create_info = vk::ImageViewCreateInfo {
                 image,
                 view_type: vk::ImageViewType::TYPE_2D,
@@ -197,7 +196,7 @@ impl Swapchain {
                 },
                 ..Default::default()
             };
-            self.image_views[i] =
+            *image_view =
                 unsafe { base.device.create_image_view(&create_info, None).unwrap() };
         }
     }

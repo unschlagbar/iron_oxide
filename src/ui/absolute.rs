@@ -1,5 +1,5 @@
 use super::{
-    Align, BuildContext, ElementType, OutArea, UiElement, UiUnit,
+    Align, BuildContext, ElementType, UiRect, UiElement, UiUnit,
     element::{Element, TypeConst},
 };
 use crate::{
@@ -18,7 +18,7 @@ pub struct Absolute {
     pub border_color: RGBA,
     pub border: [u8; 4],
     pub corner: [UiUnit; 4],
-    pub padding: OutArea,
+    pub padding: UiRect,
     pub childs: Vec<UiElement>,
 }
 
@@ -108,7 +108,7 @@ impl Default for Absolute {
             border_color: RGBA::GREEN,
             border: [0; 4],
             corner: [UiUnit::Zero; 4],
-            padding: OutArea::default(),
+            padding: UiRect::default(),
         }
     }
 }

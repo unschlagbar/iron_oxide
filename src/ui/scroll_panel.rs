@@ -6,14 +6,14 @@ use super::{
 };
 use crate::{
     primitives::Vec2,
-    ui::{DirtyFlags, FlexDirection, OutArea, UiEvent, UiRef, UiState, ui_state::EventResult},
+    ui::{DirtyFlags, FlexDirection, UiRect, UiEvent, UiRef, UiState, ui_state::EventResult},
 };
 
 #[derive(Default)]
 pub struct ScrollPanel {
     pub scroll_offset: Vec2,
     pub size: Vec2,
-    pub padding: OutArea,
+    pub padding: UiRect,
     pub child_hash: u32,
     pub childs: Vec<UiElement>,
 }
