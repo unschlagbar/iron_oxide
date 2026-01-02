@@ -196,8 +196,7 @@ impl Swapchain {
                 },
                 ..Default::default()
             };
-            *image_view =
-                unsafe { base.device.create_image_view(&create_info, None).unwrap() };
+            *image_view = unsafe { base.device.create_image_view(&create_info, None).unwrap() };
         }
     }
 

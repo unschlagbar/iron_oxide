@@ -1,5 +1,5 @@
 use crate::{
-    graphics::formats::RGBA,
+    graphics::{VertexDescription, formats::RGBA},
     ui::{
         BuildContext, ElementType, TypeConst, UiElement, UiState, UiUnit, element::Element,
         materials::AtlasInstance,
@@ -15,11 +15,11 @@ pub struct Image {
 }
 
 impl Element for Image {
-    fn build(&mut self, context: &mut BuildContext) {
+    fn build(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
         context.apply_data(context.child_start_pos, context.available_size);
     }
 
-    fn instance(&self, element: &UiElement, ui: &mut UiState, clip: Option<ash::vk::Rect2D>) {
+    fn instance(&mut self, element: &UiElement, ui: &mut UiState, clip: Option<ash::vk::Rect2D>) {
         let material = &mut ui.materials[2];
         let atlas_entry = &ui.texture_atlas.images[self.atlas_index as usize];
         let to_add = AtlasInstance {
@@ -30,7 +30,7 @@ impl Element for Image {
             uv_size: atlas_entry.uv_size,
             z_index: element.z_index,
         };
-        material.add(&to_add, 0, clip);
+        material.add(to_add.to_add(), 0, clip);
     }
 }
 

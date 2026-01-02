@@ -236,6 +236,8 @@ impl IndexMut<usize> for Vec2 {
 }
 
 #[cfg(feature = "vulkan")]
+use ash::vk::{Extent2D, Offset2D};
+#[cfg(feature = "vulkan")]
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 
 #[cfg(feature = "vulkan")]
@@ -249,5 +251,25 @@ impl From<PhysicalSize<u32>> for Vec2 {
 impl From<PhysicalPosition<f64>> for Vec2 {
     fn from(size: PhysicalPosition<f64>) -> Self {
         Vec2::new(size.x as f32, size.y as f32)
+    }
+}
+
+#[cfg(feature = "vulkan")]
+impl From<Vec2> for Offset2D {
+    fn from(size: Vec2) -> Self {
+        Offset2D {
+            x: size.x as _,
+            y: size.y as _,
+        }
+    }
+}
+
+#[cfg(feature = "vulkan")]
+impl From<Vec2> for Extent2D {
+    fn from(size: Vec2) -> Self {
+        Extent2D {
+            width: size.x as _,
+            height: size.y as _,
+        }
     }
 }

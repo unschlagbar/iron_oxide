@@ -1,79 +1,49 @@
 use ash::vk::Rect2D;
 
+use super::{
+    BuildContext, ElementType, UiState,
+    element::{Element, TypeConst},
+};
 use crate::{
-    graphics::formats::RGBA,
-    primitives::Vec2,
+    graphics::{VertexDescription, formats::RGBA},
     ui::{
-        Align, BuildContext, ElementType, Text, TypeConst, UiState,
-        element::Element,
-        materials::FontInstance,
-        text_layout::{TextDirtyFlags, TextLayout},
+        Align, TextInput, UiElement, materials::FontInstance, text_layout::{TextDirtyFlags, TextLayout}
     },
 };
 
-pub struct TextInput {
+pub struct Text {
     pub text: String,
     pub color: RGBA,
     pub layout: TextLayout,
     pub align: Align,
 
     pub selectable: bool,
-    pub cursor: Option<(u32, u32)>,
 
     pub dirty_flags: TextDirtyFlags,
     pub font_instances: Vec<FontInstance>,
 }
 
-impl TextInput {
-    pub fn get_font_instances(
-        &mut self,
-        parent_size: Vec2,
-        parent_pos: Vec2,
-        ui: &mut UiState,
-        clip: Option<Rect2D>,
-    ) {
-        match self.dirty_flags {
-            TextDirtyFlags::None => {
-                for inst in &self.font_instances {
-                    ui.materials[1].add(inst, 0, clip)
-                }
-            }
-            TextDirtyFlags::TextChanged => {
-                let mut context = BuildContext::default(&ui.font, parent_size);
-                context.child_start_pos = parent_pos;
-                self.build(&mut context);
-                for inst in &self.font_instances {
-                    ui.materials[1].add(inst, 0, clip)
-                }
-            }
-            TextDirtyFlags::AddedChar => todo!(),
-            TextDirtyFlags::RemovedChar => todo!(),
-        }
-    }
-
+impl Text {
     pub fn set_new(&mut self, text: String) {
         self.text = text;
         self.dirty_flags = TextDirtyFlags::TextChanged;
     }
 
-    pub fn handle_input(&mut self, input: &str) {
-        println!("Text {}", input);
-    }
-
-    pub fn to_text(self) -> Text {
-        Text {
+    pub fn to_input(self) -> TextInput {
+        TextInput {
             text: self.text,
             color: self.color,
             layout: self.layout,
             align: self.align,
             selectable: self.selectable,
+            cursor: None,
             dirty_flags: self.dirty_flags,
             font_instances: self.font_instances,
         }
     }
 }
 
-impl Element for TextInput {
+impl Element for Text {
     fn build(&mut self, context: &mut BuildContext) {
         self.dirty_flags = TextDirtyFlags::None;
         self.font_instances.clear();
@@ -111,13 +81,39 @@ impl Element for TextInput {
         context.place_child(layout.size);
         context.apply_data(offset, layout.size);
     }
+
+    fn instance(
+        &mut self,
+        element: &UiElement,
+        ui: &mut UiState,
+        clip: Option<Rect2D>,
+    ) {
+        match self.dirty_flags {
+            TextDirtyFlags::None => {
+                for inst in &self.font_instances {
+                    ui.materials[1].add(inst.to_add(), 0, clip)
+                }
+            }
+            TextDirtyFlags::TextChanged => {
+                let parent = unsafe { element.parent.unwrap().as_ref() };
+                let mut context = BuildContext::default(&ui.font, parent.size);
+                context.child_start_pos = parent.pos;
+                self.build(&mut context);
+                for inst in &self.font_instances {
+                    ui.materials[1].add(inst.to_add(), 0, clip)
+                }
+            }
+            TextDirtyFlags::AddedChar => todo!(),
+            TextDirtyFlags::RemovedChar => todo!(),
+        }
+    }
 }
 
-impl TypeConst for TextInput {
+impl TypeConst for Text {
     const ELEMENT_TYPE: ElementType = ElementType::Text;
 }
 
-impl Default for TextInput {
+impl Default for Text {
     fn default() -> Self {
         Self {
             text: "Text".to_string(),
@@ -126,7 +122,6 @@ impl Default for TextInput {
             align: Align::default(),
 
             selectable: true,
-            cursor: None,
 
             dirty_flags: TextDirtyFlags::TextChanged,
             font_instances: Vec::new(),

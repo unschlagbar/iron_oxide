@@ -1,27 +1,29 @@
 use std::{
     fmt::{Debug, Formatter, Result},
-    ops::{Deref, DerefMut},
-    ptr::NonNull,
+    ops::Deref,
 };
 
 use crate::ui::{UiElement, UiState};
 
 /// Handles immutable elements that can only be mutated by involving a &mut Uistate
-#[derive(Clone, Copy)]
 pub struct UiRef {
-    inner: NonNull<UiElement>,
+    inner: *mut UiElement,
 }
 
 impl UiRef {
-    pub fn new(element: &UiElement) -> Self {
+    pub fn new(element: &mut UiElement) -> Self {
+        Self { inner: element }
+    }
+
+    pub fn new_ref(element: &UiElement) -> Self {
         Self {
-            inner: NonNull::from_ref(element),
+            inner: element as *const UiElement as *mut UiElement,
         }
     }
 
     #[allow(unused)]
-    pub fn get_mut(mut self, ui: &mut UiState) -> &mut UiElement {
-        unsafe { self.inner.as_mut() }
+    pub fn get_mut<'a>(mut self, ui: &'a mut UiState) -> &'a mut UiElement {
+        unsafe { &mut *self.inner }
     }
 }
 
@@ -29,18 +31,11 @@ impl Deref for UiRef {
     type Target = UiElement;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { self.inner.as_ref() }
+        unsafe { &*self.inner }
     }
 }
-
-impl DerefMut for UiRef {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { self.inner.as_mut() }
-    }
-}
-
 impl Debug for UiRef {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        unsafe { self.inner.as_ref().fmt(f) }
+        (unsafe { &*self.inner }).fmt(f)
     }
 }

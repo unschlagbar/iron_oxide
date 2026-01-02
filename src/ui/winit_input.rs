@@ -5,7 +5,7 @@ use winit::{
 
 use crate::{
     primitives::Vec2,
-    ui::{ElementType, TextInput, UiEvent, UiState, ui_state::EventResult},
+    ui::{Text, UiEvent, UiState, ui_state::EventResult},
 };
 
 impl UiState {
@@ -94,12 +94,9 @@ impl UiState {
                     && let Some(txt) = &event.text
                 {
                     if let Some(element) = self.get_hovered() {
-                        if let Some(childs) = element.element.childs_mut() {
-                            if let Some(child) = childs.first_mut() {
-                                if child.typ == ElementType::TextInput {
-                                    let text: &mut TextInput = child.downcast_mut();
-                                    text.handle_input(&txt);
-                                }
+                        if let Some(child) = element.childs.first_mut() {
+                            if let Some(text) = child.downcast_mut::<Text>() {
+                                text.handle_input(&txt);
                             }
                         }
                     }

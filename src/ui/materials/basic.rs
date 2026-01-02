@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use ash::vk::{self, Rect2D};
 use winit::dpi::PhysicalSize;
 
@@ -8,14 +6,14 @@ use crate::{
     ui::{materials::Material, ui_pipeline::Pipeline},
 };
 
-pub struct Basic<T: VertexDescription + Copy + 'static> {
+pub struct Basic<T: VertexDescription> {
     pub buffer: Buffer,
     pub staging_buffer: Buffer,
     pub pipeline: Pipeline,
     groups: Vec<BasicDrawGroup<T>>,
 }
 
-impl<T: VertexDescription + Copy> Material for Basic<T> {
+impl<T: VertexDescription> Material for Basic<T> {
     fn buffer(&mut self) -> &mut Buffer {
         &mut self.buffer
     }
@@ -28,22 +26,18 @@ impl<T: VertexDescription + Copy> Material for Basic<T> {
         &self.pipeline
     }
 
-    fn add(&mut self, to_add: &dyn Any, _: u32, clip: Option<Rect2D>) {
-        if let Some(v) = to_add.downcast_ref::<T>() {
-            if let Some(group) = self.groups.iter_mut().find(|x| x.clip == clip) {
-                group.data.push(*v);
-            } else {
-                self.groups.push(BasicDrawGroup {
-                    //desc,
-                    clip,
-                    data: vec![*v],
-                    size: 0,
-                    offset: 0,
-                });
-            }
+    fn add(&mut self, to_add: *const (), _: u32, clip: Option<Rect2D>) {
+        let v = unsafe { &*to_add.cast::<T>() };
+        if let Some(group) = self.groups.iter_mut().find(|x| x.clip == clip) {
+            group.data.push(*v);
         } else {
-            panic!("Material::add_any: falscher Vertex-Typ (downcast fehlgeschlagen)");
-            // Alternative: return Result<(), Error>
+            self.groups.push(BasicDrawGroup {
+                //desc,
+                clip,
+                data: vec![*v],
+                size: 0,
+                offset: 0,
+            });
         }
     }
 
@@ -115,7 +109,7 @@ impl<T: VertexDescription + Copy> Material for Basic<T> {
     }
 }
 
-impl<T: VertexDescription + Copy> Basic<T> {
+impl<T: VertexDescription> Basic<T> {
     pub fn new(
         base: &VkBase,
         window_size: PhysicalSize<u32>,

@@ -1,7 +1,6 @@
 use std::{
-    any::Any,
+    any::TypeId,
     fmt::{self, Debug},
-    mem::{self},
     ptr::{self, NonNull},
     u32,
 };
@@ -11,36 +10,27 @@ use ash::vk::{self, Rect2D};
 use super::{BuildContext, ElementType, Text, UiEvent, UiState, ui_state::EventResult};
 use crate::{
     primitives::Vec2,
-    ui::{TextInput, UiRef, UiUnit},
+    ui::{ScrollPanel, UiRef, UiUnit},
 };
 
-pub trait Element: Any + 'static {
-    fn build(&mut self, context: &mut BuildContext);
+pub trait Element: 'static {
+    fn build(&mut self, childs: &mut [UiElement], context: &mut BuildContext);
 
     fn get_size(&mut self) -> (UiUnit, UiUnit) {
         (UiUnit::Undefined, UiUnit::Undefined)
     }
 
     #[allow(unused)]
-    fn instance(&self, element: &UiElement, ui: &mut UiState, clip: Option<Rect2D>) {}
-
-    fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
-        None
-    }
-
-    fn childs(&self) -> &[UiElement] {
-        &[]
-    }
-
-    fn add_child(&mut self, child: UiElement) -> Option<UiRef> {
-        let childs = self.childs_mut()?;
-        childs.push(child);
-        Some(UiRef::new(childs.last()?))
-    }
+    fn instance(&mut self, element: &UiElement, ui: &mut UiState, clip: Option<Rect2D>) {}
 
     #[allow(unused)]
     fn interaction(&mut self, element: UiRef, ui: &mut UiState, event: UiEvent) -> EventResult {
         EventResult::None
+    }
+
+    #[allow(unused)]
+    fn has_interaction(&self) -> bool {
+        false
     }
 
     #[allow(unused)]
@@ -55,67 +45,80 @@ pub trait Element: Any + 'static {
 pub trait TypeConst: Default + Element + Sized + 'static {
     const ELEMENT_TYPE: ElementType;
 
-    fn wrap(self, name: &'static str) -> UiElement {
+    fn wrap_childs(self, name: &'static str, childs: Vec<UiElement>) -> UiElement {
         UiElement {
             id: u32::MAX,
             name,
-            typ: Self::ELEMENT_TYPE,
             visible: true,
             size: Vec2::zero(),
             pos: Vec2::zero(),
             parent: None,
+            childs,
             element: Box::new(self),
             z_index: 0.0,
+            type_id: TypeId::of::<Self>(),
+        }
+    }
+
+    fn wrap(self, name: &'static str) -> UiElement {
+        UiElement {
+            id: u32::MAX,
+            name,
+            visible: true,
+            size: Vec2::zero(),
+            pos: Vec2::zero(),
+            parent: None,
+            childs: Vec::new(),
+            element: Box::new(self),
+            z_index: 0.0,
+            type_id: TypeId::of::<Self>(),
         }
     }
 }
 
 pub struct UiElement {
-    pub id: u32,
+    pub(crate) id: u32,
     pub name: &'static str,
-    pub typ: ElementType,
     pub visible: bool,
     pub size: Vec2,
     pub pos: Vec2,
     pub z_index: f32,
-    pub parent: Option<NonNull<UiElement>>,
-    pub(crate) element: Box<dyn Element>,
+    pub parent: Option<NonNull<Self>>,
+    pub childs: Vec<Self>,
+    pub element: Box<dyn Element>,
+    pub type_id: TypeId,
 }
 
 impl UiElement {
+    pub const fn id(&self) -> u32 {
+        self.id
+    }
+
     #[track_caller]
-    pub fn downcast<T: Element + TypeConst>(&self) -> &T {
-        if T::ELEMENT_TYPE != self.typ {
-            panic!(
-                "Invalid downcast from {:?} to {:?}",
-                self.typ,
-                T::ELEMENT_TYPE
-            );
+    pub fn downcast<T: Element>(&self) -> Option<&T> {
+        if TypeId::of::<T>() == self.type_id {
+            let gg = unsafe { &*((&*self.element) as *const dyn Element as *const T) };
+            Some(gg)
         } else {
-            let raw = ptr::from_ref(self.element.as_ref());
-            unsafe { &*(raw as *const T) }
+            None
         }
     }
 
     #[track_caller]
-    pub fn downcast_mut<T: Element + TypeConst>(&mut self) -> &mut T {
-        if T::ELEMENT_TYPE != self.typ {
-            panic!(
-                "Invalid downcast from {:?} to {:?}",
-                self.typ,
-                T::ELEMENT_TYPE
-            );
+    pub fn downcast_mut<T: Element>(&mut self) -> Option<&mut T> {
+        if TypeId::of::<T>() == self.type_id {
+            let gg = unsafe { &mut *((&mut *self.element) as *mut dyn Element as *mut T) };
+            Some(gg)
         } else {
-            let raw = ptr::from_mut(self.element.as_mut());
-            unsafe { &mut *(raw as *mut T) }
+            None
         }
     }
 
-    const fn parent(&mut self) -> &mut UiElement {
-        if let Some(parent) = &mut self.parent {
-            unsafe { parent.as_mut() }
-        } else {
-            panic!()
+    pub(crate) fn childs_mut<'b>(&self) -> &'b mut [Self] {
+        let childs: &[Self] = &self.childs;
+        #[allow(invalid_reference_casting)]
+        unsafe {
+            &mut *(childs as *const [Self] as *mut [Self])
         }
     }
 
@@ -124,7 +127,9 @@ impl UiElement {
         context.element_pos = self.pos;
         context.element_size = self.size;
 
-        self.element.build(context);
+        let childs = self.childs_mut();
+
+        self.element.build(childs, context);
 
         self.pos = context.element_pos;
         self.size = context.element_size;
@@ -132,38 +137,24 @@ impl UiElement {
 
     pub fn get_instances(&mut self, ui: &mut UiState, clip: Option<vk::Rect2D>) {
         if self.visible {
-            if self.typ == ElementType::Text {
-                let size = self.parent().size;
-                let pos = self.parent().pos;
-                let text: &mut Text = self.downcast_mut();
-                text.get_font_instances(size, pos, ui, clip);
-            } else {
-                self.element.instance(self, ui, clip);
-            }
+            let element = unsafe { &mut *ptr::from_mut(self) };
+            self.element.instance(element, ui, clip);
         }
 
-        let clip = if self.typ == ElementType::ScrollPanel {
+        let clip = if let Some(_) = self.downcast::<ScrollPanel>() {
             if clip.is_some() {
                 panic!("Nested scroll panels are not allowed");
             }
             Some(vk::Rect2D {
-                offset: vk::Offset2D {
-                    x: self.pos.x as _,
-                    y: self.pos.y as _,
-                },
-                extent: vk::Extent2D {
-                    width: self.size.x as _,
-                    height: self.size.y as _,
-                },
+                offset: self.pos.into(),
+                extent: self.size.into(),
             })
         } else {
             clip
         };
 
-        if let Some(childs) = self.element.childs_mut() {
-            for child in childs {
-                child.get_instances(ui, clip);
-            }
+        for child in &mut self.childs {
+            child.get_instances(ui, clip);
         }
     }
 
@@ -173,7 +164,7 @@ impl UiElement {
             let id = self.id;
             let parent = unsafe { parent.as_mut() };
 
-            for child in parent.element.childs_mut().unwrap() {
+            for child in &mut parent.childs {
                 if child.id == id {
                     break;
                 }
@@ -184,15 +175,13 @@ impl UiElement {
     }
 
     pub fn move_element(&mut self, amount: Vec2) {
-        if let Some(childs) = self.element.childs_mut() {
-            for child in childs {
-                child.move_element(amount);
-            }
+        for child in &mut self.childs {
+            child.move_element(amount);
         }
+
         self.pos += amount;
 
-        if self.typ == ElementType::Text {
-            let text: &mut Text = self.downcast_mut();
+        if let Some(text) = self.downcast_mut::<Text>() {
             for i in &mut text.font_instances {
                 i.pos += amount;
             }
@@ -204,27 +193,12 @@ impl UiElement {
         self.pos <= pos && self.pos.x + self.size.x >= pos.x && self.pos.y + self.size.y >= pos.y
     }
 
-    pub fn replace_type<F: FnMut(V) -> R, V: Element, R: Element + TypeConst>(
-        &mut self,
-        mut call: F,
-    ) {
-        let this = mem::replace(&mut self.element, Box::new(()));
-
-        println!("{:?}", self.typ);
-
-        let raw = this as Box<dyn Any>;
-        let arg = raw.downcast().unwrap();
-
-        let _ = mem::replace(&mut self.element, Box::new(call(*arg)));
-        self.typ = R::ELEMENT_TYPE;
-    }
-
     pub fn get_text(&self) -> Option<&str> {
         self.get_text_at_pos(0)
     }
 
-    pub fn get_child(&self, index: usize) -> Option<UiRef> {
-        Some(UiRef::new(self.element.childs().get(index)?))
+    pub fn get_child(&mut self, index: usize) -> Option<UiRef> {
+        Some(UiRef::new(self.childs.get_mut(index)?))
     }
 
     pub fn get_first_child(&mut self) -> Option<UiRef> {
@@ -232,21 +206,17 @@ impl UiElement {
     }
 
     pub fn get_text_at_pos(&self, pos: usize) -> Option<&str> {
-        let child = self.element.childs().get(pos)?;
-        if matches!(child.typ, ElementType::Text) {
-            let text_element: &Text = child.downcast();
-            Some(&text_element.text)
-        } else if matches!(child.typ, ElementType::TextInput) {
-            let text_element: &TextInput = child.downcast();
-            Some(&text_element.text)
+        let child = self.childs.get(pos)?;
+        if let Some(text) = child.downcast::<Text>() {
+            Some(&text.text)
         } else {
             return None;
         }
     }
 
     pub fn add_text(&mut self, text: Text) {
-        let text = text.wrap("");
-        self.element.add_child(text);
+        let text = text.wrap_childs("", Vec::new());
+        self.add_child(text);
     }
 
     pub fn update_cursor(&mut self, ui: &mut UiState, event: UiEvent) -> EventResult {
@@ -255,21 +225,19 @@ impl UiElement {
         }
 
         if self.is_in(ui.cursor_pos) {
-            if let Some(childs) = self.element.childs_mut() {
-                if !childs.iter().any(|c| c.id == ui.selection.hover_id()) {
-                    for child in childs {
-                        let result = child.update_cursor(ui, event);
-                        if !result.is_none() {
-                            return result;
-                        };
-                    }
+            if !self.childs.iter().any(|c| c.id == ui.selection.hover_id()) {
+                for child in &mut self.childs {
+                    let result = child.update_cursor(ui, event);
+                    if !result.is_none() {
+                        return result;
+                    };
                 }
             }
 
             let mut result = EventResult::None;
             let element = UiRef::new(self);
 
-            if self.typ.has_interaction() {
+            if self.element.has_interaction() {
                 result = self.element.interaction(element, ui, event);
             }
 
@@ -287,54 +255,77 @@ impl UiElement {
         self.parent = Some(parent);
 
         let parent = NonNull::from_mut(self);
-        if let Some(childs) = self.element.childs_mut() {
-            for child in childs {
-                child.set_parent(parent);
+        for child in &mut self.childs {
+            child.set_parent(parent);
+        }
+    }
+
+    pub fn add_child(&mut self, child: UiElement) -> Option<UiRef> {
+        let parent = Some(NonNull::from_mut(self));
+        let childs = &mut self.childs;
+        let ptr = childs.as_ptr();
+
+        childs.push(child);
+
+        // if a realloc happens we need to update child ptrs
+        if ptr == childs.as_ptr() {
+            for child in childs.iter_mut() {
+                child.parent = parent;
             }
+
+            Some(UiRef::new(childs.last_mut()?))
+        // otherwise we only set the parrent for the new node
+        } else {
+            let child = childs.last_mut()?;
+            child.parent = parent;
+            Some(UiRef::new(child))
         }
     }
 
-    pub fn add_child(&mut self, mut child: UiElement) -> Option<UiRef> {
-        child.parent = Some(NonNull::from_mut(self));
-        self.element.add_child(child)
-    }
-
-    pub fn clear_childs(&mut self) {
-        if let Some(childs) = self.element.childs_mut() {
-            childs.clear();
-        }
+    pub unsafe fn clear_childs(&mut self) {
+        self.childs.clear();
     }
 
     pub fn remove_tick(&mut self, ui: &mut UiState) {
         ui.remove_tick(self.id);
         ui.selection.check_removed(self.id);
 
-        if let Some(childs) = self.element.childs_mut() {
-            for child in childs {
-                child.remove_tick(ui);
-            }
+        for child in &mut self.childs {
+            child.remove_tick(ui);
         }
     }
 
-    pub fn init(&mut self, ui: &UiState) {
+    pub(crate) fn init(&mut self, ui: &UiState) {
         let parent = Some(NonNull::from_mut(self));
         let z_index = self.z_index + 0.01;
-        if let Some(childs) = self.element.childs_mut() {
-            for child in childs {
-                child.parent = parent;
-                child.id = ui.get_id();
-                child.z_index = z_index;
-                child.init(ui);
-            }
+        for child in &mut self.childs {
+            child.parent = parent;
+            child.id = ui.get_id();
+            child.z_index = z_index;
+            child.init(ui);
         }
     }
 
     pub fn get_child_by_id(&self, id: u32) -> Option<UiRef> {
-        for child in self.element.childs() {
+        for child in &self.childs {
             if child.id == id {
-                return Some(UiRef::new(child));
+                return Some(UiRef::new_ref(child));
             } else {
                 let result = child.get_child_by_id(id);
+                if result.is_some() {
+                    return result;
+                }
+            }
+        }
+        None
+    }
+
+    pub fn get_child_by_id_mut(&mut self, id: u32) -> Option<&mut UiElement> {
+        for child in &mut self.childs {
+            if child.id == id {
+                return Some(child);
+            } else {
+                let result = child.get_child_by_id_mut(id);
                 if result.is_some() {
                     return result;
                 }
@@ -349,7 +340,6 @@ impl Debug for UiElement {
         f.debug_struct("UiElement")
             .field("id", &self.id)
             .field("name", &self.name)
-            .field("typ", &self.typ)
             .field("visible", &self.visible)
             .field("size", &self.size)
             .field("pos", &self.pos)
@@ -358,5 +348,5 @@ impl Debug for UiElement {
 }
 
 impl Element for () {
-    fn build(&mut self, _: &mut BuildContext) {}
+    fn build(&mut self, _: &mut [UiElement], _: &mut BuildContext) {}
 }

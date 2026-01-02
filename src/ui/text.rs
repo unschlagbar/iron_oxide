@@ -1,16 +1,13 @@
+use std::{ops::Range, time::Instant};
+
 use ash::vk::Rect2D;
 
-use super::{
-    BuildContext, ElementType, UiState,
-    element::{Element, TypeConst},
-};
 use crate::{
-    graphics::formats::RGBA,
+    graphics::{VertexDescription, formats::RGBA},
     primitives::Vec2,
     ui::{
-        Align, TextInput,
-        materials::FontInstance,
-        text_layout::{TextDirtyFlags, TextLayout},
+        Align, BuildContext, ElementType, TypeConst, UiElement, UiState, element::Element,
+        materials::FontInstance, text_layout::TextLayout,
     },
 };
 
@@ -21,60 +18,35 @@ pub struct Text {
     pub align: Align,
 
     pub selectable: bool,
+    pub cursor: Option<InputCursor>,
 
-    pub dirty_flags: TextDirtyFlags,
+    pub dirty: bool,
     pub font_instances: Vec<FontInstance>,
 }
 
 impl Text {
-    pub fn get_font_instances(
-        &mut self,
-        parent_size: Vec2,
-        parent_pos: Vec2,
-        ui: &mut UiState,
-        clip: Option<Rect2D>,
-    ) {
-        match self.dirty_flags {
-            TextDirtyFlags::None => {
-                for inst in &self.font_instances {
-                    ui.materials[1].add(inst, 0, clip)
-                }
-            }
-            TextDirtyFlags::TextChanged => {
-                let mut context = BuildContext::default(&ui.font, parent_size);
-                context.child_start_pos = parent_pos;
-                self.build(&mut context);
-                for inst in &self.font_instances {
-                    ui.materials[1].add(inst, 0, clip)
-                }
-            }
-            TextDirtyFlags::AddedChar => todo!(),
-            TextDirtyFlags::RemovedChar => todo!(),
-        }
-    }
-
     pub fn set_new(&mut self, text: String) {
         self.text = text;
-        self.dirty_flags = TextDirtyFlags::TextChanged;
+        self.dirty = true;
     }
 
-    pub fn to_input(self) -> TextInput {
-        TextInput {
-            text: self.text,
-            color: self.color,
-            layout: self.layout,
-            align: self.align,
-            selectable: self.selectable,
-            cursor: None,
-            dirty_flags: self.dirty_flags,
-            font_instances: self.font_instances,
-        }
+    pub fn push_text(&mut self, text: &str) {
+        self.text += text;
+        self.dirty = true;
+    }
+
+    pub fn handle_input(&mut self, input: &str) {
+        println!("Text {}", input);
+    }
+
+    pub fn focus(_ui: &mut UiState, _element: &UiElement, _select: Range<usize>) {
+        //let gg = element.do
     }
 }
 
 impl Element for Text {
-    fn build(&mut self, context: &mut BuildContext) {
-        self.dirty_flags = TextDirtyFlags::None;
+    fn build(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
+        self.dirty = false;
         self.font_instances.clear();
 
         let align = self.align;
@@ -110,6 +82,39 @@ impl Element for Text {
         context.place_child(layout.size);
         context.apply_data(offset, layout.size);
     }
+
+    fn instance(&mut self, element: &UiElement, ui: &mut UiState, clip: Option<Rect2D>) {
+        if self.dirty {
+            let parent = unsafe { element.parent.unwrap().as_ref() };
+            let mut context = BuildContext::default(&ui.font, parent.size);
+            context.child_start_pos = parent.pos;
+            self.build(element.childs_mut(), &mut context);
+        }
+
+        for inst in &self.font_instances {
+            ui.materials[1].add(inst.to_add(), 0, clip)
+        }
+    }
+
+    fn is_ticking(&self) -> bool {
+        self.cursor.is_some()
+    }
+
+    fn tick(&mut self, _element: super::UiRef, ui: &mut UiState) {
+        if let Some(cursor) = &mut self.cursor {
+            if cursor.start_time.elapsed().as_secs() % 2 == 0 && !cursor.is_on {
+                cursor.is_on = true;
+                ui.color_changed();
+            } else if cursor.is_on {
+                cursor.is_on = false;
+                ui.color_changed();
+            }
+        }
+    }
+
+    fn has_interaction(&self) -> bool {
+        true
+    }
 }
 
 impl TypeConst for Text {
@@ -125,9 +130,23 @@ impl Default for Text {
             align: Align::default(),
 
             selectable: true,
+            cursor: None,
 
-            dirty_flags: TextDirtyFlags::TextChanged,
+            dirty: true,
             font_instances: Vec::new(),
         }
+    }
+}
+
+pub struct InputCursor {
+    _pos: Vec2,
+    start_time: Instant,
+    is_on: bool,
+}
+
+impl InputCursor {
+    fn _pos_from_text(&mut self, idx: usize, text: &[FontInstance]) {
+        let char = &text[idx];
+        self._pos = char.pos
     }
 }

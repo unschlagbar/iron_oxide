@@ -21,8 +21,10 @@ mod container;
 mod image;
 mod scroll_panel;
 mod text;
-mod text_input;
 mod ticking;
+
+#[macro_use]
+mod building;
 
 pub use build_context::BuildContext;
 pub use callback::CallContext;
@@ -49,5 +51,4 @@ pub use container::Container;
 pub use image::Image;
 pub use scroll_panel::ScrollPanel;
 pub use text::Text;
-pub use text_input::TextInput;
 pub use ticking::Ticking;

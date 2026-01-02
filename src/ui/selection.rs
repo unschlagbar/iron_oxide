@@ -19,7 +19,7 @@ impl Selection {
                 hovered
                     .as_mut()
                     .element
-                    .interaction(UiRef::new(hovered.as_ref()), ui, event)
+                    .interaction(UiRef::new(hovered.as_mut()), ui, event)
             }
         } else {
             EventResult::None
@@ -32,7 +32,7 @@ impl Selection {
                 hovered
                     .as_mut()
                     .element
-                    .interaction(UiRef::new(hovered.as_ref()), ui, UiEvent::End)
+                    .interaction(UiRef::new(hovered.as_mut()), ui, UiEvent::End)
             }
         } else {
             EventResult::None

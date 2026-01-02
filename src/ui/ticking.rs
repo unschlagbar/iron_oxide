@@ -14,8 +14,8 @@ pub struct Ticking<T: Element + TypeConst> {
 }
 
 impl<T: Element + TypeConst> Element for Ticking<T> {
-    fn build(&mut self, context: &mut BuildContext) {
-        self.inner.build(context);
+    fn build(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
+        self.inner.build(childs, context);
     }
 
     fn interaction(&mut self, element: UiRef, ui: &mut UiState, event: UiEvent) -> EventResult {
@@ -26,20 +26,8 @@ impl<T: Element + TypeConst> Element for Ticking<T> {
         self.inner.get_size()
     }
 
-    fn instance(&self, element: &UiElement, ui: &mut UiState, clip: Option<ash::vk::Rect2D>) {
+    fn instance(&mut self, element: &UiElement, ui: &mut UiState, clip: Option<ash::vk::Rect2D>) {
         self.inner.instance(element, ui, clip);
-    }
-
-    fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
-        self.inner.childs_mut()
-    }
-
-    fn childs(&self) -> &[UiElement] {
-        self.inner.childs()
-    }
-
-    fn add_child(&mut self, child: UiElement) -> Option<UiRef> {
-        self.inner.add_child(child)
     }
 
     fn tick(&mut self, element: UiRef, ui: &mut UiState) {

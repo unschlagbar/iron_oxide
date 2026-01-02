@@ -1,9 +1,9 @@
 use super::{
-    BuildContext, ElementType, UiRect, UiElement, UiUnit,
+    BuildContext, ElementType, UiElement, UiRect, UiUnit,
     element::{Element, TypeConst},
 };
 use crate::{
-    graphics::formats::RGBA,
+    graphics::{VertexDescription, formats::RGBA},
     primitives::Vec2,
     ui::{FlexDirection, UiState, materials::UiInstance},
 };
@@ -18,11 +18,10 @@ pub struct Container {
     pub flex_direction: FlexDirection,
     pub border: [u8; 4],
     pub corner: [UiUnit; 4],
-    pub childs: Vec<UiElement>,
 }
 
 impl Element for Container {
-    fn build(&mut self, context: &mut BuildContext) {
+    fn build(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
         let margin_start = self.margin.start(context);
         let margin = self.margin.size(context);
         let padding = self.padding.size(context);
@@ -46,8 +45,8 @@ impl Element for Container {
         let mut child_ctx =
             BuildContext::new_from(context, size - padding, child_start, self.flex_direction);
 
-        for c in &mut self.childs {
-            c.build(&mut child_ctx);
+        for child in childs {
+            child.build(&mut child_ctx);
         }
 
         // use autosize if width or height was auto
@@ -67,7 +66,7 @@ impl Element for Container {
         (self.width, self.height)
     }
 
-    fn instance(&self, element: &UiElement, ui: &mut UiState, clip: Option<ash::vk::Rect2D>) {
+    fn instance(&mut self, element: &UiElement, ui: &mut UiState, clip: Option<ash::vk::Rect2D>) {
         let material = &mut ui.materials[0];
         let to_add = UiInstance {
             color: self.color,
@@ -80,15 +79,7 @@ impl Element for Container {
             corner: self.corner[0].px(element.size),
             z_index: element.z_index,
         };
-        material.add(&to_add, 0, clip);
-    }
-
-    fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
-        Some(&mut self.childs)
-    }
-
-    fn childs(&self) -> &[UiElement] {
-        &self.childs
+        material.add(to_add.to_add(), 0, clip);
     }
 }
 
@@ -108,7 +99,6 @@ impl Default for Container {
             flex_direction: FlexDirection::default(),
             border: [0; 4],
             corner: [UiUnit::Zero; 4],
-            childs: Default::default(),
         }
     }
 }

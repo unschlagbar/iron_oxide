@@ -6,7 +6,7 @@ use super::{
 };
 use crate::{
     primitives::Vec2,
-    ui::{DirtyFlags, FlexDirection, UiRect, UiEvent, UiRef, UiState, ui_state::EventResult},
+    ui::{FlexDirection, UiEvent, UiRect, UiRef, UiState, ui_state::EventResult},
 };
 
 #[derive(Default)]
@@ -19,7 +19,7 @@ pub struct ScrollPanel {
 }
 
 impl Element for ScrollPanel {
-    fn build(&mut self, context: &mut BuildContext) {
+    fn build(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
         let space = context.remaining_space();
         let padding = self.padding.size(context);
 
@@ -46,13 +46,13 @@ impl Element for ScrollPanel {
             FlexDirection::Vertical,
         );
 
-        for element in self.childs.iter_mut() {
-            element.build(&mut child_context);
+        for child in childs {
+            child.build(&mut child_context);
         }
 
         self.size.y = child_context.final_size().y + padding.y;
 
-        // if we resize the element we dont want the scroll offset to be larger it should be
+        // if we resize the element we dont want the scroll offset to be larger than it should be
         if space.y < self.size.y {
             self.scroll_offset.y = self.scroll_offset.y.max(space.y - self.size.y);
         }
@@ -74,7 +74,7 @@ impl Element for ScrollPanel {
                 self.scroll_offset.y = self.scroll_offset.y.clamp(min, 0.0);
 
                 if old_offset != self.scroll_offset.y {
-                    ui.dirty = DirtyFlags::Color;
+                    ui.color_changed();
 
                     for element in &mut self.childs {
                         element.move_element(Vec2::new(0.0, self.scroll_offset.y - old_offset));
@@ -104,12 +104,8 @@ impl Element for ScrollPanel {
         (UiUnit::Fill, UiUnit::Fill)
     }
 
-    fn childs_mut(&mut self) -> Option<&mut Vec<UiElement>> {
-        Some(&mut self.childs)
-    }
-
-    fn childs(&self) -> &[UiElement] {
-        &self.childs
+    fn has_interaction(&self) -> bool {
+        true
     }
 }
 
