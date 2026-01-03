@@ -1,7 +1,6 @@
-use super::{
-    BuildContext, ElementType, UiElement, UiRect, UiUnit,
-    element::{Element, TypeConst},
-};
+use ash::vk::Rect2D;
+
+use super::{BuildContext, UiElement, UiRect, UiUnit, element::Element};
 use crate::{
     graphics::{VertexDescription, formats::RGBA},
     primitives::Vec2,
@@ -73,7 +72,12 @@ impl Element for Button {
         (self.width, self.height)
     }
 
-    fn instance(&mut self, element: &UiElement, ui: &mut UiState, clip: Option<ash::vk::Rect2D>) {
+    fn instance(
+        &mut self,
+        element: &UiElement,
+        ui: &mut UiState,
+        clip: Option<Rect2D>,
+    ) -> Option<Rect2D> {
         let material = &mut ui.materials[0];
         let to_add = UiInstance {
             color: self.color,
@@ -87,6 +91,7 @@ impl Element for Button {
             z_index: element.z_index,
         };
         material.add(to_add.to_add(), 0, clip);
+        clip
     }
 
     fn interaction(&mut self, element: UiRef, ui: &mut UiState, event: UiEvent) -> EventResult {
@@ -148,10 +153,6 @@ impl Element for Button {
     fn has_interaction(&self) -> bool {
         true
     }
-}
-
-impl TypeConst for Button {
-    const ELEMENT_TYPE: ElementType = ElementType::Button;
 }
 
 impl Default for Button {

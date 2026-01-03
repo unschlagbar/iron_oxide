@@ -6,8 +6,7 @@ use crate::{
     graphics::{VertexDescription, formats::RGBA},
     primitives::Vec2,
     ui::{
-        Align, BuildContext, ElementType, TypeConst, UiElement, UiState, element::Element,
-        materials::FontInstance, text_layout::TextLayout,
+        Align, BuildContext, UiElement, UiEvent, UiRef, UiState, element::Element, materials::{FontInstance, UiInstance}, text_layout::TextLayout
     },
 };
 
@@ -39,8 +38,16 @@ impl Text {
         println!("Text {}", input);
     }
 
-    pub fn focus(_ui: &mut UiState, _element: &UiElement, _select: Range<usize>) {
-        //let gg = element.do
+    pub fn focus(ui: &mut UiState, element: &UiElement, _select: Range<usize>) {
+        ui.set_focus(element);
+        let this: &mut Self = UiRef::new_ref(element).get_mut(ui).downcast_mut().unwrap();
+
+        let last_char = this.font_instances.last().unwrap();
+        let pos = last_char.pos + Vec2::new(last_char.size.x, 0.0);
+
+        this.cursor = Some(InputCursor { pos, start_time: Instant::now(), is_on: true });
+
+        ui.set_ticking(element);
     }
 }
 
@@ -83,7 +90,7 @@ impl Element for Text {
         context.apply_data(offset, layout.size);
     }
 
-    fn instance(&mut self, element: &UiElement, ui: &mut UiState, clip: Option<Rect2D>) {
+    fn instance(&mut self, element: &UiElement, ui: &mut UiState, clip: Option<Rect2D>) -> Option<Rect2D> {
         if self.dirty {
             let parent = unsafe { element.parent.unwrap().as_ref() };
             let mut context = BuildContext::default(&ui.font, parent.size);
@@ -94,6 +101,25 @@ impl Element for Text {
         for inst in &self.font_instances {
             ui.materials[1].add(inst.to_add(), 0, clip)
         }
+
+        if let Some(cursor) = &self.cursor && cursor.is_on {
+            let scale = self.layout.font_size * 1.2 - self.layout.font_size;
+            let material = &mut ui.materials[0];
+            let to_add = UiInstance {
+                color: self.color,
+                border_color: RGBA::ZERO,
+                border: [0; 4],
+                x: cursor.pos.x as _,
+                y: (cursor.pos.y - scale * 0.5) as _,
+                width: 2,
+                height: (self.layout.font_size + scale) as _,
+                corner: 0.0,
+                z_index: element.z_index,
+            };
+            material.add(to_add.to_add(), 0, clip);
+        }
+
+        clip
     }
 
     fn is_ticking(&self) -> bool {
@@ -102,10 +128,12 @@ impl Element for Text {
 
     fn tick(&mut self, _element: super::UiRef, ui: &mut UiState) {
         if let Some(cursor) = &mut self.cursor {
-            if cursor.start_time.elapsed().as_secs() % 2 == 0 && !cursor.is_on {
+            let should_be_on = cursor.start_time.elapsed().as_millis() % 1000 < 500;
+
+            if !cursor.is_on && should_be_on {
                 cursor.is_on = true;
                 ui.color_changed();
-            } else if cursor.is_on {
+            } else if cursor.is_on && !should_be_on {
                 cursor.is_on = false;
                 ui.color_changed();
             }
@@ -115,10 +143,17 @@ impl Element for Text {
     fn has_interaction(&self) -> bool {
         true
     }
-}
 
-impl TypeConst for Text {
-    const ELEMENT_TYPE: ElementType = ElementType::Text;
+    fn interaction(&mut self, _element: UiRef, _ui: &mut UiState, event: super::UiEvent) -> super::EventResult {
+        if event == UiEvent::End && self.cursor.is_some() {
+            println!("fire done");
+
+            self.cursor = None;
+            super::EventResult::New
+        } else {
+            super::EventResult::None
+        }
+    }
 }
 
 impl Default for Text {
@@ -139,7 +174,7 @@ impl Default for Text {
 }
 
 pub struct InputCursor {
-    _pos: Vec2,
+    pos: Vec2,
     start_time: Instant,
     is_on: bool,
 }
@@ -147,6 +182,6 @@ pub struct InputCursor {
 impl InputCursor {
     fn _pos_from_text(&mut self, idx: usize, text: &[FontInstance]) {
         let char = &text[idx];
-        self._pos = char.pos
+        self.pos = char.pos
     }
 }

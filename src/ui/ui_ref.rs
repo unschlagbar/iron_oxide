@@ -22,7 +22,7 @@ impl UiRef {
     }
 
     #[allow(unused)]
-    pub fn get_mut<'a>(mut self, ui: &'a mut UiState) -> &'a mut UiElement {
+    pub fn get_mut(mut self, ui: &mut UiState) -> &mut UiElement {
         unsafe { &mut *self.inner }
     }
 }

@@ -1,9 +1,7 @@
+use ash::vk::Rect2D;
 use winit::event::MouseScrollDelta;
 
-use super::{
-    BuildContext, ElementType, UiElement, UiUnit,
-    element::{Element, TypeConst},
-};
+use super::{BuildContext, UiElement, UiUnit, element::Element};
 use crate::{
     primitives::Vec2,
     ui::{FlexDirection, UiEvent, UiRect, UiRef, UiState, ui_state::EventResult},
@@ -100,6 +98,18 @@ impl Element for ScrollPanel {
         }
     }
 
+    fn instance(
+        &mut self,
+        element: &UiElement,
+        _: &mut UiState,
+        _: Option<Rect2D>,
+    ) -> Option<Rect2D> {
+        Some(Rect2D {
+            offset: element.pos.into(),
+            extent: element.size.into(),
+        })
+    }
+
     fn get_size(&mut self) -> (UiUnit, UiUnit) {
         (UiUnit::Fill, UiUnit::Fill)
     }
@@ -107,8 +117,4 @@ impl Element for ScrollPanel {
     fn has_interaction(&self) -> bool {
         true
     }
-}
-
-impl TypeConst for ScrollPanel {
-    const ELEMENT_TYPE: ElementType = ElementType::ScrollPanel;
 }

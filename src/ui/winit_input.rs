@@ -96,7 +96,7 @@ impl UiState {
                     if let Some(element) = self.get_hovered() {
                         if let Some(child) = element.childs.first_mut() {
                             if let Some(text) = child.downcast_mut::<Text>() {
-                                text.handle_input(&txt);
+                                text.handle_input(txt);
                             }
                         }
                     }

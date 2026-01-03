@@ -26,7 +26,7 @@ pub struct UiState {
     pub cursor_pos: Vec2,
     pub font: Font,
     pub visible: bool,
-    pub dirty: DirtyFlags,
+    pub(crate) dirty: DirtyFlags,
     pub different_dirty: bool,
     pub ref_count: u16,
 
@@ -223,6 +223,14 @@ impl UiState {
         None
     }
 
+    pub fn set_focus(&mut self, element: &UiElement) {
+        if let Some(mut input) = self.selection.active_input {
+            println!("fire");
+            unsafe { input.as_mut().element.interaction(UiRef::new_ref(element), self, UiEvent::End) };
+        }
+        self.selection.active_input = Some(NonNull::from_ref(element))
+    }
+
     pub fn check_selected(&mut self, event: UiEvent) -> EventResult {
         let ui = unsafe { &mut *ptr::from_mut(self) };
         self.selection.check(ui, event)
@@ -324,6 +332,10 @@ impl UiState {
 
     pub fn layout_changed(&mut self) {
         self.dirty = DirtyFlags::Layout;
+    }
+
+    pub const fn is_dirty(&self) -> bool {
+        !matches!(self.dirty, DirtyFlags::None)
     }
 }
 
@@ -639,7 +651,7 @@ impl EventResult {
 }
 
 #[repr(u8)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum DirtyFlags {
     None,
     Layout,

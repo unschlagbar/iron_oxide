@@ -2,15 +2,14 @@ use std::{
     any::TypeId,
     fmt::{self, Debug},
     ptr::{self, NonNull},
-    u32,
 };
 
-use ash::vk::{self, Rect2D};
+use ash::vk::Rect2D;
 
-use super::{BuildContext, ElementType, Text, UiEvent, UiState, ui_state::EventResult};
+use super::{BuildContext, Text, UiEvent, UiState, ui_state::EventResult};
 use crate::{
     primitives::Vec2,
-    ui::{ScrollPanel, UiRef, UiUnit},
+    ui::{UiRef, UiUnit},
 };
 
 pub trait Element: 'static {
@@ -21,7 +20,14 @@ pub trait Element: 'static {
     }
 
     #[allow(unused)]
-    fn instance(&mut self, element: &UiElement, ui: &mut UiState, clip: Option<Rect2D>) {}
+    fn instance(
+        &mut self,
+        element: &UiElement,
+        ui: &mut UiState,
+        clip: Option<Rect2D>,
+    ) -> Option<Rect2D> {
+        clip
+    }
 
     #[allow(unused)]
     fn interaction(&mut self, element: UiRef, ui: &mut UiState, event: UiEvent) -> EventResult {
@@ -42,9 +48,7 @@ pub trait Element: 'static {
     }
 }
 
-pub trait TypeConst: Default + Element + Sized + 'static {
-    const ELEMENT_TYPE: ElementType;
-
+pub trait ElementBuilder: Default + Element + Sized + 'static {
     fn wrap_childs(self, name: &'static str, childs: Vec<UiElement>) -> UiElement {
         UiElement {
             id: u32::MAX,
@@ -61,20 +65,11 @@ pub trait TypeConst: Default + Element + Sized + 'static {
     }
 
     fn wrap(self, name: &'static str) -> UiElement {
-        UiElement {
-            id: u32::MAX,
-            name,
-            visible: true,
-            size: Vec2::zero(),
-            pos: Vec2::zero(),
-            parent: None,
-            childs: Vec::new(),
-            element: Box::new(self),
-            z_index: 0.0,
-            type_id: TypeId::of::<Self>(),
-        }
+        self.wrap_childs(name, Vec::new())
     }
 }
+
+impl<T: Default + Element + Sized + 'static> ElementBuilder for T {}
 
 pub struct UiElement {
     pub(crate) id: u32,
@@ -135,26 +130,16 @@ impl UiElement {
         self.size = context.element_size;
     }
 
-    pub fn get_instances(&mut self, ui: &mut UiState, clip: Option<vk::Rect2D>) {
+    pub fn get_instances(&mut self, ui: &mut UiState, clip: Option<Rect2D>) {
+        let mut inner_clip = clip;
+
         if self.visible {
             let element = unsafe { &mut *ptr::from_mut(self) };
-            self.element.instance(element, ui, clip);
+            inner_clip = self.element.instance(element, ui, clip);
         }
 
-        let clip = if let Some(_) = self.downcast::<ScrollPanel>() {
-            if clip.is_some() {
-                panic!("Nested scroll panels are not allowed");
-            }
-            Some(vk::Rect2D {
-                offset: self.pos.into(),
-                extent: self.size.into(),
-            })
-        } else {
-            clip
-        };
-
         for child in &mut self.childs {
-            child.get_instances(ui, clip);
+            child.get_instances(ui, inner_clip);
         }
     }
 
@@ -175,16 +160,16 @@ impl UiElement {
     }
 
     pub fn move_element(&mut self, amount: Vec2) {
-        for child in &mut self.childs {
-            child.move_element(amount);
-        }
-
         self.pos += amount;
 
         if let Some(text) = self.downcast_mut::<Text>() {
             for i in &mut text.font_instances {
                 i.pos += amount;
             }
+        }
+
+        for child in &mut self.childs {
+            child.move_element(amount);
         }
     }
 
@@ -210,12 +195,12 @@ impl UiElement {
         if let Some(text) = child.downcast::<Text>() {
             Some(&text.text)
         } else {
-            return None;
+            None
         }
     }
 
     pub fn add_text(&mut self, text: Text) {
-        let text = text.wrap_childs("", Vec::new());
+        let text = text.wrap("");
         self.add_child(text);
     }
 
@@ -282,7 +267,7 @@ impl UiElement {
         }
     }
 
-    pub unsafe fn clear_childs(&mut self) {
+    pub fn clear_childs(&mut self) {
         self.childs.clear();
     }
 

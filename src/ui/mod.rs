@@ -29,7 +29,7 @@ mod building;
 pub use build_context::BuildContext;
 pub use callback::CallContext;
 pub use callback::CallbackResult;
-pub use element::TypeConst;
+pub use element::ElementBuilder;
 pub use element::UiElement;
 pub use font::Font;
 pub use style::FlexDirection;
