@@ -3,7 +3,7 @@ use std::{
     ops::Deref,
 };
 
-use crate::ui::{UiElement, UiState};
+use crate::ui::{Ui, UiElement};
 
 /// Handles immutable elements that can only be mutated by involving a &mut Uistate
 pub struct UiRef {
@@ -22,7 +22,7 @@ impl UiRef {
     }
 
     #[allow(unused)]
-    pub fn get_mut(mut self, ui: &mut UiState) -> &mut UiElement {
+    pub fn get_mut(mut self, ui: &mut Ui) -> &mut UiElement {
         unsafe { &mut *self.inner }
     }
 }

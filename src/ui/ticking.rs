@@ -2,25 +2,22 @@ use std::time::Instant;
 
 use ash::vk::Rect2D;
 
-use super::{
-    BuildContext, UiElement, UiUnit,
-    element::{Element, ElementBuilder},
-};
-use crate::ui::{CallContext, UiEvent, UiRef, UiState, ui_state::EventResult};
+use super::{BuildContext, UiElement, UiUnit};
+use crate::ui::{CallContext, Ui, UiEvent, UiRef, ui::InputResult, widget::Widget};
 
-pub struct Ticking<T: Element + ElementBuilder> {
+pub struct Ticking<T: Widget> {
     pub last_tick: Instant,
     pub progress: f32,
     pub tick: Option<fn(CallContext)>,
     pub inner: T,
 }
 
-impl<T: Element + ElementBuilder> Element for Ticking<T> {
+impl<T: Widget> Widget for Ticking<T> {
     fn build(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
         self.inner.build(childs, context);
     }
 
-    fn interaction(&mut self, element: UiRef, ui: &mut UiState, event: UiEvent) -> EventResult {
+    fn interaction(&mut self, element: UiRef, ui: &mut Ui, event: UiEvent) -> InputResult {
         self.inner.interaction(element, ui, event)
     }
 
@@ -31,13 +28,13 @@ impl<T: Element + ElementBuilder> Element for Ticking<T> {
     fn instance(
         &mut self,
         element: &UiElement,
-        ui: &mut UiState,
+        ui: &mut Ui,
         clip: Option<Rect2D>,
     ) -> Option<Rect2D> {
         self.inner.instance(element, ui, clip)
     }
 
-    fn tick(&mut self, element: UiRef, ui: &mut UiState) {
+    fn tick(&mut self, element: UiRef, ui: &mut Ui) {
         if let Some(call) = self.tick {
             let context = CallContext {
                 ui,
@@ -53,7 +50,7 @@ impl<T: Element + ElementBuilder> Element for Ticking<T> {
     }
 }
 
-impl<T: Element + ElementBuilder> Default for Ticking<T> {
+impl<T: Widget + Default> Default for Ticking<T> {
     fn default() -> Self {
         Self {
             last_tick: Instant::now(),

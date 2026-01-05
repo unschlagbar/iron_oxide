@@ -1,6 +1,7 @@
 use ash::vk;
 use std::{
     any::TypeId,
+    ops::Range,
     ptr::{self, NonNull},
     sync::atomic::{AtomicU32, Ordering},
     time::Instant,
@@ -12,15 +13,13 @@ use crate::{
     graphics::{Buffer, TextureAtlas, VkBase},
     primitives::{Matrix4, Vec2},
     ui::{
-        Absolute, UiRef,
-        materials::{AtlasInstance, Basic, FontInstance, Material, SingleImage, UiInstance},
-        selection::Selection,
+        Absolute, QueuedEvent, UiRef, events::TickEvent, materials::{AtlasInstance, Basic, FontInstance, Material, SingleImage, UiInstance}, selection::{Select, Selection}
     },
 };
 
 pub const MAX_IMGS: u32 = 2;
 
-pub struct UiState {
+pub struct Ui {
     pub(crate) elements: Vec<UiElement>,
     pub size: Vec2,
     pub cursor_pos: Vec2,
@@ -30,9 +29,9 @@ pub struct UiState {
     pub different_dirty: bool,
     pub ref_count: u16,
 
-    // All this needs to be checke before element removal
+    // Check all this before removing a Node!
     // If not checked this will result in undefined behavior!
-    pub selection: Selection,
+    pub(crate) selection: Selection,
     pub event: Option<QueuedEvent>,
     pub tick_queue: Vec<TickEvent>,
 
@@ -48,9 +47,9 @@ pub struct UiState {
     pub mat_table: Vec<TypeId>,
 }
 
-impl UiState {
-    pub fn create(visible: bool) -> UiState {
-        UiState {
+impl Ui {
+    pub fn create(visible: bool) -> Ui {
+        Ui {
             visible,
             elements: Vec::new(),
             dirty: DirtyFlags::Layout,
@@ -79,12 +78,12 @@ impl UiState {
 
     pub fn add_child_to_root(&mut self, mut element: UiElement) -> u32 {
         let id = self.get_id();
-        let z_index = if element.type_id == TypeId::of::<Absolute>() {
+        let z_index = if element.type_of::<Absolute>() {
             0.5
         } else {
             0.01
         };
-        let ticking = element.element.is_ticking();
+        let ticking = element.widget.is_ticking();
 
         element.id = id;
         element.z_index = z_index;
@@ -97,9 +96,9 @@ impl UiState {
             self.set_ticking(&element);
         }
 
-        if element.type_id == TypeId::of::<Absolute>() && element.is_in(self.cursor_pos) {
+        if element.type_of::<Absolute>() && element.is_in(self.cursor_pos) {
             self.selection.clear();
-            self.update_cursor(self.cursor_pos, UiEvent::Move);
+            self.handle_input(self.cursor_pos, UiEvent::Move);
         }
 
         self.layout_changed();
@@ -112,46 +111,63 @@ impl UiState {
 
         child.id = id;
         child.z_index = element.z_index + 0.01;
-
         child.init(self);
-        let ticking = child.element.is_ticking();
 
+        let ticking = child.widget.is_ticking();
         let child = element.get_mut(self).add_child(child);
 
-        if let Some(child) = child
-            && ticking
-        {
-            self.set_ticking(&child);
+        if let Some(child) = child {
+            if ticking {
+                self.set_ticking(&child);
+            }
+
+            self.layout_changed();
+            Some(id)
+        } else {
+            None
         }
-
-        self.layout_changed();
-
-        Some(id)
     }
 
     pub fn remove_element(&mut self, element: &UiElement) -> Option<UiElement> {
         if let Some(mut parent) = element.parent {
-            let parent_mut = unsafe { parent.as_mut() };
+            let parent = unsafe { parent.as_mut() };
 
-            if true {
-                if let Some(pos) = parent_mut.childs.iter().position(|c| c.id == element.id) {
-                    self.remove_tick(element.id);
-                    self.layout_changed();
-                    Some(parent_mut.childs.remove(pos))
-                } else {
-                    println!("Child to remove not found: {}", element.id);
-                    None
+            if let Some(i) = parent.childs.iter().position(|c| c.id == element.id) {
+                element.remove_residue(self);
+                self.layout_changed();
+                let removed = parent.childs.remove(i);
+
+                for shifted in &mut parent.childs[i..] {
+                    shifted.update_ptrs(self);
                 }
+                Some(removed)
             } else {
+                println!("Child to remove not found: {}", element.id);
                 None
             }
-        } else if let Some(pos) = self.elements.iter().position(|c| c.id == element.id) {
-            self.remove_tick(element.id);
-            Some(self.elements.remove(pos))
+        } else if let Some(i) = self.elements.iter().position(|c| c.id == element.id) {
+            element.remove_residue(self);
+            Some(self.elements.remove(i))
         } else {
             println!("Child to remove not found: {}", element.id);
             None
         }
+    }
+
+    pub fn remove_elements(&mut self, parent: &UiElement, range: Range<usize>) {
+        let i = range.start;
+
+        for element in parent.childs_mut().drain(range) {
+            element.remove_residue(self);
+        }
+
+        for shifted in &mut parent.childs_mut()[i..] {
+            shifted.update_ptrs(self);
+        }
+    }
+
+    pub fn remove_all_element(&mut self, parent: &UiElement) {
+        self.remove_elements(parent, 0..parent.childs.len())
     }
 
     pub fn remove_element_by_id(&mut self, id: u32) -> Option<UiElement> {
@@ -171,7 +187,7 @@ impl UiState {
     }
 
     pub fn build(&mut self) {
-        self.selection.clear();
+        //self.selection.clear();
 
         let mut build_context = BuildContext::default(&self.font, self.size);
 
@@ -224,36 +240,37 @@ impl UiState {
     }
 
     pub fn set_focus(&mut self, element: &UiElement) {
-        if let Some(mut input) = self.selection.active_input {
+        if let Some(input) = &mut self.selection.focused {
             println!("fire");
-            unsafe { input.as_mut().element.interaction(UiRef::new_ref(element), self, UiEvent::End) };
+            input
+                .as_mut()
+                .widget
+                .interaction(UiRef::new_ref(element), self, UiEvent::End);
         }
-        self.selection.active_input = Some(NonNull::from_ref(element))
+        self.selection.focused = Some(Select::new(element))
     }
 
-    pub fn check_selected(&mut self, event: UiEvent) -> EventResult {
+    pub fn check_selected(&mut self, event: UiEvent) -> InputResult {
         let ui = unsafe { &mut *ptr::from_mut(self) };
         self.selection.check(ui, event)
     }
 
-    pub fn update_cursor(&mut self, cursor_pos: Vec2, event: UiEvent) -> EventResult {
+    pub fn handle_input(&mut self, cursor_pos: Vec2, event: UiEvent) -> InputResult {
         let ui = unsafe { &mut *ptr::from_mut(self) };
         self.cursor_pos = cursor_pos;
 
         let mut result = self.check_selected(event);
 
-        for element in self.elements.iter_mut() {
-            if let Some(_) = element.downcast::<Absolute>()
-                && element.is_in(cursor_pos)
-            {
+        for element in &mut self.elements {
+            if element.type_of::<Absolute>() && element.is_in(cursor_pos) {
                 self.selection.end(ui);
-                let r = element.update_cursor(ui, event);
+                let r = element.handle_input(ui, event);
                 if !r.is_none() {
                     result = r;
                 }
                 break;
             } else {
-                let r = element.update_cursor(ui, event);
+                let r = element.handle_input(ui, event);
                 if !r.is_none() {
                     result = r;
                 }
@@ -281,24 +298,18 @@ impl UiState {
         let ui = unsafe { &mut *ptr::from_mut(self) };
         let ui2 = unsafe { &mut *ptr::from_mut(self) };
 
-        for tick in &self.tick_queue {
-            if !tick.done {
-                let id = tick.element_id;
-                let element = if let Some(element) = ui.get_element_mut(id) {
-                    element
-                } else {
-                    println!("Tick element not found: {}", id);
-                    continue;
-                };
-
-                let element_ref = UiRef::new(element);
-
-                element.element.tick(element_ref, ui2);
-            } else {
-                println!("Tick done: {}", tick.element_id);
-            }
-        }
         self.tick_queue.retain(|x| !x.done);
+
+        for tick in &self.tick_queue {
+            let id = tick.element_id;
+
+            if let Some(element) = ui.get_element_mut(id) {
+                let element_ref = UiRef::new(element);
+                element.widget.tick(element_ref, ui2);
+            } else {
+                println!("Tick element not found: {}", id);
+            };
+        }
     }
 
     pub fn set_ticking(&mut self, element: &UiElement) {
@@ -308,6 +319,16 @@ impl UiState {
     pub fn remove_tick(&mut self, id: u32) {
         if let Some(pos) = self.tick_queue.iter().position(|x| x.element_id == id) {
             self.tick_queue[pos].done = true;
+        }
+    }
+
+    pub(crate) fn update_tick_ptrs(&mut self, element: &UiElement) {
+        if let Some(pos) = self
+            .tick_queue
+            .iter()
+            .position(|x| x.element_id == element.id)
+        {
+            self.tick_queue[pos].element = NonNull::from_ref(element);
         }
     }
 
@@ -340,7 +361,7 @@ impl UiState {
 }
 
 //Vulkan & graphics Stuff!!
-impl UiState {
+impl Ui {
     #[allow(clippy::too_many_arguments)]
     pub fn init_graphics(
         &mut self,
@@ -410,7 +431,7 @@ impl UiState {
     }
 
     pub fn update(&mut self, base: &VkBase, command_buffer: vk::CommandBuffer) {
-        if !self.visible || matches!(self.dirty, DirtyFlags::None) {
+        if !self.visible || !self.is_dirty() {
             return;
         }
 
@@ -458,10 +479,7 @@ impl UiState {
 
         let clip = vk::Rect2D {
             offset: vk::Offset2D { x: 0, y: 0 },
-            extent: vk::Extent2D {
-                width: self.size.x as _,
-                height: self.size.y as _,
-            },
+            extent: self.size.into(),
         };
 
         unsafe {
@@ -630,13 +648,13 @@ impl UiState {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum EventResult {
+pub enum InputResult {
     None,
     Old,
     New,
 }
 
-impl EventResult {
+impl InputResult {
     pub const fn is_none(&self) -> bool {
         matches!(self, Self::None)
     }
@@ -656,42 +674,4 @@ pub enum DirtyFlags {
     None,
     Layout,
     Color,
-}
-
-#[derive(Debug)]
-pub struct TickEvent {
-    pub element_id: u32,
-    pub done: bool,
-    pub element: NonNull<UiElement>,
-}
-
-impl TickEvent {
-    pub fn new(element: &UiElement) -> Self {
-        let element_id = element.id;
-        let element = NonNull::from_ref(element);
-        Self {
-            element_id,
-            done: false,
-            element,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct QueuedEvent {
-    pub element_id: u32,
-    pub element_name: &'static str,
-    pub event: UiEvent,
-    pub message: u16,
-}
-
-impl QueuedEvent {
-    pub fn new(element: &UiElement, event: UiEvent, message: u16) -> Self {
-        Self {
-            element_id: element.id,
-            element_name: element.name,
-            event,
-            message,
-        }
-    }
 }

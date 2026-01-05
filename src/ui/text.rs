@@ -6,7 +6,10 @@ use crate::{
     graphics::{VertexDescription, formats::RGBA},
     primitives::Vec2,
     ui::{
-        Align, BuildContext, UiElement, UiEvent, UiRef, UiState, element::Element, materials::{FontInstance, UiInstance}, text_layout::TextLayout
+        Align, BuildContext, Ui, UiElement, UiEvent, UiRef,
+        materials::{FontInstance, UiInstance},
+        text_layout::TextLayout,
+        widget::Widget,
     },
 };
 
@@ -38,20 +41,24 @@ impl Text {
         println!("Text {}", input);
     }
 
-    pub fn focus(ui: &mut UiState, element: &UiElement, _select: Range<usize>) {
+    pub fn focus(ui: &mut Ui, element: &UiElement, _select: Range<usize>) {
         ui.set_focus(element);
         let this: &mut Self = UiRef::new_ref(element).get_mut(ui).downcast_mut().unwrap();
 
         let last_char = this.font_instances.last().unwrap();
         let pos = last_char.pos + Vec2::new(last_char.size.x, 0.0);
 
-        this.cursor = Some(InputCursor { pos, start_time: Instant::now(), is_on: true });
+        this.cursor = Some(InputCursor {
+            pos,
+            start_time: Instant::now(),
+            is_on: true,
+        });
 
         ui.set_ticking(element);
     }
 }
 
-impl Element for Text {
+impl Widget for Text {
     fn build(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
         self.dirty = false;
         self.font_instances.clear();
@@ -90,7 +97,12 @@ impl Element for Text {
         context.apply_data(offset, layout.size);
     }
 
-    fn instance(&mut self, element: &UiElement, ui: &mut UiState, clip: Option<Rect2D>) -> Option<Rect2D> {
+    fn instance(
+        &mut self,
+        element: &UiElement,
+        ui: &mut Ui,
+        clip: Option<Rect2D>,
+    ) -> Option<Rect2D> {
         if self.dirty {
             let parent = unsafe { element.parent.unwrap().as_ref() };
             let mut context = BuildContext::default(&ui.font, parent.size);
@@ -102,7 +114,9 @@ impl Element for Text {
             ui.materials[1].add(inst.to_add(), 0, clip)
         }
 
-        if let Some(cursor) = &self.cursor && cursor.is_on {
+        if let Some(cursor) = &self.cursor
+            && cursor.is_on
+        {
             let scale = self.layout.font_size * 1.2 - self.layout.font_size;
             let material = &mut ui.materials[0];
             let to_add = UiInstance {
@@ -126,7 +140,7 @@ impl Element for Text {
         self.cursor.is_some()
     }
 
-    fn tick(&mut self, _element: super::UiRef, ui: &mut UiState) {
+    fn tick(&mut self, _element: super::UiRef, ui: &mut Ui) {
         if let Some(cursor) = &mut self.cursor {
             let should_be_on = cursor.start_time.elapsed().as_millis() % 1000 < 500;
 
@@ -144,14 +158,19 @@ impl Element for Text {
         true
     }
 
-    fn interaction(&mut self, _element: UiRef, _ui: &mut UiState, event: super::UiEvent) -> super::EventResult {
+    fn interaction(
+        &mut self,
+        _element: UiRef,
+        _ui: &mut Ui,
+        event: super::UiEvent,
+    ) -> super::InputResult {
         if event == UiEvent::End && self.cursor.is_some() {
             println!("fire done");
 
             self.cursor = None;
-            super::EventResult::New
+            super::InputResult::New
         } else {
-            super::EventResult::None
+            super::InputResult::None
         }
     }
 }

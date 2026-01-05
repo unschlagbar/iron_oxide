@@ -3,7 +3,7 @@ use winit::dpi::PhysicalSize;
 
 use crate::{
     graphics::{Buffer, VertexDescription, VkBase},
-    ui::{materials::Material, ui_pipeline::Pipeline},
+    ui::{materials::Material, pipeline::Pipeline},
 };
 
 pub struct Basic<T: VertexDescription> {

@@ -2,7 +2,7 @@ use ash::vk::Rect2D;
 
 use crate::{
     graphics::{VertexDescription, formats::RGBA},
-    ui::{BuildContext, UiElement, UiState, UiUnit, element::Element, materials::AtlasInstance},
+    ui::{BuildContext, Ui, UiElement, UiUnit, materials::AtlasInstance, widget::Widget},
 };
 
 pub struct Image {
@@ -13,7 +13,7 @@ pub struct Image {
     pub stretch: bool,
 }
 
-impl Element for Image {
+impl Widget for Image {
     fn build(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
         context.apply_data(context.child_start_pos, context.available_size);
     }
@@ -21,7 +21,7 @@ impl Element for Image {
     fn instance(
         &mut self,
         element: &UiElement,
-        ui: &mut UiState,
+        ui: &mut Ui,
         clip: Option<Rect2D>,
     ) -> Option<Rect2D> {
         let material = &mut ui.materials[2];

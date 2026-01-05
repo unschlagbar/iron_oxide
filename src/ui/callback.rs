@@ -1,4 +1,4 @@
-use crate::ui::{UiRef, UiState};
+use crate::ui::{Ui, UiRef};
 
 use super::UiEvent;
 
@@ -21,13 +21,13 @@ impl CallbackResult {
 }
 
 pub struct CallContext<'a> {
-    pub ui: &'a mut UiState,
+    pub ui: &'a mut Ui,
     pub element: UiRef,
     pub event: UiEvent,
 }
 
 impl CallContext<'_> {
-    pub fn new<'a>(ui: &'a mut UiState, element: UiRef, event: UiEvent) -> CallContext<'a> {
+    pub fn new<'a>(ui: &'a mut Ui, element: UiRef, event: UiEvent) -> CallContext<'a> {
         CallContext { ui, element, event }
     }
 }

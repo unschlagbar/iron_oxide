@@ -1,10 +1,10 @@
 use ash::vk::Rect2D;
 use winit::event::MouseScrollDelta;
 
-use super::{BuildContext, UiElement, UiUnit, element::Element};
+use super::{BuildContext, UiElement, UiUnit};
 use crate::{
     primitives::Vec2,
-    ui::{FlexDirection, UiEvent, UiRect, UiRef, UiState, ui_state::EventResult},
+    ui::{FlexDirection, Ui, UiEvent, UiRect, UiRef, ui::InputResult, widget::Widget},
 };
 
 #[derive(Default)]
@@ -16,7 +16,7 @@ pub struct ScrollPanel {
     pub childs: Vec<UiElement>,
 }
 
-impl Element for ScrollPanel {
+impl Widget for ScrollPanel {
     fn build(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
         let space = context.remaining_space();
         let padding = self.padding.size(context);
@@ -58,7 +58,7 @@ impl Element for ScrollPanel {
         context.apply_data(pos, space);
     }
 
-    fn interaction(&mut self, element: UiRef, ui: &mut UiState, event: UiEvent) -> EventResult {
+    fn interaction(&mut self, element: UiRef, ui: &mut Ui, event: UiEvent) -> InputResult {
         match event {
             UiEvent::Scroll(delta) => {
                 let delta = match delta {
@@ -80,30 +80,25 @@ impl Element for ScrollPanel {
 
                     let result = ui.check_selected(UiEvent::Move);
                     if !result.is_none() {
-                        return EventResult::New;
+                        return InputResult::New;
                     }
 
                     for element in &mut self.childs {
-                        let r = element.update_cursor(ui, UiEvent::Move);
+                        let r = element.handle_input(ui, UiEvent::Move);
                         if !r.is_none() {
                             break;
                         }
                     }
-                    EventResult::New
+                    InputResult::New
                 } else {
-                    EventResult::None
+                    InputResult::None
                 }
             }
-            _ => EventResult::None,
+            _ => InputResult::None,
         }
     }
 
-    fn instance(
-        &mut self,
-        element: &UiElement,
-        _: &mut UiState,
-        _: Option<Rect2D>,
-    ) -> Option<Rect2D> {
+    fn instance(&mut self, element: &UiElement, _: &mut Ui, _: Option<Rect2D>) -> Option<Rect2D> {
         Some(Rect2D {
             offset: element.pos.into(),
             extent: element.size.into(),

@@ -1,10 +1,10 @@
 use ash::vk::Rect2D;
 
-use super::{Align, BuildContext, UiElement, UiRect, UiUnit, element::Element};
+use super::{Align, BuildContext, UiElement, UiRect, UiUnit};
 use crate::{
     graphics::{VertexDescription, formats::RGBA},
     primitives::Vec2,
-    ui::{FlexDirection, UiState, materials::UiInstance},
+    ui::{FlexDirection, Ui, materials::UiInstance, widget::Widget},
 };
 
 pub struct Absolute {
@@ -20,7 +20,7 @@ pub struct Absolute {
     pub padding: UiRect,
 }
 
-impl Element for Absolute {
+impl Widget for Absolute {
     fn build(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
         let space = context.available_size;
         let padding = self.padding.size(context);
@@ -67,7 +67,7 @@ impl Element for Absolute {
     fn instance(
         &mut self,
         element: &UiElement,
-        ui: &mut UiState,
+        ui: &mut Ui,
         clip: Option<Rect2D>,
     ) -> Option<Rect2D> {
         let material = &mut ui.materials[0];

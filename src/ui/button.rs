@@ -1,12 +1,12 @@
 use ash::vk::Rect2D;
 
-use super::{BuildContext, UiElement, UiRect, UiUnit, element::Element};
+use super::{BuildContext, UiElement, UiRect, UiUnit};
 use crate::{
     graphics::{VertexDescription, formats::RGBA},
     primitives::Vec2,
     ui::{
-        CallContext, FlexDirection, QueuedEvent, UiEvent, UiRef, UiState, materials::UiInstance,
-        ui_state::EventResult,
+        CallContext, FlexDirection, QueuedEvent, Ui, UiEvent, UiRef, materials::UiInstance,
+        ui::InputResult, widget::Widget,
     },
 };
 
@@ -26,7 +26,7 @@ pub struct Button {
     pub message: u16,
 }
 
-impl Element for Button {
+impl Widget for Button {
     fn build(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
         let margin_start = self.margin.start(context);
         let margin = self.margin.size(context);
@@ -75,7 +75,7 @@ impl Element for Button {
     fn instance(
         &mut self,
         element: &UiElement,
-        ui: &mut UiState,
+        ui: &mut Ui,
         clip: Option<Rect2D>,
     ) -> Option<Rect2D> {
         let material = &mut ui.materials[0];
@@ -94,17 +94,17 @@ impl Element for Button {
         clip
     }
 
-    fn interaction(&mut self, element: UiRef, ui: &mut UiState, event: UiEvent) -> EventResult {
+    fn interaction(&mut self, element: UiRef, ui: &mut Ui, event: UiEvent) -> InputResult {
         let mut result;
 
         ui.set_event(QueuedEvent::new(&element, event, self.message));
 
         if event == UiEvent::Press || event == UiEvent::Release {
-            result = EventResult::New
+            result = InputResult::New
         } else if self.state == ButtonState::Normal {
-            result = EventResult::New;
+            result = InputResult::New;
         } else {
-            result = EventResult::Old;
+            result = InputResult::Old;
         };
 
         match event {
@@ -117,29 +117,29 @@ impl Element for Button {
                     self.state = ButtonState::Hovered;
                     ui.selection.set_hover(&element);
                 } else {
-                    result = EventResult::None;
+                    result = InputResult::None;
                     self.state = ButtonState::Normal;
                     ui.selection.clear();
                 }
             }
             UiEvent::Move => {
                 if self.state != ButtonState::Pressed {
-                    if result == EventResult::New || element.is_in(ui.cursor_pos) {
+                    if result == InputResult::New || element.is_in(ui.cursor_pos) {
                         self.state = ButtonState::Hovered;
                         ui.selection.set_hover(&element);
                     } else {
-                        result = EventResult::None;
+                        result = InputResult::None;
                         self.state = ButtonState::Normal;
                         ui.selection.clear();
                     }
                 }
             }
             UiEvent::End => {
-                result = EventResult::New;
+                result = InputResult::New;
                 self.state = ButtonState::Normal;
                 ui.selection.clear();
             }
-            _ => return EventResult::None,
+            _ => return InputResult::None,
         }
 
         if let Some(call) = self.callback {

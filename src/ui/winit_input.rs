@@ -5,11 +5,11 @@ use winit::{
 
 use crate::{
     primitives::Vec2,
-    ui::{Text, UiEvent, UiState, ui_state::EventResult},
+    ui::{Text, Ui, UiEvent, ui::InputResult},
 };
 
-impl UiState {
-    pub fn window_event(&mut self, event: &WindowEvent, window: &Window) -> EventResult {
+impl Ui {
+    pub fn window_event(&mut self, event: &WindowEvent, window: &Window) -> InputResult {
         match event {
             WindowEvent::CursorMoved {
                 device_id: _,
@@ -17,7 +17,7 @@ impl UiState {
             } => {
                 //self.cursor_pos = (*position).into();
 
-                let result = self.update_cursor((*position).into(), UiEvent::Move);
+                let result = self.handle_input((*position).into(), UiEvent::Move);
 
                 if result.is_new() {
                     self.different_dirty = true;
@@ -29,7 +29,7 @@ impl UiState {
                 result
             }
             WindowEvent::CursorLeft { device_id: _ } => {
-                let result = self.update_cursor(Vec2::new(1000.0, 1000.0), UiEvent::Move);
+                let result = self.handle_input(Vec2::new(1000.0, 1000.0), UiEvent::Move);
 
                 if result.is_new() {
                     self.different_dirty = true;
@@ -45,7 +45,7 @@ impl UiState {
                 delta,
                 phase: _,
             } => {
-                let result = self.update_cursor(self.cursor_pos, UiEvent::Scroll(*delta));
+                let result = self.handle_input(self.cursor_pos, UiEvent::Scroll(*delta));
 
                 if result.is_new() {
                     self.different_dirty = true;
@@ -62,14 +62,14 @@ impl UiState {
                 button,
             } => match button {
                 MouseButton::Left => {
-                    let result = self.update_cursor(self.cursor_pos, (*state).into());
+                    let result = self.handle_input(self.cursor_pos, (*state).into());
 
                     if result.is_new() {
                         window.request_redraw();
                     }
                     result
                 }
-                _ => EventResult::None,
+                _ => InputResult::None,
             },
             WindowEvent::Touch(_touch) => {
                 //let cursor_pos = touch.location.into();
@@ -83,7 +83,7 @@ impl UiState {
                 //    TouchPhase::Ended | TouchPhase::Cancelled => self.touch_id = 0,
                 //}
                 //self.update_cursor(cursor_pos, touch.phase.into());
-                EventResult::None
+                InputResult::None
             }
             WindowEvent::KeyboardInput {
                 device_id: _,
@@ -102,9 +102,9 @@ impl UiState {
                     }
                     println!("{}", txt);
                 }
-                EventResult::None
+                InputResult::None
             }
-            _ => EventResult::None,
+            _ => InputResult::None,
         }
     }
 }

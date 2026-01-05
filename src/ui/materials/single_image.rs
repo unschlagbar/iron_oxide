@@ -5,7 +5,7 @@ use crate::{
     graphics::{Buffer, VertexDescription, VkBase},
     ui::{
         materials::{Basic, Material},
-        ui_pipeline::Pipeline,
+        pipeline::Pipeline,
     },
 };
 

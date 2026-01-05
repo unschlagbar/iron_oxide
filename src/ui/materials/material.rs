@@ -5,7 +5,7 @@ use ash::{
 
 use crate::{
     graphics::{Buffer, VkBase},
-    ui::ui_pipeline::Pipeline,
+    ui::pipeline::Pipeline,
 };
 
 pub trait Material {

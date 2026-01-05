@@ -1,10 +1,10 @@
 use ash::vk::Rect2D;
 
-use super::{BuildContext, UiElement, UiRect, UiUnit, element::Element};
+use super::{BuildContext, UiElement, UiRect, UiUnit};
 use crate::{
     graphics::{VertexDescription, formats::RGBA},
     primitives::Vec2,
-    ui::{FlexDirection, UiState, materials::UiInstance},
+    ui::{FlexDirection, Ui, materials::UiInstance, widget::Widget},
 };
 
 pub struct Container {
@@ -19,7 +19,7 @@ pub struct Container {
     pub corner: [UiUnit; 4],
 }
 
-impl Element for Container {
+impl Widget for Container {
     fn build(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
         let margin_start = self.margin.start(context);
         let margin = self.margin.size(context);
@@ -68,7 +68,7 @@ impl Element for Container {
     fn instance(
         &mut self,
         element: &UiElement,
-        ui: &mut UiState,
+        ui: &mut Ui,
         clip: Option<Rect2D>,
     ) -> Option<Rect2D> {
         let material = &mut ui.materials[0];
