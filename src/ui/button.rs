@@ -119,7 +119,7 @@ impl Widget for Button {
                 } else {
                     result = InputResult::None;
                     self.state = ButtonState::Normal;
-                    ui.selection.clear();
+                    ui.selection.clear_hover();
                 }
             }
             UiEvent::Move => {
@@ -130,14 +130,14 @@ impl Widget for Button {
                     } else {
                         result = InputResult::None;
                         self.state = ButtonState::Normal;
-                        ui.selection.clear();
+                        ui.selection.clear_hover();
                     }
                 }
             }
             UiEvent::End => {
                 result = InputResult::New;
                 self.state = ButtonState::Normal;
-                ui.selection.clear();
+                ui.selection.clear_hover();
             }
             _ => return InputResult::None,
         }
@@ -148,10 +148,6 @@ impl Widget for Button {
         }
 
         result
-    }
-
-    fn has_interaction(&self) -> bool {
-        true
     }
 }
 

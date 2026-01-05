@@ -86,17 +86,20 @@ impl UiElement {
         }
     }
 
-    pub fn move_element(&mut self, amount: Vec2) {
-        self.pos += amount;
+    pub fn offset_element(&mut self, offset: Vec2) {
+        self.pos += offset;
 
         if let Some(text) = self.downcast_mut::<Text>() {
             for i in &mut text.font_instances {
-                i.pos += amount;
+                i.pos += offset;
+            }
+            if let Some(cursor) = &mut text.cursor {
+                cursor.pos += offset;
             }
         }
 
         for child in &mut self.childs {
-            child.move_element(amount);
+            child.offset_element(offset);
         }
     }
 
@@ -135,19 +138,15 @@ impl UiElement {
                     };
                 }
             }
-
-            let mut result = InputResult::None;
             let element = UiRef::new(self);
-
-            if self.widget.has_interaction() {
-                result = self.widget.interaction(element, ui, event);
-            }
+            let result = self.widget.interaction(element, ui, event);
 
             return result;
         }
         InputResult::None
     }
 
+    /// Adds a child to self and returns a weak reference to it
     pub fn add_child(&mut self, child: UiElement) -> Option<UiRef> {
         let parent = Some(NonNull::from_mut(self));
         let childs = &mut self.childs;
@@ -170,6 +169,7 @@ impl UiElement {
         }
     }
 
+    /// Removes all pointers that point to the element to prevent invalid dereferencing
     pub(crate) fn remove_residue(&self, ui: &mut Ui) {
         ui.remove_tick(self.id);
         ui.selection.check_removed(self.id);
@@ -180,8 +180,8 @@ impl UiElement {
     }
 
     pub(crate) fn update_ptrs(&mut self, ui: &mut Ui) {
-        ui.update_tick_ptrs(&self);
-        ui.selection.update_ptr(&self);
+        ui.update_tick_ptrs(self);
+        ui.selection.update_ptr(self);
 
         let element = NonNull::from_mut(self);
 

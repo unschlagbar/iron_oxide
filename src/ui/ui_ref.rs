@@ -6,6 +6,7 @@ use std::{
 use crate::ui::{Ui, UiElement};
 
 /// Handles immutable elements that can only be mutated by involving a &mut Uistate
+#[derive(Clone, Copy)]
 pub struct UiRef {
     inner: *mut UiElement,
 }

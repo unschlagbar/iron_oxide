@@ -13,7 +13,10 @@ use crate::{
     graphics::{Buffer, TextureAtlas, VkBase},
     primitives::{Matrix4, Vec2},
     ui::{
-        Absolute, QueuedEvent, UiRef, events::TickEvent, materials::{AtlasInstance, Basic, FontInstance, Material, SingleImage, UiInstance}, selection::{Select, Selection}
+        Absolute, QueuedEvent, UiRef,
+        events::TickEvent,
+        materials::{AtlasInstance, Basic, FontInstance, Material, SingleImage, UiInstance},
+        selection::{Select, Selection},
     },
 };
 
@@ -182,13 +185,11 @@ impl Ui {
         }
     }
 
-    pub fn get_id(&self) -> u32 {
+    pub(crate) fn get_id(&self) -> u32 {
         self.id_gen.fetch_add(1, Ordering::Relaxed)
     }
 
-    pub fn build(&mut self) {
-        //self.selection.clear();
-
+    pub(crate) fn build(&mut self) {
         let mut build_context = BuildContext::default(&self.font, self.size);
 
         for element in &mut self.elements {
@@ -196,7 +197,7 @@ impl Ui {
         }
     }
 
-    pub fn get_instaces(&mut self) {
+    pub(crate) fn get_instaces(&mut self) {
         self.dirty = DirtyFlags::None;
 
         if !self.visible || self.elements.is_empty() {
@@ -241,18 +242,19 @@ impl Ui {
 
     pub fn set_focus(&mut self, element: &UiElement) {
         if let Some(input) = &mut self.selection.focused {
-            println!("fire");
-            input
-                .as_mut()
-                .widget
-                .interaction(UiRef::new_ref(element), self, UiEvent::End);
+            let widget = &mut input.as_mut().widget;
+            widget.interaction(UiRef::new_ref(element), self, UiEvent::End);
         }
         self.selection.focused = Some(Select::new(element))
     }
 
     pub fn check_selected(&mut self, event: UiEvent) -> InputResult {
-        let ui = unsafe { &mut *ptr::from_mut(self) };
-        self.selection.check(ui, event)
+        if let Some(hovered) = &mut self.selection.hovered {
+            let widget = &mut hovered.as_mut().widget;
+            widget.interaction(UiRef::new(hovered.as_mut()), self, event)
+        } else {
+            InputResult::None
+        }
     }
 
     pub fn handle_input(&mut self, cursor_pos: Vec2, event: UiEvent) -> InputResult {

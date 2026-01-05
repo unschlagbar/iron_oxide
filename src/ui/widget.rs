@@ -28,10 +28,6 @@ pub trait Widget: 'static {
         InputResult::None
     }
 
-    fn has_interaction(&self) -> bool {
-        false
-    }
-
     fn tick(&mut self, element: UiRef, ui: &mut Ui) {}
 
     fn is_ticking(&self) -> bool {

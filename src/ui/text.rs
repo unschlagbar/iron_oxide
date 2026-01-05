@@ -154,10 +154,6 @@ impl Widget for Text {
         }
     }
 
-    fn has_interaction(&self) -> bool {
-        true
-    }
-
     fn interaction(
         &mut self,
         _element: UiRef,
@@ -165,8 +161,6 @@ impl Widget for Text {
         event: super::UiEvent,
     ) -> super::InputResult {
         if event == UiEvent::End && self.cursor.is_some() {
-            println!("fire done");
-
             self.cursor = None;
             super::InputResult::New
         } else {
@@ -193,14 +187,7 @@ impl Default for Text {
 }
 
 pub struct InputCursor {
-    pos: Vec2,
-    start_time: Instant,
-    is_on: bool,
-}
-
-impl InputCursor {
-    fn _pos_from_text(&mut self, idx: usize, text: &[FontInstance]) {
-        let char = &text[idx];
-        self.pos = char.pos
-    }
+    pub pos: Vec2,
+    pub start_time: Instant,
+    pub is_on: bool,
 }

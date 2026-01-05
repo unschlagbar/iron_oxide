@@ -13,7 +13,6 @@ pub struct ScrollPanel {
     pub size: Vec2,
     pub padding: UiRect,
     pub child_hash: u32,
-    pub childs: Vec<UiElement>,
 }
 
 impl Widget for ScrollPanel {
@@ -21,7 +20,7 @@ impl Widget for ScrollPanel {
         let space = context.remaining_space();
         let padding = self.padding.size(context);
 
-        let child_hash: u32 = if let Some(child) = self.childs.first() {
+        let child_hash: u32 = if let Some(child) = childs.first() {
             child.id
         } else {
             0
@@ -74,16 +73,17 @@ impl Widget for ScrollPanel {
                 if old_offset != self.scroll_offset.y {
                     ui.color_changed();
 
-                    for element in &mut self.childs {
-                        element.move_element(Vec2::new(0.0, self.scroll_offset.y - old_offset));
+                    for element in element.childs_mut() {
+                        element.offset_element(Vec2::new(0.0, self.scroll_offset.y - old_offset));
                     }
 
                     let result = ui.check_selected(UiEvent::Move);
+
                     if !result.is_none() {
                         return InputResult::New;
                     }
 
-                    for element in &mut self.childs {
+                    for element in element.childs_mut() {
                         let r = element.handle_input(ui, UiEvent::Move);
                         if !r.is_none() {
                             break;
@@ -107,9 +107,5 @@ impl Widget for ScrollPanel {
 
     fn get_size(&mut self) -> (UiUnit, UiUnit) {
         (UiUnit::Fill, UiUnit::Fill)
-    }
-
-    fn has_interaction(&self) -> bool {
-        true
     }
 }

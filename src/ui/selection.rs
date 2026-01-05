@@ -29,17 +29,6 @@ impl Selection {
         }
     }
 
-    pub fn check(&mut self, ui: &mut Ui, event: UiEvent) -> InputResult {
-        if let Some(hovered) = &mut self.hovered {
-            hovered
-                .as_mut()
-                .widget
-                .interaction(UiRef::new(hovered.as_mut()), ui, event)
-        } else {
-            InputResult::None
-        }
-    }
-
     pub fn end(&mut self, ui: &mut Ui) -> InputResult {
         if let Some(hovered) = &mut self.hovered {
             hovered
@@ -65,6 +54,10 @@ impl Selection {
 
     pub fn set_hover(&mut self, element: &UiElement) {
         self.hovered = Some(Select::new(element));
+    }
+
+    pub fn clear_hover(&mut self) {
+        self.hovered = None;
     }
 
     pub fn check_removed(&mut self, id: u32) {
