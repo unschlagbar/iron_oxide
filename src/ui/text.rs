@@ -35,10 +35,6 @@ impl Text {
         self.dirty = true;
     }
 
-    pub fn handle_input(&mut self, input: &str) {
-        println!("Text {}", input);
-    }
-
     pub fn focus(ui: &mut Ui, element: &UiElement, _select: Range<usize>) {
         ui.set_focus(element);
         let this: &mut Self = UiRef::new_ref(element).get_mut(ui).downcast_mut().unwrap();
@@ -55,7 +51,6 @@ impl Text {
     pub fn move_cursor(&mut self, offset: isize) {
         let i;
         let char_len = self.text.len();
-        println!("len: {char_len}");
 
         if let Some(cursor) = &mut self.cursor {
             if char_len == 0 {

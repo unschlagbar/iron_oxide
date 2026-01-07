@@ -47,7 +47,7 @@ impl Ui {
             _ => InputResult::None,
         };
 
-        if self.is_dirty() {
+        if self.is_dirty() && result.is_new() {
             window.request_redraw();
         }
 
