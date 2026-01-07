@@ -1,10 +1,11 @@
 use std::any::TypeId;
 
 use ash::vk::Rect2D;
+use winit::event::KeyEvent;
 
 use crate::{
     primitives::Vec2,
-    ui::{BuildContext, InputResult, Ui, UiElement, UiEvent, UiRef, UiUnit},
+    ui::{BuildContext, Image, InputResult, Text, Ui, UiElement, UiEvent, UiRef, UiUnit},
 };
 
 #[allow(unused)]
@@ -28,6 +29,10 @@ pub trait Widget: 'static {
         InputResult::None
     }
 
+    fn key_event(&mut self, element: UiRef, ui: &mut Ui, event: &KeyEvent) -> InputResult {
+        InputResult::None
+    }
+
     fn tick(&mut self, element: UiRef, ui: &mut Ui) {}
 
     fn is_ticking(&self) -> bool {
@@ -37,10 +42,13 @@ pub trait Widget: 'static {
 
 pub trait ElementBuilder: Default + Widget + Sized + 'static {
     fn wrap_childs(self, name: &'static str, childs: Vec<UiElement>) -> UiElement {
+        let transparent = TypeId::of::<Self>() == TypeId::of::<Text>()
+            || TypeId::of::<Self>() == TypeId::of::<Image>();
         UiElement {
             id: u32::MAX,
             name,
             visible: true,
+            transparent,
             size: Vec2::zero(),
             pos: Vec2::zero(),
             parent: None,

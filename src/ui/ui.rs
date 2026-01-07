@@ -26,11 +26,12 @@ pub struct Ui {
     pub(crate) elements: Vec<UiElement>,
     pub size: Vec2,
     pub cursor_pos: Vec2,
+    pub mouse_down: bool,
     pub font: Font,
     pub visible: bool,
     pub(crate) dirty: DirtyFlags,
     pub different_dirty: bool,
-    pub ref_count: u16,
+    pub new_absolute: bool,
 
     // Check all this before removing a Node!
     // If not checked this will result in undefined behavior!
@@ -60,7 +61,8 @@ impl Ui {
             size: Vec2::zero(),
             id_gen: AtomicU32::new(1),
             cursor_pos: Vec2::default(),
-            ref_count: 0,
+            mouse_down: false,
+            new_absolute: false,
 
             selection: Selection::default(),
             event: None,
@@ -82,6 +84,7 @@ impl Ui {
     pub fn add_child_to_root(&mut self, mut element: UiElement) -> u32 {
         let id = self.get_id();
         let z_index = if element.type_of::<Absolute>() {
+            self.new_absolute = true;
             0.5
         } else {
             0.01
@@ -97,11 +100,6 @@ impl Ui {
 
         if ticking {
             self.set_ticking(&element);
-        }
-
-        if element.type_of::<Absolute>() && element.is_in(self.cursor_pos) {
-            self.selection.clear();
-            self.handle_input(self.cursor_pos, UiEvent::Move);
         }
 
         self.layout_changed();
@@ -150,26 +148,35 @@ impl Ui {
             }
         } else if let Some(i) = self.elements.iter().position(|c| c.id == element.id) {
             element.remove_residue(self);
-            Some(self.elements.remove(i))
+            let removed = self.elements.remove(i);
+
+            let elements = unsafe { &mut *(self.elements[i..].as_mut() as *mut [UiElement]) };
+
+            for shifted in elements {
+                shifted.update_ptrs(self);
+            }
+            Some(removed)
         } else {
             println!("Child to remove not found: {}", element.id);
             None
         }
     }
 
-    pub fn remove_elements(&mut self, parent: &UiElement, range: Range<usize>) {
+    pub fn remove_elements(&mut self, parent: UiRef, range: Range<usize>) {
         let i = range.start;
+        let parent = unsafe { parent.as_mut() };
 
-        for element in parent.childs_mut().drain(range) {
+        for element in parent.childs.drain(range) {
             element.remove_residue(self);
         }
 
-        for shifted in &mut parent.childs_mut()[i..] {
+        // Not tested for safety
+        for shifted in &mut parent.childs[i..] {
             shifted.update_ptrs(self);
         }
     }
 
-    pub fn remove_all_element(&mut self, parent: &UiElement) {
+    pub fn remove_all_elements(&mut self, parent: UiRef) {
         self.remove_elements(parent, 0..parent.childs.len())
     }
 
@@ -248,38 +255,50 @@ impl Ui {
         self.selection.focused = Some(Select::new(element))
     }
 
-    pub fn check_selected(&mut self, event: UiEvent) -> InputResult {
-        if let Some(hovered) = &mut self.selection.hovered {
-            let widget = &mut hovered.as_mut().widget;
-            widget.interaction(UiRef::new(hovered.as_mut()), self, event)
-        } else {
-            InputResult::None
-        }
-    }
-
+    /// TODO disable hover in touch mode
     pub fn handle_input(&mut self, cursor_pos: Vec2, event: UiEvent) -> InputResult {
         let ui = unsafe { &mut *ptr::from_mut(self) };
         self.cursor_pos = cursor_pos;
 
-        let mut result = self.check_selected(event);
-
-        for element in &mut self.elements {
-            if element.type_of::<Absolute>() && element.is_in(cursor_pos) {
-                self.selection.end(ui);
-                let r = element.handle_input(ui, event);
-                if !r.is_none() {
-                    result = r;
-                }
-                break;
-            } else {
-                let r = element.handle_input(ui, event);
-                if !r.is_none() {
-                    result = r;
-                }
+        // 1. Check and update Captured
+        if let Some(captured) = &mut self.selection.captured {
+            let widget = &mut captured.as_mut().widget;
+            if widget.interaction(UiRef::new(captured.as_mut()), self, event) == InputResult::New {
+                return InputResult::New;
             }
         }
 
-        result
+        // 2. Check for new hover
+        let last_hovered = self.selection.hovered;
+
+        if self.new_absolute || event == UiEvent::Move {
+            for element in &mut self.elements {
+                if element.is_in(cursor_pos) {
+                    // We still need to break since there could be a absolute element above
+                    if element.type_of::<Absolute>() {
+                        element.update_hover(ui, event);
+                    } else {
+                        element.update_hover(ui, event);
+                    }
+                }
+            }
+            self.new_absolute = false;
+        }
+
+        if let Some(mut last) = last_hovered {
+            if let Some(mut new) = self.selection.hovered
+                && last != new
+            {
+                let widget = &mut last.as_mut().widget;
+                widget.interaction(UiRef::new(last.as_mut()), self, UiEvent::HoverEnd);
+
+                new.as_mut().handle_hover(ui, event)
+            } else {
+                last.as_mut().handle_hover(ui, event)
+            }
+        } else {
+            InputResult::None
+        }
     }
 
     pub fn get_hovered(&mut self) -> Option<&mut UiElement> {
@@ -471,7 +490,7 @@ impl Ui {
             );
         }
 
-        println!("time: {:?}", start.elapsed())
+        println!("CPU to GPU time: {:?}", start.elapsed())
     }
 
     pub fn draw(&mut self, device: &ash::Device, cmd: vk::CommandBuffer) {
@@ -652,7 +671,6 @@ impl Ui {
 #[derive(Debug, PartialEq)]
 pub enum InputResult {
     None,
-    Old,
     New,
 }
 
@@ -663,10 +681,6 @@ impl InputResult {
 
     pub const fn is_new(&self) -> bool {
         matches!(self, Self::New)
-    }
-
-    pub const fn is_old(&self) -> bool {
-        matches!(self, Self::Old)
     }
 }
 

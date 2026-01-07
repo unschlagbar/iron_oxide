@@ -58,43 +58,34 @@ impl Widget for ScrollPanel {
     }
 
     fn interaction(&mut self, element: UiRef, ui: &mut Ui, event: UiEvent) -> InputResult {
-        match event {
-            UiEvent::Scroll(delta) => {
-                let delta = match delta {
-                    MouseScrollDelta::LineDelta(_, y) => y * 50.0,
-                    MouseScrollDelta::PixelDelta(pos) => pos.y as f32,
-                };
-                let old_offset = self.scroll_offset.y;
-                let min = (element.size.y - self.size.y).min(0.0);
+        if let UiEvent::Scroll(delta) = event {
+            let delta = match delta {
+                MouseScrollDelta::LineDelta(_, y) => y * 50.0,
+                MouseScrollDelta::PixelDelta(pos) => pos.y as f32,
+            };
+            let old_offset = self.scroll_offset.y;
+            let min = (element.size.y - self.size.y).min(0.0);
 
-                self.scroll_offset.y += delta;
-                self.scroll_offset.y = self.scroll_offset.y.clamp(min, 0.0);
+            self.scroll_offset.y += delta;
+            self.scroll_offset.y = self.scroll_offset.y.clamp(min, 0.0);
 
-                if old_offset != self.scroll_offset.y {
-                    ui.color_changed();
+            if old_offset != self.scroll_offset.y {
+                ui.color_changed();
 
-                    for element in element.childs_mut() {
-                        element.offset_element(Vec2::new(0.0, self.scroll_offset.y - old_offset));
-                    }
-
-                    let result = ui.check_selected(UiEvent::Move);
-
-                    if !result.is_none() {
-                        return InputResult::New;
-                    }
-
-                    for element in element.childs_mut() {
-                        let r = element.handle_input(ui, UiEvent::Move);
-                        if !r.is_none() {
-                            break;
-                        }
-                    }
-                    InputResult::New
-                } else {
-                    InputResult::None
+                for element in element.childs_mut() {
+                    element.offset_element(Vec2::new(0.0, self.scroll_offset.y - old_offset));
                 }
+
+                let cursor_pos = ui.cursor_pos;
+
+                // Todo! make this faster by using an extra fn
+                ui.handle_input(cursor_pos, UiEvent::Move);
+                InputResult::New
+            } else {
+                InputResult::None
             }
-            _ => InputResult::None,
+        } else {
+            InputResult::None
         }
     }
 

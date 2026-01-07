@@ -1,15 +1,13 @@
 use std::{ops::Range, time::Instant};
 
 use ash::vk::Rect2D;
+use winit::{event::{ElementState, KeyEvent}, keyboard::{Key, NamedKey}};
 
 use crate::{
     graphics::{VertexDescription, formats::RGBA},
     primitives::Vec2,
     ui::{
-        Align, BuildContext, Ui, UiElement, UiEvent, UiRef,
-        materials::{FontInstance, UiInstance},
-        text_layout::TextLayout,
-        widget::Widget,
+        Align, BuildContext, InputResult, Ui, UiElement, UiEvent, UiRef, materials::{FontInstance, UiInstance}, text_layout::TextLayout, widget::Widget
     },
 };
 
@@ -45,16 +43,35 @@ impl Text {
         ui.set_focus(element);
         let this: &mut Self = UiRef::new_ref(element).get_mut(ui).downcast_mut().unwrap();
 
-        let last_char = this.font_instances.last().unwrap();
-        let pos = last_char.pos + Vec2::new(last_char.size.x, 0.0);
-
         this.cursor = Some(InputCursor {
-            pos,
+            index: this.font_instances.len(),
             start_time: Instant::now(),
             is_on: true,
         });
 
         ui.set_ticking(element);
+    }
+
+    pub fn move_cursor(&mut self, offset: isize) {
+        let i;
+        let char_len = self.text.len();
+        println!("len: {char_len}");
+
+        if let Some(cursor) = &mut self.cursor {
+            if char_len == 0 {
+                i = 0;
+            } else {
+                i = cursor.index.saturating_add_signed(offset).min(char_len);
+            }
+        } else {
+            return;
+        };
+
+        self.cursor = Some(InputCursor {
+            index: i,
+            start_time: Instant::now(),
+            is_on: true,
+        });
     }
 }
 
@@ -63,11 +80,18 @@ impl Widget for Text {
         self.dirty = false;
         self.font_instances.clear();
 
+        let text = if self.text.is_empty() {
+            "\u{200B}"
+        } else {
+            &self.text
+        };
+
         let align = self.align;
         let mut offset = context.pos_child();
 
         let font_size = self.layout.font_size;
-        let layout = self.layout.build(&self.text, context);
+        
+        let layout = self.layout.build(text, context);
 
         let align_size = context.size();
 
@@ -117,14 +141,21 @@ impl Widget for Text {
         if let Some(cursor) = &self.cursor
             && cursor.is_on
         {
+            let pos = if cursor.index == 0 {
+                self.font_instances[0].pos
+            } else {
+                let char = &self.font_instances[cursor.index - 1];
+                char.pos + Vec2::new(char.size.x, 0.0)
+            };
+
             let scale = self.layout.font_size * 1.2 - self.layout.font_size;
             let material = &mut ui.materials[0];
             let to_add = UiInstance {
                 color: self.color,
                 border_color: RGBA::ZERO,
                 border: [0; 4],
-                x: cursor.pos.x as _,
-                y: (cursor.pos.y - scale * 0.5) as _,
+                x: pos.x as _,
+                y: (pos.y - scale * 0.5) as _,
                 width: 2,
                 height: (self.layout.font_size + scale) as _,
                 corner: 0.0,
@@ -140,7 +171,7 @@ impl Widget for Text {
         self.cursor.is_some()
     }
 
-    fn tick(&mut self, _element: super::UiRef, ui: &mut Ui) {
+    fn tick(&mut self, _: UiRef, ui: &mut Ui) {
         if let Some(cursor) = &mut self.cursor {
             let should_be_on = cursor.start_time.elapsed().as_millis() % 1000 < 500;
 
@@ -158,14 +189,41 @@ impl Widget for Text {
         &mut self,
         _element: UiRef,
         _ui: &mut Ui,
-        event: super::UiEvent,
-    ) -> super::InputResult {
+        event: UiEvent,
+    ) -> InputResult {
         if event == UiEvent::End && self.cursor.is_some() {
             self.cursor = None;
-            super::InputResult::New
-        } else {
-            super::InputResult::None
         }
+        InputResult::None
+    }
+
+    fn key_event(&mut self, _element: UiRef, ui: &mut Ui, event: &KeyEvent) -> InputResult {
+        if event.state != ElementState::Pressed {
+            return InputResult::None;
+        }
+        if let Key::Named(name) = event.logical_key {
+            if name == NamedKey::Backspace {
+                self.text.pop();
+                self.dirty = true;
+                self.move_cursor(-1);
+                ui.layout_changed();
+                return InputResult::New;
+            } else if name == NamedKey::ArrowRight {
+                self.move_cursor(1);
+                ui.layout_changed();
+            } else if name == NamedKey::ArrowLeft {
+                self.move_cursor(-1);
+                ui.layout_changed();
+            }
+        }
+
+        if let Some(text) = &event.text && !text.is_empty() {
+            self.push_text(text);
+            self.move_cursor(text.len() as isize);
+            ui.layout_changed();
+            return InputResult::New;
+        }
+        InputResult::New
     }
 }
 
@@ -187,7 +245,8 @@ impl Default for Text {
 }
 
 pub struct InputCursor {
-    pub pos: Vec2,
+    /// The index into text instances
+    pub index: usize,
     pub start_time: Instant,
     pub is_on: bool,
 }

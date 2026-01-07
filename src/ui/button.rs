@@ -95,54 +95,46 @@ impl Widget for Button {
     }
 
     fn interaction(&mut self, element: UiRef, ui: &mut Ui, event: UiEvent) -> InputResult {
-        let mut result;
+        let mut result = InputResult::New;
 
-        ui.set_event(QueuedEvent::new(&element, event, self.message));
+        let old_state = self.state;
+        let is_in = element.is_in(ui.cursor_pos);
 
-        if event == UiEvent::Press || event == UiEvent::Release {
-            result = InputResult::New
-        } else if self.state == ButtonState::Normal {
-            result = InputResult::New;
-        } else {
-            result = InputResult::Old;
-        };
+        if is_in {
+            ui.set_event(QueuedEvent::new(&element, event, self.message));
+        }
+
 
         match event {
             UiEvent::Press => {
                 self.state = ButtonState::Pressed;
-                ui.selection.set_hover(&element);
+                ui.selection.set_capture(&element);
             }
             UiEvent::Release => {
-                if element.is_in(ui.cursor_pos) {
+                ui.selection.clear_capture();
+
+                if is_in {
                     self.state = ButtonState::Hovered;
-                    ui.selection.set_hover(&element);
                 } else {
-                    result = InputResult::None;
                     self.state = ButtonState::Normal;
                     ui.selection.clear_hover();
                 }
             }
             UiEvent::Move => {
                 if self.state != ButtonState::Pressed {
-                    if result == InputResult::New || element.is_in(ui.cursor_pos) {
-                        self.state = ButtonState::Hovered;
-                        ui.selection.set_hover(&element);
-                    } else {
-                        result = InputResult::None;
-                        self.state = ButtonState::Normal;
-                        ui.selection.clear_hover();
-                    }
+                    self.state = ButtonState::Hovered;
                 }
             }
-            UiEvent::End => {
-                result = InputResult::New;
+            UiEvent::HoverEnd => {
+                result = InputResult::None;
                 self.state = ButtonState::Normal;
-                ui.selection.clear_hover();
             }
             _ => return InputResult::None,
         }
 
-        if let Some(call) = self.callback {
+        if let Some(call) = self.callback
+            && old_state != self.state
+        {
             let context = CallContext { ui, element, event };
             call(context);
         }
@@ -170,7 +162,7 @@ impl Default for Button {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum ButtonState {
     Normal,
     Hovered,

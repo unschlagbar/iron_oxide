@@ -5,6 +5,7 @@ use std::{
 };
 
 use ash::vk::Rect2D;
+use winit::event::KeyEvent;
 
 use super::{BuildContext, Text, Ui, UiEvent, ui::InputResult};
 use crate::{
@@ -16,6 +17,7 @@ pub struct UiElement {
     pub(crate) id: u32,
     pub name: &'static str,
     pub visible: bool,
+    pub transparent: bool,
     pub size: Vec2,
     pub pos: Vec2,
     pub z_index: f32,
@@ -60,12 +62,20 @@ impl UiElement {
         }
     }
 
+    pub(crate) fn childs_mut2<'b>(&mut self) -> &'b mut Vec<Self> {
+        unsafe {
+            let childs = &mut self.childs;
+            #[allow(invalid_reference_casting)]
+            &mut *(childs as *mut Vec<Self>)
+        }
+    }
+
     pub fn build(&mut self, context: &mut BuildContext) {
         context.z_index = self.z_index;
         context.element_pos = self.pos;
         context.element_size = self.size;
 
-        let childs = self.childs_mut();
+        let childs = self.childs_mut2();
 
         self.widget.build(childs, context);
 
@@ -92,9 +102,6 @@ impl UiElement {
         if let Some(text) = self.downcast_mut::<Text>() {
             for i in &mut text.font_instances {
                 i.pos += offset;
-            }
-            if let Some(cursor) = &mut text.cursor {
-                cursor.pos += offset;
             }
         }
 
@@ -124,26 +131,49 @@ impl UiElement {
         }
     }
 
-    pub fn handle_input(&mut self, ui: &mut Ui, event: UiEvent) -> InputResult {
+    pub fn update_hover(&mut self, ui: &mut Ui, event: UiEvent) -> InputResult {
         if !self.visible {
             return InputResult::None;
         }
 
         if self.is_in(ui.cursor_pos) {
-            if !self.childs.iter().any(|c| c.id == ui.selection.hover_id()) {
-                for child in &mut self.childs {
-                    let result = child.handle_input(ui, event);
-                    if !result.is_none() {
-                        return result;
-                    };
+            for child in &mut self.childs {
+                if child.update_hover(ui, event) == InputResult::New {
+                    return InputResult::New;
                 }
             }
-            let element = UiRef::new(self);
-            let result = self.widget.interaction(element, ui, event);
 
-            return result;
+            if self.transparent {
+                InputResult::None
+            } else {
+                ui.selection.set_hover(&self);
+                InputResult::New
+            }
+        } else {
+            InputResult::None
         }
-        InputResult::None
+    }
+
+    pub fn handle_hover(&mut self, ui: &mut Ui, event: UiEvent) -> InputResult {
+        let element = UiRef::new(self);
+
+        let propagate = event != UiEvent::Move && event != UiEvent::HoverEnd;
+        let result = self.widget.interaction(element, ui, event);
+
+        if result == InputResult::New || !propagate {
+            return InputResult::New;
+        }
+
+        if let Some(mut parent) = self.parent {
+            unsafe { parent.as_mut() }.handle_hover(ui, event)
+        } else {
+            InputResult::None
+        }
+    }
+
+    pub fn handle_key(&mut self, ui: &mut Ui, event: &KeyEvent) -> InputResult {
+        let element = UiRef::new(self);
+        self.widget.key_event(element, ui, event)
     }
 
     /// Adds a child to self and returns a weak reference to it

@@ -1,20 +1,17 @@
 use std::ptr::NonNull;
 
-use crate::ui::{Ui, UiElement, UiEvent, UiRef, ui::InputResult};
+use crate::ui::UiElement;
 
 #[derive(Default)]
 pub(crate) struct Selection {
+    /// Represents the element the cursor points at
     pub hovered: Option<Select>,
+    /// Receives all inputs
     pub focused: Option<Select>,
+    /// Blocks all other interactions
     pub captured: Option<Select>,
 }
 impl Selection {
-    pub fn clear(&mut self) {
-        self.hovered = None;
-        self.focused = None;
-        self.captured = None;
-    }
-
     pub fn update_ptr(&mut self, element: &UiElement) {
         if let Some(hovered) = &mut self.hovered {
             hovered.update_ptr(element);
@@ -29,25 +26,6 @@ impl Selection {
         }
     }
 
-    pub fn end(&mut self, ui: &mut Ui) -> InputResult {
-        if let Some(hovered) = &mut self.hovered {
-            hovered
-                .as_mut()
-                .widget
-                .interaction(UiRef::new(hovered.as_mut()), ui, UiEvent::End)
-        } else {
-            InputResult::None
-        }
-    }
-
-    pub fn hover_id(&self) -> u32 {
-        if let Some(hovered) = &self.hovered {
-            hovered.as_ref().id
-        } else {
-            0
-        }
-    }
-
     pub fn get_hovered(&mut self) -> Option<&mut UiElement> {
         self.hovered.as_mut().map(|x| x.as_mut())
     }
@@ -59,6 +37,19 @@ impl Selection {
     pub fn clear_hover(&mut self) {
         self.hovered = None;
     }
+
+    pub fn get_focused<'a>(&mut self) -> Option<&'a mut UiElement> {
+        self.focused.as_mut().map(|x| x.as_mut())
+    }
+
+    pub fn set_capture(&mut self, element: &UiElement) {
+        self.captured = Some(Select::new(element));
+    }
+
+    pub fn clear_capture(&mut self) {
+        self.captured = None;
+    }
+
 
     pub fn check_removed(&mut self, id: u32) {
         if let Some(hovered) = &self.hovered
@@ -81,13 +72,14 @@ impl Selection {
     }
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct Select {
     ptr: NonNull<UiElement>,
     id: u32,
 }
 
 impl Select {
-    pub(crate) fn new(element: &UiElement) -> Self {
+    pub(crate) const fn new(element: &UiElement) -> Self {
         Self {
             ptr: NonNull::from_ref(element),
             id: element.id,
@@ -100,11 +92,17 @@ impl Select {
         }
     }
 
-    pub(crate) fn as_mut<'b>(&mut self) -> &'b mut UiElement {
+    pub(crate) const fn as_mut<'b>(&mut self) -> &'b mut UiElement {
         unsafe { self.ptr.as_mut() }
     }
 
-    pub(crate) fn as_ref(&self) -> &UiElement {
+    pub(crate) const fn as_ref(&self) -> &UiElement {
         unsafe { self.ptr.as_ref() }
+    }
+}
+
+impl PartialEq for Select {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
     }
 }

@@ -4,7 +4,7 @@ use std::io::Read;
 use std::path::PathBuf;
 
 pub struct Font {
-    data: [(u16, u16, u16); 256],
+    data: Box<[(u16, u16, u16); 256]>,
     pub height: u16,
 }
 
@@ -12,8 +12,9 @@ impl Font {
     pub fn parse(path: PathBuf) -> Self {
         let mut buf = [0; 1536];
         File::open(path).unwrap().read_exact(&mut buf).unwrap();
+        let buf: [(u16, u16, u16); 256] = unsafe { *buf.as_ptr().cast() };
         Self {
-            data: unsafe { *buf.as_ptr().cast() },
+            data: buf.into(),
             height: 8,
         }
     }
@@ -21,8 +22,9 @@ impl Font {
     pub fn parse_from_bytes(data: &[u8]) -> Self {
         let mut buf = [0; 1536];
         buf[..data.len()].copy_from_slice(data);
+        let buf: [(u16, u16, u16); 256] = unsafe { *buf.as_ptr().cast() };
         Self {
-            data: unsafe { *buf.as_ptr().cast() },
+            data: buf.into(),
             height: 8,
         }
     }
@@ -35,7 +37,7 @@ impl Font {
 
         let i = char as usize - 32;
 
-        self.data[i]
+        *self.data.get(i).unwrap_or(&(0, 0, 0))
     }
 
     pub fn get_width(&self, char: char) -> u16 {
@@ -46,7 +48,7 @@ impl Font {
 
         let i = char as usize - 32;
 
-        self.data[i].2
+        self.data.get(i).unwrap_or(&(0, 0, 0)).2
     }
 }
 

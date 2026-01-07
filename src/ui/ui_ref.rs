@@ -26,6 +26,11 @@ impl UiRef {
     pub fn get_mut(mut self, ui: &mut Ui) -> &mut UiElement {
         unsafe { &mut *self.inner }
     }
+
+    #[allow(unused)]
+    pub unsafe fn as_mut<'a>(mut self) -> &'a mut UiElement {
+        unsafe { &mut *self.inner }
+    }
 }
 
 impl Deref for UiRef {

@@ -11,6 +11,7 @@ pub enum UiEvent {
     Move,
     Scroll(MouseScrollDelta),
     Tick,
+    HoverEnd,
     End,
 }
 
