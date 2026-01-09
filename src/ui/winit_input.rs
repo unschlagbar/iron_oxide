@@ -1,6 +1,6 @@
 use winit::{
     event::{MouseButton, WindowEvent},
-    window::Window,
+    window::{CursorIcon, Window},
 };
 
 use crate::{
@@ -10,6 +10,23 @@ use crate::{
 
 impl Ui {
     pub fn window_event(&mut self, event: &WindowEvent, window: &Window) -> InputResult {
+        if matches!(
+            event,
+            WindowEvent::CursorMoved {
+                device_id: _,
+                position: _
+            }
+        ) || matches!(
+            event,
+            WindowEvent::MouseInput {
+                device_id: _,
+                state: _,
+                button: _,
+            }
+        ) {
+            self.cursor_icon = CursorIcon::Default;
+        }
+
         let result = match event {
             WindowEvent::CursorMoved {
                 device_id: _,
@@ -26,11 +43,8 @@ impl Ui {
             WindowEvent::MouseInput {
                 device_id: _,
                 state,
-                button,
-            } => match button {
-                MouseButton::Left => self.handle_input(self.cursor_pos, (*state).into()),
-                _ => InputResult::None,
-            },
+                button: MouseButton::Left,
+            } => self.handle_input(self.cursor_pos, (*state).into()),
             //Todo! Implement
             WindowEvent::Touch(_touch) => InputResult::None,
             WindowEvent::KeyboardInput {
@@ -40,7 +54,7 @@ impl Ui {
             } => {
                 if let Some(element) = self.selection.get_focused() {
                     element.handle_key(self, event)
-                } else {  
+                } else {
                     InputResult::None
                 }
             }
@@ -49,6 +63,11 @@ impl Ui {
 
         if self.is_dirty() && result.is_new() {
             window.request_redraw();
+        }
+
+        if self.cursor_icon != self.current_cursor_icon {
+            window.set_cursor(self.cursor_icon);
+            self.current_cursor_icon = self.cursor_icon;
         }
 
         result

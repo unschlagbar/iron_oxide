@@ -6,7 +6,7 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
     time::Instant,
 };
-use winit::dpi::PhysicalSize;
+use winit::{dpi::PhysicalSize, window::CursorIcon};
 
 use super::{BuildContext, Font, UiElement, UiEvent};
 use crate::{
@@ -26,7 +26,14 @@ pub struct Ui {
     pub(crate) elements: Vec<UiElement>,
     pub size: Vec2,
     pub cursor_pos: Vec2,
+
+    /// Target Cursor.
+    /// Should only be used from hovered Elements
+    pub cursor_icon: CursorIcon,
+    /// current Cursor.
+    pub current_cursor_icon: CursorIcon,
     pub mouse_down: bool,
+
     pub font: Font,
     pub visible: bool,
     pub(crate) dirty: DirtyFlags,
@@ -61,6 +68,8 @@ impl Ui {
             size: Vec2::zero(),
             id_gen: AtomicU32::new(1),
             cursor_pos: Vec2::default(),
+            cursor_icon: CursorIcon::Default,
+            current_cursor_icon: CursorIcon::Default,
             mouse_down: false,
             new_absolute: false,
 
@@ -81,8 +90,7 @@ impl Ui {
         }
     }
 
-    pub fn add_child_to_root(&mut self, mut element: UiElement) -> u32 {
-        let id = self.get_id();
+    pub fn add_child_to_root(&mut self, mut element: UiElement) -> UiRef {
         let z_index = if element.type_of::<Absolute>() {
             self.new_absolute = true;
             0.5
@@ -91,7 +99,7 @@ impl Ui {
         };
         let ticking = element.widget.is_ticking();
 
-        element.id = id;
+        element.id = self.get_id();
         element.z_index = z_index;
         element.init(self);
 
@@ -103,19 +111,29 @@ impl Ui {
         }
 
         self.layout_changed();
-        id
+        element
     }
 
-    pub fn add_child_to(&mut self, mut child: UiElement, parent_id: u32) -> Option<u32> {
-        let id = self.get_id();
-        let element = self.get_element(parent_id)?;
+    fn from_element<T: Into<Element>>(&mut self, element: T) -> Option<UiRef> {
+        match element.into() {
+            Element::Id(id) => self.get_element(id),
+            Element::Ref(ui_ref) => Some(ui_ref),
+        }
+    }
 
-        child.id = id;
-        child.z_index = element.z_index + 0.01;
+    pub fn add_child_to<T: Into<Element>>(
+        &mut self,
+        mut child: UiElement,
+        parent: T,
+    ) -> Option<UiRef> {
+        let parent = self.from_element(parent)?;
+
+        child.id = self.get_id();
+        child.z_index = parent.z_index + 0.01;
         child.init(self);
 
         let ticking = child.widget.is_ticking();
-        let child = element.get_mut(self).add_child(child);
+        let child = parent.get_mut(self).add_child(child);
 
         if let Some(child) = child {
             if ticking {
@@ -123,13 +141,15 @@ impl Ui {
             }
 
             self.layout_changed();
-            Some(id)
+            Some(child)
         } else {
             None
         }
     }
 
-    pub fn remove_element(&mut self, element: &UiElement) -> Option<UiElement> {
+    pub fn remove_element<T: Into<Element>>(&mut self, element: T) -> Option<UiElement> {
+        let element = self.from_element(element)?;
+
         if let Some(mut parent) = element.parent {
             let parent = unsafe { parent.as_mut() };
 
@@ -180,15 +200,10 @@ impl Ui {
         self.remove_elements(parent, 0..parent.childs.len())
     }
 
-    pub fn remove_element_by_id(&mut self, id: u32) -> Option<UiElement> {
-        let element = self.get_element(id)?;
-        self.remove_element(&element)
-    }
-
     pub fn remove_all(&mut self) {
         while !self.elements.is_empty() {
             let element = UiRef::new(self.elements.last_mut().unwrap());
-            self.remove_element(&element);
+            self.remove_element(element);
         }
     }
 
@@ -224,7 +239,7 @@ impl Ui {
             if element.id == id {
                 return Some(UiRef::new(element));
             } else {
-                let result = element.get_child_by_id(id);
+                let result = element.get_child(id);
                 if result.is_some() {
                     return result;
                 }
@@ -238,7 +253,7 @@ impl Ui {
             if element.id == id {
                 return Some(element);
             } else {
-                let result = element.get_child_by_id_mut(id);
+                let result = element.get_child_mut(id);
                 if result.is_some() {
                     return result;
                 }
@@ -275,11 +290,7 @@ impl Ui {
             for element in &mut self.elements {
                 if element.is_in(cursor_pos) {
                     // We still need to break since there could be a absolute element above
-                    if element.type_of::<Absolute>() {
-                        element.update_hover(ui, event);
-                    } else {
-                        element.update_hover(ui, event);
-                    }
+                    element.update_hover(ui, event);
                 }
             }
             self.new_absolute = false;
@@ -690,4 +701,21 @@ pub enum DirtyFlags {
     None,
     Layout,
     Color,
+}
+
+pub enum Element {
+    Id(u32),
+    Ref(UiRef),
+}
+
+impl From<u32> for Element {
+    fn from(value: u32) -> Self {
+        Self::Id(value)
+    }
+}
+
+impl From<UiRef> for Element {
+    fn from(value: UiRef) -> Self {
+        Self::Ref(value)
+    }
 }

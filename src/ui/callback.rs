@@ -1,3 +1,5 @@
+use winit::event::KeyEvent;
+
 use crate::ui::{Ui, UiRef};
 
 use super::UiEvent;
@@ -20,14 +22,34 @@ impl CallbackResult {
     }
 }
 
-pub struct CallContext<'a> {
+pub struct ButtonContext<'a> {
     pub ui: &'a mut Ui,
     pub element: UiRef,
     pub event: UiEvent,
 }
 
-impl CallContext<'_> {
-    pub fn new<'a>(ui: &'a mut Ui, element: UiRef, event: UiEvent) -> CallContext<'a> {
-        CallContext { ui, element, event }
+impl<'a> ButtonContext<'a> {
+    pub fn new(ui: &'a mut Ui, element: UiRef, event: UiEvent) -> Self {
+        Self { ui, element, event }
+    }
+}
+
+pub struct TextContext<'a> {
+    pub ui: &'a mut Ui,
+    pub element: UiRef,
+    pub event: &'a KeyEvent,
+    pub ingore: bool,
+    pub exit: bool,
+}
+
+impl<'a> TextContext<'a> {
+    pub fn new(ui: &'a mut Ui, element: UiRef, event: &'a KeyEvent) -> Self {
+        Self {
+            ui,
+            element,
+            event,
+            ingore: false,
+            exit: false,
+        }
     }
 }

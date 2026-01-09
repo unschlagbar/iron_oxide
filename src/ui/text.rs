@@ -1,13 +1,19 @@
 use std::{ops::Range, time::Instant};
 
 use ash::vk::Rect2D;
-use winit::{event::{ElementState, KeyEvent}, keyboard::{Key, NamedKey}};
+use winit::{
+    event::{ElementState, KeyEvent},
+    keyboard::{Key, NamedKey},
+};
 
 use crate::{
     graphics::{VertexDescription, formats::RGBA},
     primitives::Vec2,
     ui::{
-        Align, BuildContext, InputResult, Ui, UiElement, UiEvent, UiRef, materials::{FontInstance, UiInstance}, text_layout::TextLayout, widget::Widget
+        Align, BuildContext, InputResult, TextContext, Ui, UiElement, UiEvent, UiRef,
+        materials::{FontInstance, UiInstance},
+        text_layout::TextLayout,
+        widget::Widget,
     },
 };
 
@@ -19,6 +25,7 @@ pub struct Text {
 
     pub selectable: bool,
     pub cursor: Option<InputCursor>,
+    pub on_input: Option<fn(&mut TextContext)>,
 
     pub dirty: bool,
     pub font_instances: Vec<FontInstance>,
@@ -85,7 +92,7 @@ impl Widget for Text {
         let mut offset = context.pos_child();
 
         let font_size = self.layout.font_size;
-        
+
         let layout = self.layout.build(text, context);
 
         let align_size = context.size();
@@ -138,9 +145,10 @@ impl Widget for Text {
         {
             let pos = if cursor.index == 0 {
                 self.font_instances[0].pos
-            } else {
-                let char = &self.font_instances[cursor.index - 1];
+            } else if let Some(char) = self.font_instances.get(cursor.index - 1) {
                 char.pos + Vec2::new(char.size.x, 0.0)
+            } else {
+                return clip;
             };
 
             let scale = self.layout.font_size * 1.2 - self.layout.font_size;
@@ -180,44 +188,86 @@ impl Widget for Text {
         }
     }
 
-    fn interaction(
-        &mut self,
-        _element: UiRef,
-        _ui: &mut Ui,
-        event: UiEvent,
-    ) -> InputResult {
+    fn interaction(&mut self, _element: UiRef, _ui: &mut Ui, event: UiEvent) -> InputResult {
         if event == UiEvent::End && self.cursor.is_some() {
             self.cursor = None;
+        }
+
+        if event == UiEvent::Move {
+            println!("move text");
         }
         InputResult::None
     }
 
-    fn key_event(&mut self, _element: UiRef, ui: &mut Ui, event: &KeyEvent) -> InputResult {
+    fn key_event(&mut self, element: UiRef, ui: &mut Ui, event: &KeyEvent) -> InputResult {
         if event.state != ElementState::Pressed {
             return InputResult::None;
         }
-        if let Key::Named(name) = event.logical_key {
-            if name == NamedKey::Backspace {
-                self.text.pop();
-                self.dirty = true;
-                self.move_cursor(-1);
-                ui.layout_changed();
-                return InputResult::New;
-            } else if name == NamedKey::ArrowRight {
-                self.move_cursor(1);
-                ui.layout_changed();
-            } else if name == NamedKey::ArrowLeft {
-                self.move_cursor(-1);
-                ui.layout_changed();
+
+        if let Some(call) = self.on_input {
+            let mut context = TextContext::new(ui, element, event);
+            call(&mut context);
+            if context.ingore {
+                return InputResult::None;
             }
         }
 
-        if let Some(text) = &event.text && !text.is_empty() {
-            self.push_text(text);
-            self.move_cursor(text.len() as isize);
+        let cursor_pos = self.cursor.as_ref().unwrap().index;
+        let text_len = self.text.len();
+
+        if let Key::Named(name) = event.logical_key {
+            match name {
+                NamedKey::ArrowRight => {
+                    self.move_cursor(1);
+                    ui.layout_changed();
+                }
+                NamedKey::ArrowLeft => {
+                    self.move_cursor(-1);
+                    ui.layout_changed();
+                }
+                NamedKey::Backspace => {
+                    if cursor_pos != 0 {
+                        let start = char_to_byte(&self.text, cursor_pos - 1);
+                        let end = char_to_byte(&self.text, cursor_pos);
+
+                        self.text.replace_range(start..end, "");
+                        self.dirty = true;
+                        self.move_cursor(-1);
+                        ui.layout_changed();
+                        return InputResult::New;
+                    } else {
+                        return InputResult::None;
+                    }
+                }
+                NamedKey::Delete => {
+                    if text_len != 0 && cursor_pos < text_len {
+                        let start = char_to_byte(&self.text, cursor_pos);
+                        let end = char_to_byte(&self.text, cursor_pos + 1);
+
+                        self.text.replace_range(start..end, "");
+                        self.dirty = true;
+                        ui.layout_changed();
+                        return InputResult::New;
+                    } else {
+                        return InputResult::None;
+                    }
+                }
+                _ => (),
+            }
+        }
+
+        if let Some(text) = &event.text
+            && !text.is_empty()
+        {
+            let idx = char_to_byte(&self.text, cursor_pos);
+            self.text.insert_str(idx, text);
+
+            self.dirty = true;
+            self.move_cursor(text.chars().count() as isize);
             ui.layout_changed();
             return InputResult::New;
         }
+
         InputResult::New
     }
 }
@@ -232,6 +282,7 @@ impl Default for Text {
 
             selectable: true,
             cursor: None,
+            on_input: Some(default_on_input),
 
             dirty: true,
             font_instances: Vec::new(),
@@ -240,8 +291,22 @@ impl Default for Text {
 }
 
 pub struct InputCursor {
-    /// The index into text instances
+    /// The index into chars
     pub index: usize,
     pub start_time: Instant,
     pub is_on: bool,
+}
+
+fn char_to_byte(s: &str, char_idx: usize) -> usize {
+    s.char_indices()
+        .nth(char_idx)
+        .map(|(i, _)| i)
+        .unwrap_or(s.len())
+}
+
+fn default_on_input(ctx: &mut TextContext) {
+    if ctx.event.logical_key == Key::Named(NamedKey::Enter) {
+        ctx.ingore = true;
+        ctx.exit = true;
+    }
 }

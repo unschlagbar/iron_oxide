@@ -5,7 +5,7 @@ use std::{
 };
 
 use ash::vk::Rect2D;
-use winit::event::KeyEvent;
+use winit::{event::KeyEvent, window::CursorIcon};
 
 use super::{BuildContext, Text, Ui, UiEvent, ui::InputResult};
 use crate::{
@@ -118,10 +118,6 @@ impl UiElement {
         self.get_text_at_pos(0)
     }
 
-    pub fn get_child(&mut self, index: usize) -> Option<UiRef> {
-        Some(UiRef::new(self.childs.get_mut(index)?))
-    }
-
     pub fn get_text_at_pos(&self, pos: usize) -> Option<&str> {
         let child = self.childs.get(pos)?;
         if let Some(text) = child.downcast::<Text>() {
@@ -131,14 +127,14 @@ impl UiElement {
         }
     }
 
-    pub fn update_hover(&mut self, ui: &mut Ui, event: UiEvent) -> InputResult {
+    pub fn update_hover(&mut self, ui: &mut Ui, _event: UiEvent) -> InputResult {
         if !self.visible {
             return InputResult::None;
         }
 
         if self.is_in(ui.cursor_pos) {
             for child in &mut self.childs {
-                if child.update_hover(ui, event) == InputResult::New {
+                if child.update_hover(ui, _event) == InputResult::New {
                     return InputResult::New;
                 }
             }
@@ -146,7 +142,7 @@ impl UiElement {
             if self.transparent {
                 InputResult::None
             } else {
-                ui.selection.set_hover(&self);
+                ui.selection.set_hover(self);
                 InputResult::New
             }
         } else {
@@ -202,7 +198,9 @@ impl UiElement {
     /// Removes all pointers that point to the element to prevent invalid dereferencing
     pub(crate) fn remove_residue(&self, ui: &mut Ui) {
         ui.remove_tick(self.id);
-        ui.selection.check_removed(self.id);
+        if ui.selection.check_removed(self.id) {
+            ui.cursor_icon = CursorIcon::Default;
+        }
 
         for child in &self.childs {
             child.remove_residue(ui);
@@ -232,22 +230,29 @@ impl UiElement {
         }
     }
 
-    pub fn get_child_by_id(&self, id: u32) -> Option<UiRef> {
+    /// Returns a ref to the child
+    /// Searches for childs with the id
+    pub fn get_child(&self, id: u32) -> Option<UiRef> {
         for child in &self.childs {
             if child.id == id {
                 return Some(UiRef::new_ref(child));
-            } else if let Some(child) = child.get_child_by_id(id) {
+            } else if let Some(child) = child.get_child(id) {
                 return Some(child);
             }
         }
         None
     }
 
-    pub fn get_child_by_id_mut(&mut self, id: u32) -> Option<&mut UiElement> {
+    /// Returns the child at the index
+    pub fn child(&self, idx: usize) -> Option<UiRef> {
+        self.childs.get(idx).map(UiRef::new_ref)
+    }
+
+    pub fn get_child_mut(&mut self, id: u32) -> Option<&mut UiElement> {
         for child in &mut self.childs {
             if child.id == id {
                 return Some(child);
-            } else if let Some(child) = child.get_child_by_id_mut(id) {
+            } else if let Some(child) = child.get_child_mut(id) {
                 return Some(child);
             }
         }

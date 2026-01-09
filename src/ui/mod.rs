@@ -27,8 +27,9 @@ mod ticking;
 mod building;
 
 pub use build_context::BuildContext;
-pub use callback::CallContext;
+pub use callback::ButtonContext;
 pub use callback::CallbackResult;
+pub use callback::TextContext;
 pub use element::UiElement;
 pub use events::QueuedEvent;
 pub use events::UiEvent;

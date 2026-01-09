@@ -1,8 +1,4 @@
-use std::{
-    fs::{self, File},
-    io::BufReader,
-    vec,
-};
+use std::{fs::File, io::BufReader, path::PathBuf, vec};
 
 use ash::vk::{
     self, BufferUsageFlags, CommandPool, Extent3D, Format, ImageTiling, ImageUsageFlags,
@@ -31,11 +27,10 @@ impl TextureAtlas {
         }
     }
 
-    pub fn load_directory(&mut self, path: &str, base: &VkBase, cmd_pool: CommandPool) {
+    pub fn load_directory(&mut self, path: PathBuf, base: &VkBase, cmd_pool: CommandPool) {
         let mut pngs = Vec::new();
-
         {
-            let files = if let Ok(dir) = fs::read_dir(path) {
+            let files = if let Ok(dir) = path.read_dir() {
                 dir
             } else {
                 println!("Couldnt load textures");

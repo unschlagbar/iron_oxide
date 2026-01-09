@@ -3,12 +3,12 @@ use std::time::Instant;
 use ash::vk::Rect2D;
 
 use super::{BuildContext, UiElement, UiUnit};
-use crate::ui::{CallContext, Ui, UiEvent, UiRef, ui::InputResult, widget::Widget};
+use crate::ui::{ButtonContext, Ui, UiEvent, UiRef, ui::InputResult, widget::Widget};
 
 pub struct Ticking<T: Widget> {
     pub last_tick: Instant,
     pub progress: f32,
-    pub tick: Option<fn(CallContext)>,
+    pub tick: Option<fn(ButtonContext)>,
     pub inner: T,
 }
 
@@ -36,7 +36,7 @@ impl<T: Widget> Widget for Ticking<T> {
 
     fn tick(&mut self, element: UiRef, ui: &mut Ui) {
         if let Some(call) = self.tick {
-            let context = CallContext {
+            let context = ButtonContext {
                 ui,
                 element,
                 event: UiEvent::Tick,

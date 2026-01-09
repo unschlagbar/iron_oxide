@@ -1,11 +1,12 @@
 use ash::vk::Rect2D;
+use winit::window::CursorIcon;
 
 use super::{BuildContext, UiElement, UiRect, UiUnit};
 use crate::{
     graphics::{VertexDescription, formats::RGBA},
     primitives::Vec2,
     ui::{
-        CallContext, FlexDirection, QueuedEvent, Ui, UiEvent, UiRef, materials::UiInstance,
+        ButtonContext, FlexDirection, QueuedEvent, Ui, UiEvent, UiRef, materials::UiInstance,
         ui::InputResult, widget::Widget,
     },
 };
@@ -22,7 +23,9 @@ pub struct Button {
     pub border: [u8; 4],
     pub corner: [UiUnit; 4],
     pub state: ButtonState,
-    pub callback: Option<fn(CallContext)>,
+    pub callback: Option<fn(ButtonContext)>,
+    /// if true the ui requests the pointer cursor on hover
+    pub cursor: CursorIcon,
     pub message: u16,
 }
 
@@ -104,7 +107,6 @@ impl Widget for Button {
             ui.set_event(QueuedEvent::new(&element, event, self.message));
         }
 
-
         match event {
             UiEvent::Press => {
                 self.state = ButtonState::Pressed;
@@ -132,10 +134,14 @@ impl Widget for Button {
             _ => return InputResult::None,
         }
 
+        if self.state != ButtonState::Normal {
+            ui.cursor_icon = self.cursor;
+        }
+
         if let Some(call) = self.callback
             && old_state != self.state
         {
-            let context = CallContext { ui, element, event };
+            let context = ButtonContext { ui, element, event };
             call(context);
         }
 
@@ -157,6 +163,7 @@ impl Default for Button {
             flex_direction: FlexDirection::Horizontal,
             state: ButtonState::Normal,
             callback: None,
+            cursor: CursorIcon::Pointer,
             message: 0,
         }
     }

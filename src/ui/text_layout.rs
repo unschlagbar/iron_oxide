@@ -275,7 +275,3 @@ pub struct Glyph {
     pub uv_start: (u16, u16),
     pub uv_size: (u16, u16),
 }
-
-impl Glyph {
-    pub fn is_wrapable() {}
-}

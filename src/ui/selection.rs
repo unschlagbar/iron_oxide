@@ -50,12 +50,16 @@ impl Selection {
         self.captured = None;
     }
 
+    pub fn check_removed(&mut self, id: u32) -> bool {
+        let was_hover;
 
-    pub fn check_removed(&mut self, id: u32) {
         if let Some(hovered) = &self.hovered
             && hovered.as_ref().id == id
         {
             self.hovered = None;
+            was_hover = true;
+        } else {
+            was_hover = false;
         }
 
         if let Some(focused) = &self.focused
@@ -69,6 +73,8 @@ impl Selection {
         {
             self.captured = None;
         }
+
+        was_hover
     }
 }
 
