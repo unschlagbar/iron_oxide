@@ -7,7 +7,7 @@ use crate::{
     primitives::Vec2,
     ui::{
         ButtonContext, FlexDirection, QueuedEvent, Ui, UiEvent, UiRef, materials::UiInstance,
-        ui::InputResult, widget::Widget,
+        system::InputResult, widget::Widget,
     },
 };
 

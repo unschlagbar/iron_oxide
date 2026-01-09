@@ -5,7 +5,7 @@ use winit::event::KeyEvent;
 
 use crate::{
     primitives::Vec2,
-    ui::{BuildContext, Image, InputResult, Text, Ui, UiElement, UiEvent, UiRef, UiUnit},
+    ui::{BuildContext, InputResult, Ui, UiElement, UiEvent, UiRef, UiUnit},
 };
 
 #[allow(unused)]
@@ -37,13 +37,27 @@ pub trait Widget: 'static {
 
 pub trait ElementBuilder: Default + Widget + Sized + 'static {
     fn wrap_childs(self, name: &'static str, childs: Vec<UiElement>) -> UiElement {
-        let transparent = TypeId::of::<Self>() == TypeId::of::<Text>()
-            || TypeId::of::<Self>() == TypeId::of::<Image>();
         UiElement {
             id: u32::MAX,
             name,
             visible: true,
-            transparent,
+            transparent: false,
+            size: Vec2::zero(),
+            pos: Vec2::zero(),
+            parent: None,
+            childs,
+            widget: Box::new(self),
+            z_index: 0.0,
+            type_id: TypeId::of::<Self>(),
+        }
+    }
+
+    fn wrap_childs_transparent(self, name: &'static str, childs: Vec<UiElement>) -> UiElement {
+        UiElement {
+            id: u32::MAX,
+            name,
+            visible: true,
+            transparent: true,
             size: Vec2::zero(),
             pos: Vec2::zero(),
             parent: None,
@@ -56,6 +70,10 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
 
     fn wrap(self, name: &'static str) -> UiElement {
         self.wrap_childs(name, Vec::new())
+    }
+
+    fn wrap_transparent(self, name: &'static str) -> UiElement {
+        self.wrap_childs_transparent(name, Vec::new())
     }
 }
 

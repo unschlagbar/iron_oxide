@@ -27,7 +27,7 @@ impl UiRef {
         unsafe { &mut *self.inner }
     }
 
-    #[allow(unused)]
+    #[allow(unused, clippy::missing_safety_doc)]
     pub unsafe fn as_mut<'a>(mut self) -> &'a mut UiElement {
         unsafe { &mut *self.inner }
     }

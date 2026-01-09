@@ -7,7 +7,7 @@ use std::{
 use ash::vk::Rect2D;
 use winit::{event::KeyEvent, window::CursorIcon};
 
-use super::{BuildContext, Text, Ui, UiEvent, ui::InputResult};
+use super::{BuildContext, Text, Ui, UiEvent, system::InputResult};
 use crate::{
     primitives::Vec2,
     ui::{UiRef, widget::Widget},

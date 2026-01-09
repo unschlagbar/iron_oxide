@@ -106,15 +106,13 @@ impl QueuedEventHandler {
                 self.event2 = Some(event);
                 self.first = 1;
             }
-        } else {
-            if self.first == 1 {
+        } else if self.first == 1 {
                 self.first = 2;
                 self.event1 = Some(event);
             } else {
                 self.first = 1;
                 self.event2 = Some(event);
             }
-        }
     }
 
     pub fn get(&mut self) -> Option<QueuedEvent> {

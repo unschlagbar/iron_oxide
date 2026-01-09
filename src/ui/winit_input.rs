@@ -5,7 +5,7 @@ use winit::{
 
 use crate::{
     primitives::Vec2,
-    ui::{Ui, UiEvent, ui::InputResult},
+    ui::{Ui, UiEvent, system::InputResult},
 };
 
 impl Ui {

@@ -114,7 +114,7 @@ impl Ui {
         element
     }
 
-    fn from_element<T: Into<Element>>(&mut self, element: T) -> Option<UiRef> {
+    fn element_to_ref<T: Into<Element>>(&mut self, element: T) -> Option<UiRef> {
         match element.into() {
             Element::Id(id) => self.get_element(id),
             Element::Ref(ui_ref) => Some(ui_ref),
@@ -126,7 +126,7 @@ impl Ui {
         mut child: UiElement,
         parent: T,
     ) -> Option<UiRef> {
-        let parent = self.from_element(parent)?;
+        let parent = self.element_to_ref(parent)?;
 
         child.id = self.get_id();
         child.z_index = parent.z_index + 0.01;
@@ -148,7 +148,7 @@ impl Ui {
     }
 
     pub fn remove_element<T: Into<Element>>(&mut self, element: T) -> Option<UiElement> {
-        let element = self.from_element(element)?;
+        let element = self.element_to_ref(element)?;
 
         if let Some(mut parent) = element.parent {
             let parent = unsafe { parent.as_mut() };

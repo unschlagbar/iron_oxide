@@ -3,7 +3,7 @@ use std::time::Instant;
 use ash::vk::Rect2D;
 
 use super::{BuildContext, UiElement, UiUnit};
-use crate::ui::{ButtonContext, Ui, UiEvent, UiRef, ui::InputResult, widget::Widget};
+use crate::ui::{ButtonContext, Ui, UiEvent, UiRef, system::InputResult, widget::Widget};
 
 pub struct Ticking<T: Widget> {
     pub last_tick: Instant,
