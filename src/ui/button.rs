@@ -77,7 +77,7 @@ impl Widget for Button {
 
     fn instance(
         &mut self,
-        element: &UiElement,
+        element: UiRef,
         ui: &mut Ui,
         clip: Option<Rect2D>,
     ) -> Option<Rect2D> {

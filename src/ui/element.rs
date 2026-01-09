@@ -1,7 +1,7 @@
 use std::{
     any::TypeId,
     fmt::{self, Debug},
-    ptr::{self, NonNull},
+    ptr::NonNull,
 };
 
 use ash::vk::Rect2D;
@@ -54,18 +54,9 @@ impl UiElement {
         }
     }
 
-    pub(crate) fn childs_mut<'b>(&self) -> &'b mut Vec<Self> {
-        unsafe {
-            let childs: &Vec<Self> = &self.childs;
-            #[allow(invalid_reference_casting)]
-            &mut *(childs as *const Vec<Self> as *mut Vec<Self>)
-        }
-    }
-
-    pub(crate) fn childs_mut2<'b>(&mut self) -> &'b mut Vec<Self> {
+    fn childs_mut<'a>(&mut self) -> &'a mut Vec<Self> {
         unsafe {
             let childs = &mut self.childs;
-            #[allow(invalid_reference_casting)]
             &mut *(childs as *mut Vec<Self>)
         }
     }
@@ -75,7 +66,7 @@ impl UiElement {
         context.element_pos = self.pos;
         context.element_size = self.size;
 
-        let childs = self.childs_mut2();
+        let childs = self.childs_mut();
 
         self.widget.build(childs, context);
 
@@ -87,7 +78,7 @@ impl UiElement {
         let mut inner_clip = clip;
 
         if self.visible {
-            let element = unsafe { &*ptr::from_mut(self) };
+            let element = UiRef::new(self);
             inner_clip = self.widget.instance(element, ui, clip);
         }
 

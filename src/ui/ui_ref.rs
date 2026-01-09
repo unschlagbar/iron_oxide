@@ -31,6 +31,15 @@ impl UiRef {
     pub unsafe fn as_mut<'a>(mut self) -> &'a mut UiElement {
         unsafe { &mut *self.inner }
     }
+
+    #[allow(unused)]
+    pub fn childs_mut(mut self, ui: &mut Ui) -> &mut Vec<UiElement> {
+        unsafe {
+            let childs: &Vec<UiElement> = &self.childs;
+            #[allow(invalid_reference_casting)]
+            &mut *(childs as *const Vec<UiElement> as *mut Vec<UiElement>)
+        }
+    }
 }
 
 impl Deref for UiRef {

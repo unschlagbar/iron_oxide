@@ -72,7 +72,7 @@ impl Widget for ScrollPanel {
             if old_offset != self.scroll_offset.y {
                 ui.color_changed();
 
-                for element in element.childs_mut() {
+                for element in element.childs_mut(ui) {
                     element.offset_element(Vec2::new(0.0, self.scroll_offset.y - old_offset));
                 }
 
@@ -89,7 +89,7 @@ impl Widget for ScrollPanel {
         }
     }
 
-    fn instance(&mut self, element: &UiElement, _: &mut Ui, _: Option<Rect2D>) -> Option<Rect2D> {
+    fn instance(&mut self, element: UiRef, _: &mut Ui, _: Option<Rect2D>) -> Option<Rect2D> {
         Some(Rect2D {
             offset: element.pos.into(),
             extent: element.size.into(),

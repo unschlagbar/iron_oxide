@@ -125,7 +125,7 @@ impl Widget for Text {
 
     fn instance(
         &mut self,
-        element: &UiElement,
+        element: UiRef,
         ui: &mut Ui,
         clip: Option<Rect2D>,
     ) -> Option<Rect2D> {
@@ -133,7 +133,7 @@ impl Widget for Text {
             let parent = unsafe { element.parent.unwrap().as_ref() };
             let mut context = BuildContext::default(&ui.font, parent.size);
             context.child_start_pos = parent.pos;
-            self.build(element.childs_mut(), &mut context);
+            self.build(element.childs_mut(ui), &mut context);
         }
 
         for inst in &self.font_instances {

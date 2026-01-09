@@ -4,7 +4,7 @@ use super::{Align, BuildContext, UiElement, UiRect, UiUnit};
 use crate::{
     graphics::{VertexDescription, formats::RGBA},
     primitives::Vec2,
-    ui::{FlexDirection, Ui, materials::UiInstance, widget::Widget},
+    ui::{FlexDirection, Ui, UiRef, materials::UiInstance, widget::Widget},
 };
 
 pub struct Absolute {
@@ -66,7 +66,7 @@ impl Widget for Absolute {
 
     fn instance(
         &mut self,
-        element: &UiElement,
+        element: UiRef,
         ui: &mut Ui,
         clip: Option<Rect2D>,
     ) -> Option<Rect2D> {
