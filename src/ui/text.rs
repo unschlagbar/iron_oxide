@@ -123,12 +123,7 @@ impl Widget for Text {
         context.apply_data(offset, layout.size);
     }
 
-    fn instance(
-        &mut self,
-        element: UiRef,
-        ui: &mut Ui,
-        clip: Option<Rect2D>,
-    ) -> Option<Rect2D> {
+    fn instance(&mut self, element: UiRef, ui: &mut Ui, clip: Option<Rect2D>) -> Option<Rect2D> {
         if self.dirty {
             let parent = unsafe { element.parent.unwrap().as_ref() };
             let mut context = BuildContext::default(&ui.font, parent.size);

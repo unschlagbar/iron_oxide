@@ -25,12 +25,7 @@ impl<T: Widget> Widget for Ticking<T> {
         self.inner.get_size()
     }
 
-    fn instance(
-        &mut self,
-        element: UiRef,
-        ui: &mut Ui,
-        clip: Option<Rect2D>,
-    ) -> Option<Rect2D> {
+    fn instance(&mut self, element: UiRef, ui: &mut Ui, clip: Option<Rect2D>) -> Option<Rect2D> {
         self.inner.instance(element, ui, clip)
     }
 

@@ -14,7 +14,7 @@ use crate::{
     primitives::{Matrix4, Vec2},
     ui::{
         Absolute, QueuedEvent, UiRef,
-        events::TickEvent,
+        events::{QueuedEventHandler, TickEvent},
         materials::{AtlasInstance, Basic, FontInstance, Material, SingleImage, UiInstance},
         selection::{Select, Selection},
     },
@@ -43,7 +43,7 @@ pub struct Ui {
     // Check all this before removing a Node!
     // If not checked this will result in undefined behavior!
     pub(crate) selection: Selection,
-    pub event: Option<QueuedEvent>,
+    pub event: QueuedEventHandler,
     pub tick_queue: Vec<TickEvent>,
 
     pub texture_atlas: TextureAtlas,
@@ -74,7 +74,7 @@ impl Ui {
             new_absolute: false,
 
             selection: Selection::default(),
-            event: None,
+            event: QueuedEventHandler::new(),
             tick_queue: Vec::new(),
 
             font: Font::parse_from_bytes(include_bytes!("../../font/std.fef")),
@@ -374,7 +374,11 @@ impl Ui {
     }
 
     pub fn set_event(&mut self, event: QueuedEvent) {
-        self.event = Some(event);
+        self.event.set(event);
+    }
+
+    pub fn get_event(&mut self) -> Option<QueuedEvent> {
+        self.event.get()
     }
 
     pub fn color_changed(&mut self) {

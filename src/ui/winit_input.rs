@@ -1,5 +1,5 @@
 use winit::{
-    event::{MouseButton, WindowEvent},
+    event::WindowEvent,
     window::{CursorIcon, Window},
 };
 
@@ -43,8 +43,8 @@ impl Ui {
             WindowEvent::MouseInput {
                 device_id: _,
                 state,
-                button: MouseButton::Left,
-            } => self.handle_input(self.cursor_pos, (*state).into()),
+                button,
+            } => self.handle_input(self.cursor_pos, (*state, *button).into()),
             //Todo! Implement
             WindowEvent::Touch(_touch) => InputResult::None,
             WindowEvent::KeyboardInput {

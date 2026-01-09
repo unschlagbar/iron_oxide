@@ -75,12 +75,7 @@ impl Widget for Button {
         (self.width, self.height)
     }
 
-    fn instance(
-        &mut self,
-        element: UiRef,
-        ui: &mut Ui,
-        clip: Option<Rect2D>,
-    ) -> Option<Rect2D> {
+    fn instance(&mut self, element: UiRef, ui: &mut Ui, clip: Option<Rect2D>) -> Option<Rect2D> {
         let material = &mut ui.materials[0];
         let to_add = UiInstance {
             color: self.color,

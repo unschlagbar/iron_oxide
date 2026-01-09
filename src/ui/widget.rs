@@ -16,12 +16,7 @@ pub trait Widget: 'static {
         (UiUnit::Undefined, UiUnit::Undefined)
     }
 
-    fn instance(
-        &mut self,
-        element: UiRef,
-        ui: &mut Ui,
-        clip: Option<Rect2D>,
-    ) -> Option<Rect2D> {
+    fn instance(&mut self, element: UiRef, ui: &mut Ui, clip: Option<Rect2D>) -> Option<Rect2D> {
         clip
     }
 

@@ -18,12 +18,7 @@ impl Widget for Image {
         context.apply_data(context.child_start_pos, context.available_size);
     }
 
-    fn instance(
-        &mut self,
-        element: UiRef,
-        ui: &mut Ui,
-        clip: Option<Rect2D>,
-    ) -> Option<Rect2D> {
+    fn instance(&mut self, element: UiRef, ui: &mut Ui, clip: Option<Rect2D>) -> Option<Rect2D> {
         let material = &mut ui.materials[2];
         let atlas_entry = &ui.texture_atlas.images[self.atlas_index as usize];
         let to_add = AtlasInstance {
