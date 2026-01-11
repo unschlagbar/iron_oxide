@@ -9,9 +9,8 @@ edition = "2024"
 sha1_smol = {version = "1.0.1", optional = true}
 base64 = {version = "0.22.0", optional = true}
 ash = {version = "0.38.0", optional = true}
-ash-window = {version = "0.13.0", optional = true}
 png = {version = "0.18.0", optional = true}
-zip = {version = "6.0.0", optional = true}
+zip = {version = "7.0.0", optional = true}
 rand = "0.9.2"
 
 [target.'cfg(target_os = "android")'.dependencies]
@@ -19,13 +18,14 @@ winit = { version = "0.30.12", features = ["android-game-activity"], optional = 
 ndk = { version = "0.9.0", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-winit = { version = "0.30.12", default-features = false, features = ["rwh_06", "wayland", "wayland-csd-adwaita", "wayland-dlopen"], optional = true }
+winit = { version = "0.30.12", default-features = false, features = ["rwh_06", "wayland", "wayland-dlopen"], optional = true }
 
 [target.'cfg(all(not(target_os = "android"), not(target_os = "linux")))'.dependencies]
 winit = { version = "0.30.12", optional = true }
 
 [features]
 default = ["vulkan"]
-vulkan = ["ash", "ash-window", "winit", "png", "ndk"]
+vulkan = ["ash", "winit", "png", "ndk"]
+x11 = ["winit/x11"]
 net = ["zip", "base64", "sha1_smol"]
 linked = ["ash/linked"]

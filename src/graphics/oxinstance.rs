@@ -13,6 +13,8 @@ use winit::{
     window::Window,
 };
 
+use crate::graphics::platform::{create_surface, get_required_extensions};
+
 pub struct VkBase {
     pub entry: ash::Entry,
     pub instance: ash::Instance,
@@ -74,10 +76,7 @@ impl VkBase {
             Self::select_physical_device(&instance, required_capabilities);
 
         let surface_loader = surface::Instance::new(&entry, &instance);
-        let surface = unsafe {
-            ash_window::create_surface(&entry, &instance, display_handle, window_handle, None)
-                .unwrap_unchecked()
-        };
+        let surface = create_surface(&entry, &instance, display_handle, window_handle).unwrap();
 
         let queue_family_index =
             Self::get_queue_family_index(physical_device, &instance, surface, &surface_loader);
@@ -126,8 +125,7 @@ impl VkBase {
         };
 
         let mut extensions = Vec::with_capacity(3);
-        extensions
-            .extend_from_slice(ash_window::enumerate_required_extensions(display_handle).unwrap());
+        extensions.extend_from_slice(get_required_extensions(display_handle).unwrap());
 
         #[cfg(debug_assertions)]
         extensions.push(ext::debug_utils::NAME.as_ptr() as _);

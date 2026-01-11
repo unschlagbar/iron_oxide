@@ -4,6 +4,7 @@ mod asset_manager;
 pub mod formats;
 mod image;
 mod oxinstance;
+pub mod platform;
 mod shader_modul;
 mod single_time_commands;
 mod swapchain;
