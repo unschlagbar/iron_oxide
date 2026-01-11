@@ -23,7 +23,7 @@ pub struct UiElement {
     pub transparent: bool,
     pub size: Vec2,
     pub pos: Vec2,
-    pub z_index: f32,
+    pub z_index: i16,
     pub parent: Option<UiRef>,
     pub childs: Vec<Self>,
     pub(crate) widget: Box<dyn Widget>,
@@ -174,7 +174,6 @@ impl UiElement {
 
         // if a realloc happens we need to update the child pointers
         if ptr != childs.as_ptr() {
-            println!("realloc");
             for child in childs.iter_mut() {
                 child.update_ptrs(ui);
             }
@@ -208,7 +207,7 @@ impl UiElement {
     /// Sets id, parent and z-index for all childs
     pub(crate) fn init(&mut self, ui: &Ui) {
         let parent = Some(UiRef::new(self));
-        let z_index = self.z_index + 0.01;
+        let z_index = self.z_index + 10;
         for child in &mut self.childs {
             child.parent = parent;
             child.id = ui.get_id();

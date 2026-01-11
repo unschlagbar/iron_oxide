@@ -47,7 +47,7 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
             parent: None,
             childs,
             widget: Box::new(self),
-            z_index: 0.0,
+            z_index: 0,
         }
     }
 
@@ -62,7 +62,7 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
             parent: None,
             childs,
             widget: Box::new(self),
-            z_index: 0.0,
+            z_index: 0,
         }
     }
 

@@ -9,7 +9,7 @@ pub struct BuildContext {
     /// Final position of current element
     pub element_pos: Vec2,
     /// Depth
-    pub z_index: f32,
+    pub z_index: i16,
 
     /// Available layout space given by parent (content box)
     pub available_size: Vec2,
@@ -33,7 +33,7 @@ impl BuildContext {
         Self {
             element_size: Vec2::zero(),
             element_pos: Vec2::zero(),
-            z_index: 0.0,
+            z_index: 0,
 
             available_size: parent_size,
             child_start_pos: Vec2::zero(),
@@ -50,7 +50,7 @@ impl BuildContext {
         Self {
             element_size: Vec2::zero(),
             element_pos: Vec2::zero(),
-            z_index: 0.0,
+            z_index: 0,
 
             available_size: available,
             child_start_pos: start,

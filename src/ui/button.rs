@@ -85,7 +85,7 @@ impl Widget for Button {
             y: element.pos.y as _,
             width: element.size.x as _,
             height: element.size.y as _,
-            corner: self.corner[0].px(element.size),
+            corner: self.corner[0].px(element.size) as u16,
             z_index: element.z_index,
         };
         material.add(to_add.to_add(), 0, clip);

@@ -1,6 +1,5 @@
 use ash::vk;
 use std::{
-    any::TypeId,
     ops::Range,
     ptr,
     sync::atomic::{AtomicU32, Ordering},
@@ -36,7 +35,6 @@ pub struct Ui {
     pub font: Font,
     pub visible: bool,
     pub(crate) dirty: DirtyFlags,
-    pub different_dirty: bool,
     pub new_absolute: bool,
 
     // Check all this before removing a Node!
@@ -54,7 +52,6 @@ pub struct Ui {
     pub(crate) atl_set: vk::DescriptorSet,
 
     pub materials: Vec<Box<dyn Material>>,
-    pub mat_table: Vec<TypeId>,
 }
 
 impl Ui {
@@ -63,7 +60,6 @@ impl Ui {
             visible,
             elements: Vec::new(),
             dirty: DirtyFlags::Layout,
-            different_dirty: false,
             size: Vec2::zero(),
             id_gen: AtomicU32::new(1),
             cursor_pos: Vec2::default(),
@@ -85,16 +81,15 @@ impl Ui {
             atl_set: vk::DescriptorSet::null(),
 
             materials: Vec::with_capacity(3),
-            mat_table: Vec::with_capacity(3),
         }
     }
 
     pub fn add_child_to_root(&mut self, mut element: UiElement) -> UiRef {
         let z_index = if element.type_of::<Absolute>() {
             self.new_absolute = true;
-            0.5
+            500
         } else {
-            0.01
+            10
         };
         let ticking = element.widget.is_ticking();
 
@@ -129,7 +124,7 @@ impl Ui {
         let mut parent = self.element_to_ref(parent)?;
 
         child.id = self.get_id();
-        child.z_index = parent.z_index + 0.01;
+        child.z_index = parent.z_index + 10;
         child.parent = Some(parent);
 
         let ticking = child.widget.is_ticking();
@@ -297,7 +292,6 @@ impl Ui {
             if exit {
                 self.selection.focused = None
             }
-            
         }
 
         // 2. Check for new hover
@@ -480,7 +474,6 @@ impl Ui {
 
     fn add_mat<T: Material + 'static>(&mut self, material: T) {
         self.materials.push(Box::new(material));
-        self.mat_table.push(TypeId::of::<T>());
     }
 
     pub fn update(&mut self, base: &VkBase, command_buffer: vk::CommandBuffer) {

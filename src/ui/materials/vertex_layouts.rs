@@ -15,8 +15,8 @@ pub struct UiInstance {
     pub y: i16,
     pub width: i16,
     pub height: i16,
-    pub corner: f32,
-    pub z_index: f32,
+    pub corner: u16,
+    pub z_index: i16,
 }
 
 impl VertexDescription for UiInstance {
@@ -73,13 +73,13 @@ impl VertexDescription for UiInstance {
         VertexInputAttributeDescription {
             binding: 0,
             location: 7,
-            format: Format::R32_SFLOAT,
+            format: Format::R16_UINT,
             offset: offset_of!(Self, corner) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 8,
-            format: Format::R32_SFLOAT,
+            format: Format::R16_SINT,
             offset: offset_of!(Self, z_index) as u32,
         },
     ];
@@ -92,7 +92,7 @@ pub struct AtlasInstance {
     pub size: Vec2,
     pub uv_start: (u16, u16),
     pub uv_size: (u16, u16),
-    pub z_index: f32,
+    pub z_index: i16,
 }
 
 impl VertexDescription for AtlasInstance {
@@ -137,7 +137,7 @@ impl VertexDescription for AtlasInstance {
         VertexInputAttributeDescription {
             binding: 0,
             location: 5,
-            format: Format::R32_SFLOAT,
+            format: Format::R16_SINT,
             offset: offset_of!(Self, z_index) as u32,
         },
     ];
@@ -150,7 +150,7 @@ pub struct FontInstance {
     pub size: Vec2,
     pub uv_start: (u16, u16),
     pub uv_size: (u16, u16),
-    pub z_index: f32,
+    pub z_index: i16,
 }
 
 impl Default for FontInstance {
@@ -161,7 +161,7 @@ impl Default for FontInstance {
             size: Vec2::zero(),
             uv_start: (0, 0),
             uv_size: (0, 0),
-            z_index: 0.0,
+            z_index: 0,
         }
     }
 }
@@ -208,7 +208,7 @@ impl VertexDescription for FontInstance {
         VertexInputAttributeDescription {
             binding: 0,
             location: 5,
-            format: Format::R32_SFLOAT,
+            format: Format::R16_SINT,
             offset: offset_of!(FontInstance, z_index) as u32,
         },
     ];

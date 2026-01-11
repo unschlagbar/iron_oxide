@@ -176,7 +176,7 @@ impl Widget for Text {
                 y: (pos.y - scale * 0.5) as _,
                 width: 2,
                 height: (self.layout.font_size + scale) as _,
-                corner: 0.0,
+                corner: 0,
                 z_index: element.z_index,
             };
             material.add(to_add.to_add(), 0, clip);
