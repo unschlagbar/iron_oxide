@@ -1,6 +1,5 @@
 use std::{
     fmt::{Debug, Formatter, Result},
-    marker::PhantomData,
     ops::Deref,
     ptr::NonNull,
 };
@@ -11,21 +10,18 @@ use crate::ui::{Ui, UiElement};
 #[derive(Clone, Copy)]
 pub struct UiRef {
     inner: NonNull<UiElement>,
-    marker: PhantomData<*mut UiElement>,
 }
 
 impl UiRef {
     pub fn new(element: &mut UiElement) -> Self {
         Self {
             inner: NonNull::from_mut(element),
-            marker: PhantomData,
         }
     }
 
     pub fn new_ref(element: &UiElement) -> Self {
         Self {
             inner: NonNull::from_ref(element),
-            marker: PhantomData,
         }
     }
 

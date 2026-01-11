@@ -132,7 +132,7 @@ impl Ui {
 
         if let Some(mut child) = child {
             let child_mut = unsafe { child.as_mut() };
-            child_mut.init(&self);
+            child_mut.init(self);
 
             if ticking {
                 self.set_ticking(child);
@@ -281,12 +281,12 @@ impl Ui {
             }
         } else if event == UiEvent::Press {
             let mut exit = false;
-            if let Some(focused) = &mut self.selection.focused {
-                if !focused.as_ref().is_in(cursor_pos) {
-                    let widget = &mut focused.as_mut().widget;
-                    widget.interaction(focused.as_ui_ref(), self, UiEvent::End);
-                    exit = true;
-                }
+            if let Some(focused) = &mut self.selection.focused
+                && !focused.as_ref().is_in(cursor_pos)
+            {
+                let widget = &mut focused.as_mut().widget;
+                widget.interaction(focused.as_ui_ref(), self, UiEvent::End);
+                exit = true;
             }
 
             if exit {
