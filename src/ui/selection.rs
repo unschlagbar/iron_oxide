@@ -1,6 +1,4 @@
-use std::ptr::NonNull;
-
-use crate::ui::UiElement;
+use crate::ui::{UiElement, UiRef};
 
 #[derive(Default)]
 pub(crate) struct Selection {
@@ -12,7 +10,7 @@ pub(crate) struct Selection {
     pub captured: Option<Select>,
 }
 impl Selection {
-    pub fn update_ptr(&mut self, element: &UiElement) {
+    pub fn update_ptr(&mut self, element: UiRef) {
         if let Some(hovered) = &mut self.hovered {
             hovered.update_ptr(element);
         }
@@ -30,7 +28,7 @@ impl Selection {
         self.hovered.as_mut().map(|x| x.as_mut())
     }
 
-    pub fn set_hover(&mut self, element: &UiElement) {
+    pub fn set_hover(&mut self, element: UiRef) {
         self.hovered = Some(Select::new(element));
     }
 
@@ -42,7 +40,7 @@ impl Selection {
         self.focused.as_mut().map(|x| x.as_mut())
     }
 
-    pub fn set_capture(&mut self, element: &UiElement) {
+    pub fn set_capture(&mut self, element: UiRef) {
         self.captured = Some(Select::new(element));
     }
 
@@ -80,21 +78,21 @@ impl Selection {
 
 #[derive(Clone, Copy)]
 pub(crate) struct Select {
-    ptr: NonNull<UiElement>,
+    ptr: UiRef,
     id: u32,
 }
 
 impl Select {
-    pub(crate) const fn new(element: &UiElement) -> Self {
+    pub(crate) const fn new(element: UiRef) -> Self {
         Self {
-            ptr: NonNull::from_ref(element),
-            id: element.id,
+            id: element.as_ref().id,
+            ptr: element,
         }
     }
 
-    pub(crate) fn update_ptr(&mut self, element: &UiElement) {
+    pub(crate) fn update_ptr(&mut self, element: UiRef) {
         if self.id == element.id {
-            self.ptr = NonNull::from_ref(element);
+            self.ptr = element;
         }
     }
 
@@ -103,7 +101,11 @@ impl Select {
     }
 
     pub(crate) const fn as_ref(&self) -> &UiElement {
-        unsafe { self.ptr.as_ref() }
+        self.ptr.as_ref()
+    }
+
+    pub(crate) const fn as_ui_ref(&self) -> UiRef {
+        self.ptr
     }
 }
 

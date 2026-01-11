@@ -1,6 +1,6 @@
 use winit::event::KeyEvent;
 
-use crate::ui::{Ui, UiRef};
+use crate::ui::{Ui, UiRef, text::ExitReason};
 
 use super::UiEvent;
 
@@ -34,22 +34,38 @@ impl<'a> ButtonContext<'a> {
     }
 }
 
-pub struct TextContext<'a> {
+pub struct TextInputContext<'a> {
     pub ui: &'a mut Ui,
     pub element: UiRef,
     pub event: &'a KeyEvent,
     pub ingore: bool,
-    pub exit: bool,
+    pub submit: ExitReason,
 }
 
-impl<'a> TextContext<'a> {
+impl<'a> TextInputContext<'a> {
     pub fn new(ui: &'a mut Ui, element: UiRef, event: &'a KeyEvent) -> Self {
         Self {
             ui,
             element,
             event,
             ingore: false,
-            exit: false,
+            submit: ExitReason::None,
+        }
+    }
+}
+
+pub struct TextExitContext<'a> {
+    pub ui: &'a mut Ui,
+    pub element: UiRef,
+    pub reason: ExitReason,
+}
+
+impl<'a> TextExitContext<'a> {
+    pub fn new(ui: &'a mut Ui, element: UiRef, reason: ExitReason) -> Self {
+        Self {
+            ui,
+            element,
+            reason,
         }
     }
 }

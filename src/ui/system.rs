@@ -2,9 +2,8 @@ use ash::vk;
 use std::{
     any::TypeId,
     ops::Range,
-    ptr::{self, NonNull},
+    ptr,
     sync::atomic::{AtomicU32, Ordering},
-    time::Instant,
 };
 use winit::{dpi::PhysicalSize, window::CursorIcon};
 
@@ -101,13 +100,14 @@ impl Ui {
 
         element.id = self.get_id();
         element.z_index = z_index;
-        element.init(self);
+        element.parent = None;
 
         self.elements.push(element);
-        let element = UiRef::new(self.elements.last_mut().unwrap());
+        let mut element = UiRef::new(self.elements.last_mut().unwrap());
+        unsafe { element.as_mut().init(self) };
 
         if ticking {
-            self.set_ticking(&element);
+            self.set_ticking(element);
         }
 
         self.layout_changed();
@@ -121,23 +121,26 @@ impl Ui {
         }
     }
 
-    pub fn add_child_to<T: Into<Element>>(
+    pub fn add_child<T: Into<Element>>(
         &mut self,
         mut child: UiElement,
         parent: T,
     ) -> Option<UiRef> {
-        let parent = self.element_to_ref(parent)?;
+        let mut parent = self.element_to_ref(parent)?;
 
         child.id = self.get_id();
         child.z_index = parent.z_index + 0.01;
-        child.init(self);
+        child.parent = Some(parent);
 
         let ticking = child.widget.is_ticking();
-        let child = parent.get_mut(self).add_child(child);
+        let child = unsafe { parent.as_mut().add_child(child, self) };
 
-        if let Some(child) = child {
+        if let Some(mut child) = child {
+            let child_mut = unsafe { child.as_mut() };
+            child_mut.init(&self);
+
             if ticking {
-                self.set_ticking(&child);
+                self.set_ticking(child);
             }
 
             self.layout_changed();
@@ -182,7 +185,7 @@ impl Ui {
         }
     }
 
-    pub fn remove_elements(&mut self, parent: UiRef, range: Range<usize>) {
+    pub fn remove_elements(&mut self, mut parent: UiRef, range: Range<usize>) {
         let i = range.start;
         let parent = unsafe { parent.as_mut() };
 
@@ -262,10 +265,10 @@ impl Ui {
         None
     }
 
-    pub fn set_focus(&mut self, element: &UiElement) {
+    pub fn set_focus(&mut self, element: UiRef) {
         if let Some(input) = &mut self.selection.focused {
             let widget = &mut input.as_mut().widget;
-            widget.interaction(UiRef::new_ref(element), self, UiEvent::End);
+            widget.interaction(input.as_ui_ref(), self, UiEvent::End);
         }
         self.selection.focused = Some(Select::new(element))
     }
@@ -281,6 +284,20 @@ impl Ui {
             if widget.interaction(UiRef::new(captured.as_mut()), self, event) == InputResult::New {
                 return InputResult::New;
             }
+        } else if event == UiEvent::Press {
+            let mut exit = false;
+            if let Some(focused) = &mut self.selection.focused {
+                if !focused.as_ref().is_in(cursor_pos) {
+                    let widget = &mut focused.as_mut().widget;
+                    widget.interaction(focused.as_ui_ref(), self, UiEvent::End);
+                    exit = true;
+                }
+            }
+
+            if exit {
+                self.selection.focused = None
+            }
+            
         }
 
         // 2. Check for new hover
@@ -344,7 +361,7 @@ impl Ui {
         }
     }
 
-    pub fn set_ticking(&mut self, element: &UiElement) {
+    pub fn set_ticking(&mut self, element: UiRef) {
         self.tick_queue.push(TickEvent::new(element));
     }
 
@@ -354,13 +371,13 @@ impl Ui {
         }
     }
 
-    pub(crate) fn update_tick_ptrs(&mut self, element: &UiElement) {
+    pub(crate) fn update_tick_ptrs(&mut self, element: UiRef) {
         if let Some(pos) = self
             .tick_queue
             .iter()
             .position(|x| x.element_id == element.id)
         {
-            self.tick_queue[pos].element = NonNull::from_ref(element);
+            self.tick_queue[pos].element = element;
         }
     }
 
@@ -471,8 +488,6 @@ impl Ui {
             return;
         }
 
-        let start = Instant::now();
-
         if matches!(self.dirty, DirtyFlags::Layout) {
             self.build();
         }
@@ -504,8 +519,6 @@ impl Ui {
                 &[],
             );
         }
-
-        println!("CPU to GPU time: {:?}", start.elapsed())
     }
 
     pub fn draw(&mut self, device: &ash::Device, cmd: vk::CommandBuffer) {

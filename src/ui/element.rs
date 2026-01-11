@@ -1,7 +1,6 @@
 use std::{
     any::TypeId,
     fmt::{self, Debug},
-    ptr::NonNull,
 };
 
 use ash::vk::Rect2D;
@@ -12,6 +11,10 @@ use crate::{
     primitives::Vec2,
     ui::{UiRef, widget::Widget},
 };
+#[test]
+fn size() {
+    println!("size: {}", size_of::<UiElement>())
+}
 
 pub struct UiElement {
     pub(crate) id: u32,
@@ -21,10 +24,9 @@ pub struct UiElement {
     pub size: Vec2,
     pub pos: Vec2,
     pub z_index: f32,
-    pub parent: Option<NonNull<Self>>,
+    pub parent: Option<UiRef>,
     pub childs: Vec<Self>,
-    pub widget: Box<dyn Widget>,
-    pub type_id: TypeId,
+    pub(crate) widget: Box<dyn Widget>,
 }
 
 impl UiElement {
@@ -33,12 +35,12 @@ impl UiElement {
     }
 
     pub fn type_of<T: Widget>(&self) -> bool {
-        TypeId::of::<T>() == self.type_id
+        self.widget.type_id() == TypeId::of::<T>()
     }
 
     pub fn downcast<T: Widget>(&self) -> Option<&T> {
         if self.type_of::<T>() {
-            let gg = unsafe { &*((&*self.widget) as *const dyn Widget as *const T) };
+            let gg = unsafe { &*(&*self.widget as *const dyn Widget as *const T) };
             Some(gg)
         } else {
             None
@@ -47,7 +49,7 @@ impl UiElement {
 
     pub fn downcast_mut<T: Widget>(&mut self) -> Option<&mut T> {
         if self.type_of::<T>() {
-            let gg = unsafe { &mut *((&mut *self.widget) as *mut dyn Widget as *mut T) };
+            let gg = unsafe { &mut *(&mut *self.widget as *mut dyn Widget as *mut T) };
             Some(gg)
         } else {
             None
@@ -133,7 +135,7 @@ impl UiElement {
             if self.transparent {
                 InputResult::None
             } else {
-                ui.selection.set_hover(self);
+                ui.selection.set_hover(UiRef::new(self));
                 InputResult::New
             }
         } else {
@@ -152,7 +154,7 @@ impl UiElement {
         }
 
         if let Some(mut parent) = self.parent {
-            unsafe { parent.as_mut() }.handle_hover(ui, event)
+            unsafe { parent.as_mut().handle_hover(ui, event) }
         } else {
             InputResult::None
         }
@@ -164,26 +166,20 @@ impl UiElement {
     }
 
     /// Adds a child to self and returns a weak reference to it
-    pub fn add_child(&mut self, child: UiElement) -> Option<UiRef> {
-        let parent = Some(NonNull::from_mut(self));
+    pub(crate) fn add_child(&mut self, child: UiElement, ui: &mut Ui) -> Option<UiRef> {
         let childs = &mut self.childs;
         let ptr = childs.as_ptr();
 
         childs.push(child);
 
         // if a realloc happens we need to update the child pointers
-        if ptr == childs.as_ptr() {
+        if ptr != childs.as_ptr() {
+            println!("realloc");
             for child in childs.iter_mut() {
-                child.parent = parent;
+                child.update_ptrs(ui);
             }
-
-            Some(UiRef::new(childs.last_mut()?))
-        // otherwise we only set the parent for the new node
-        } else {
-            let child = childs.last_mut()?;
-            child.parent = parent;
-            Some(UiRef::new(child))
         }
+        Some(UiRef::new(childs.last_mut().unwrap()))
     }
 
     /// Removes all pointers that point to the element to prevent invalid dereferencing
@@ -199,19 +195,19 @@ impl UiElement {
     }
 
     pub(crate) fn update_ptrs(&mut self, ui: &mut Ui) {
-        ui.update_tick_ptrs(self);
-        ui.selection.update_ptr(self);
+        ui.update_tick_ptrs(UiRef::new(self));
+        ui.selection.update_ptr(UiRef::new(self));
 
-        let element = NonNull::from_mut(self);
+        let element = UiRef::new(self);
 
         for child in &mut self.childs {
             child.parent = Some(element);
         }
     }
 
-    /// Sets id, parent and z-index for self and all childs
+    /// Sets id, parent and z-index for all childs
     pub(crate) fn init(&mut self, ui: &Ui) {
-        let parent = Some(NonNull::from_mut(self));
+        let parent = Some(UiRef::new(self));
         let z_index = self.z_index + 0.01;
         for child in &mut self.childs {
             child.parent = parent;
@@ -259,6 +255,7 @@ impl Debug for UiElement {
             .field("visible", &self.visible)
             .field("size", &self.size)
             .field("pos", &self.pos)
+            .field("parent", &self.parent)
             .finish()
     }
 }

@@ -1,4 +1,4 @@
-use std::{ops::Range, time::Instant};
+use std::time::Instant;
 
 use ash::vk::Rect2D;
 use winit::{
@@ -10,7 +10,9 @@ use crate::{
     graphics::{VertexDescription, formats::RGBA},
     primitives::Vec2,
     ui::{
-        Align, BuildContext, InputResult, TextContext, Ui, UiElement, UiEvent, UiRef,
+        Align, BuildContext, InputResult, QueuedEvent, TextInputContext, Ui, UiElement, UiEvent,
+        UiRef,
+        callback::TextExitContext,
         materials::{FontInstance, UiInstance},
         text_layout::TextLayout,
         widget::Widget,
@@ -25,7 +27,8 @@ pub struct Text {
 
     pub selectable: bool,
     pub cursor: Option<InputCursor>,
-    pub on_input: Option<fn(&mut TextContext)>,
+    pub on_input: Option<fn(&mut TextInputContext)>,
+    pub on_blur: Option<fn(TextExitContext)>,
 
     pub dirty: bool,
     pub font_instances: Vec<FontInstance>,
@@ -42,10 +45,15 @@ impl Text {
         self.dirty = true;
     }
 
-    pub fn focus(ui: &mut Ui, element: &UiElement, _select: Range<usize>) {
+    pub fn focus(ui: &mut Ui, mut element: UiRef) {
         ui.set_focus(element);
-        let this: &mut Self = UiRef::new_ref(element).get_mut(ui).downcast_mut().unwrap();
 
+        let mut_element = element.get_mut(ui);
+        //mut_element.transparent = false;
+
+        let this: &mut Self = mut_element.downcast_mut().unwrap();
+
+        // Todo! Move this code to interaction!
         this.cursor = Some(InputCursor {
             index: this.font_instances.len(),
             start_time: Instant::now(),
@@ -53,6 +61,18 @@ impl Text {
         });
 
         ui.set_ticking(element);
+    }
+
+    pub fn unfocus(ui: &mut Ui, mut element: UiRef, reason: ExitReason) {
+        let this: &mut Self = element.get_mut(ui).downcast_mut().unwrap();
+        this.cursor = None;
+        if let Some(on_blur) = this.on_blur {
+            let cxt = TextExitContext::new(ui, element, reason);
+            on_blur(cxt);
+        }
+
+        ui.remove_tick(element.id);
+        ui.set_event(QueuedEvent::new(&element, UiEvent::Submit, reason as u16));
     }
 
     pub fn move_cursor(&mut self, offset: isize) {
@@ -125,7 +145,7 @@ impl Widget for Text {
 
     fn instance(&mut self, element: UiRef, ui: &mut Ui, clip: Option<Rect2D>) -> Option<Rect2D> {
         if self.dirty {
-            let parent = unsafe { element.parent.unwrap().as_ref() };
+            let parent = element.parent.unwrap().as_ref();
             let mut context = BuildContext::default(&ui.font, parent.size);
             context.child_start_pos = parent.pos;
             self.build(element.childs_mut(ui), &mut context);
@@ -183,14 +203,12 @@ impl Widget for Text {
         }
     }
 
-    fn interaction(&mut self, _element: UiRef, _ui: &mut Ui, event: UiEvent) -> InputResult {
+    fn interaction(&mut self, element: UiRef, ui: &mut Ui, event: UiEvent) -> InputResult {
         if event == UiEvent::End && self.cursor.is_some() {
             self.cursor = None;
+            Self::unfocus(ui, element, ExitReason::Submit);
         }
 
-        if event == UiEvent::Move {
-            println!("move text");
-        }
         InputResult::None
     }
 
@@ -200,8 +218,15 @@ impl Widget for Text {
         }
 
         if let Some(call) = self.on_input {
-            let mut context = TextContext::new(ui, element, event);
+            let mut context = TextInputContext::new(ui, element, event);
             call(&mut context);
+
+            if !matches!(context.submit, ExitReason::None) {
+                let reason = context.submit;
+                Self::unfocus(ui, element, reason);
+                return InputResult::New;
+            }
+
             if context.ingore {
                 return InputResult::None;
             }
@@ -278,6 +303,7 @@ impl Default for Text {
             selectable: true,
             cursor: None,
             on_input: Some(default_on_input),
+            on_blur: None,
 
             dirty: true,
             font_instances: Vec::new(),
@@ -299,9 +325,18 @@ fn char_to_byte(s: &str, char_idx: usize) -> usize {
         .unwrap_or(s.len())
 }
 
-fn default_on_input(ctx: &mut TextContext) {
+fn default_on_input(ctx: &mut TextInputContext) {
     if ctx.event.logical_key == Key::Named(NamedKey::Enter) {
-        ctx.ingore = true;
-        ctx.exit = true;
+        ctx.submit = ExitReason::Submit;
+    } else if ctx.event.logical_key == Key::Named(NamedKey::Escape) {
+        ctx.submit = ExitReason::Escape
     }
+}
+
+#[derive(Clone, Copy)]
+pub enum ExitReason {
+    Submit,
+    ClickOutside,
+    Escape,
+    None,
 }

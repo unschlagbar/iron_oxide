@@ -105,7 +105,7 @@ impl Widget for Button {
         match event {
             UiEvent::Press => {
                 self.state = ButtonState::Pressed;
-                ui.selection.set_capture(&element);
+                ui.selection.set_capture(element);
             }
             UiEvent::Release => {
                 ui.selection.clear_capture();

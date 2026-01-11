@@ -1,8 +1,6 @@
-use std::ptr::NonNull;
-
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, TouchPhase};
 
-use crate::ui::UiElement;
+use crate::ui::{UiElement, UiRef};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UiEvent {
@@ -15,6 +13,7 @@ pub enum UiEvent {
     Tick,
     HoverEnd,
     End,
+    Submit,
 }
 
 impl From<TouchPhase> for UiEvent {
@@ -42,13 +41,12 @@ impl From<(ElementState, MouseButton)> for UiEvent {
 pub struct TickEvent {
     pub element_id: u32,
     pub done: bool,
-    pub element: NonNull<UiElement>,
+    pub element: UiRef,
 }
 
 impl TickEvent {
-    pub fn new(element: &UiElement) -> Self {
+    pub fn new(element: UiRef) -> Self {
         let element_id = element.id;
-        let element = NonNull::from_ref(element);
         Self {
             element_id,
             done: false,
@@ -107,12 +105,12 @@ impl QueuedEventHandler {
                 self.first = 1;
             }
         } else if self.first == 1 {
-                self.first = 2;
-                self.event1 = Some(event);
-            } else {
-                self.first = 1;
-                self.event2 = Some(event);
-            }
+            self.first = 2;
+            self.event1 = Some(event);
+        } else {
+            self.first = 1;
+            self.event2 = Some(event);
+        }
     }
 
     pub fn get(&mut self) -> Option<QueuedEvent> {

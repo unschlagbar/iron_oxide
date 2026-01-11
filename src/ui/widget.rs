@@ -1,4 +1,4 @@
-use std::any::TypeId;
+use std::any::Any;
 
 use ash::vk::Rect2D;
 use winit::event::KeyEvent;
@@ -9,7 +9,7 @@ use crate::{
 };
 
 #[allow(unused)]
-pub trait Widget: 'static {
+pub trait Widget: Any + 'static {
     fn build(&mut self, childs: &mut [UiElement], context: &mut BuildContext);
 
     fn get_size(&mut self) -> (UiUnit, UiUnit) {
@@ -48,7 +48,6 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
             childs,
             widget: Box::new(self),
             z_index: 0.0,
-            type_id: TypeId::of::<Self>(),
         }
     }
 
@@ -64,7 +63,6 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
             childs,
             widget: Box::new(self),
             z_index: 0.0,
-            type_id: TypeId::of::<Self>(),
         }
     }
 
