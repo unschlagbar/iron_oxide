@@ -2,9 +2,13 @@ use ash::vk::Rect2D;
 
 use super::{BuildContext, UiElement, UiRect, UiUnit};
 use crate::{
-    graphics::{VertexDescription, formats::RGBA},
+    graphics::formats::RGBA,
     primitives::Vec2,
-    ui::{FlexDirection, Ui, UiRef, materials::UiInstance, widget::Widget},
+    ui::{
+        FlexDirection, Ressources, UiRef,
+        materials::{MatType, UiInstance},
+        widget::Widget,
+    },
 };
 
 pub struct Container {
@@ -65,8 +69,12 @@ impl Widget for Container {
         (self.width, self.height)
     }
 
-    fn instance(&mut self, element: UiRef, ui: &mut Ui, clip: Option<Rect2D>) -> Option<Rect2D> {
-        let material = &mut ui.materials[0];
+    fn instance(
+        &mut self,
+        element: UiRef,
+        ressources: &mut Ressources,
+        clip: Option<Rect2D>,
+    ) -> Option<Rect2D> {
         let to_add = UiInstance {
             color: self.color,
             border_color: self.border_color,
@@ -78,7 +86,7 @@ impl Widget for Container {
             corner: self.corner[0].px(element.size) as _,
             z_index: element.z_index,
         };
-        material.add(to_add.to_add(), 0, clip);
+        ressources.add(MatType::Basic, &to_add, clip);
         clip
     }
 }

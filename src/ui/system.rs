@@ -4,21 +4,18 @@ use std::{
     ptr,
     sync::atomic::{AtomicU32, Ordering},
 };
-use winit::{dpi::PhysicalSize, window::CursorIcon};
+use winit::window::CursorIcon;
 
 use super::{BuildContext, Font, UiElement, UiEvent};
 use crate::{
-    graphics::{Buffer, TextureAtlas, VkBase},
-    primitives::{Matrix4, Vec2},
+    graphics::VkBase,
+    primitives::Vec2,
     ui::{
-        Absolute, QueuedEvent, UiRef,
+        Absolute, QueuedEvent, Ressources, UiRef,
         events::{QueuedEventHandler, TickEvent},
-        materials::{AtlasInstance, Basic, FontInstance, Material, SingleImage, UiInstance},
         selection::{Select, Selection},
     },
 };
-
-pub const MAX_IMGS: u32 = 2;
 
 pub struct Ui {
     pub(crate) elements: Vec<UiElement>,
@@ -43,15 +40,7 @@ pub struct Ui {
     pub event: QueuedEventHandler,
     pub tick_queue: Vec<TickEvent>,
 
-    pub texture_atlas: TextureAtlas,
     pub(crate) id_gen: AtomicU32,
-
-    pub(crate) desc_pool: vk::DescriptorPool,
-    pub(crate) ubo_set: vk::DescriptorSet,
-    pub(crate) img_set: vk::DescriptorSet,
-    pub(crate) atl_set: vk::DescriptorSet,
-
-    pub materials: Vec<Box<dyn Material>>,
 }
 
 impl Ui {
@@ -73,14 +62,6 @@ impl Ui {
             tick_queue: Vec::new(),
 
             font: Font::parse_from_bytes(include_bytes!("../../font/std.fef")),
-            texture_atlas: TextureAtlas::new((1024, 1024)),
-
-            desc_pool: vk::DescriptorPool::null(),
-            ubo_set: vk::DescriptorSet::null(),
-            img_set: vk::DescriptorSet::null(),
-            atl_set: vk::DescriptorSet::null(),
-
-            materials: Vec::with_capacity(3),
         }
     }
 
@@ -217,17 +198,15 @@ impl Ui {
         }
     }
 
-    pub(crate) fn get_instaces(&mut self) {
+    pub(crate) fn get_instaces(&mut self, ressources: &mut Ressources) {
         self.dirty = DirtyFlags::None;
 
         if !self.visible || self.elements.is_empty() {
             return;
         }
 
-        let ui = unsafe { &mut *ptr::from_mut(self) };
-
         for raw_e in &mut self.elements {
-            raw_e.get_instances(ui, None);
+            raw_e.get_instances(ressources, None);
         }
     }
 
@@ -327,16 +306,6 @@ impl Ui {
         self.selection.get_hovered()
     }
 
-    pub fn destroy(&mut self, device: &ash::Device) {
-        for mat in &mut self.materials {
-            mat.destroy(device);
-        }
-        self.texture_atlas.destroy(device);
-        unsafe {
-            device.destroy_descriptor_pool(self.desc_pool, None);
-        };
-    }
-
     pub fn process_ticks(&mut self) {
         let ui = unsafe { &mut *ptr::from_mut(self) };
         let ui2 = unsafe { &mut *ptr::from_mut(self) };
@@ -409,74 +378,7 @@ impl Ui {
 
 //Vulkan & graphics Stuff!!
 impl Ui {
-    #[allow(clippy::too_many_arguments)]
-    pub fn init_graphics(
-        &mut self,
-        base: &VkBase,
-        texture_atlas: TextureAtlas,
-        window_size: PhysicalSize<u32>,
-        render_pass: vk::RenderPass,
-        uniform_buffer: &Buffer,
-        image_view: vk::ImageView,
-        sampler: vk::Sampler,
-        base_shaders: (&[u8], &[u8]),
-        font_shaders: (&[u8], &[u8]),
-        atlas_shaders: (&[u8], &[u8]),
-    ) {
-        self.size = window_size.into();
-        let ubo_layout = Self::create_ubo_desc_layout(&base.device);
-        let img_layout = Self::create_img_desc_layout(&base.device);
-
-        self.texture_atlas = texture_atlas;
-        let atlas_view = self.texture_atlas.atlas.as_ref().unwrap().view;
-
-        self.create_desc_pool(&base.device);
-        self.create_desc_sets(
-            &base.device,
-            &[ubo_layout, img_layout, img_layout],
-            uniform_buffer,
-            image_view,
-            atlas_view,
-            sampler,
-        );
-
-        self.add_mat(Basic::<UiInstance>::new(
-            base,
-            window_size,
-            render_pass,
-            &[ubo_layout],
-            base_shaders,
-        ));
-
-        self.add_mat(SingleImage::<FontInstance>::new(
-            base,
-            window_size,
-            render_pass,
-            &[ubo_layout, img_layout],
-            self.img_set,
-            font_shaders,
-        ));
-
-        self.add_mat(SingleImage::<AtlasInstance>::new(
-            base,
-            window_size,
-            render_pass,
-            &[ubo_layout, img_layout],
-            self.atl_set,
-            atlas_shaders,
-        ));
-
-        unsafe {
-            base.device.destroy_descriptor_set_layout(ubo_layout, None);
-            base.device.destroy_descriptor_set_layout(img_layout, None);
-        }
-    }
-
-    fn add_mat<T: Material + 'static>(&mut self, material: T) {
-        self.materials.push(Box::new(material));
-    }
-
-    pub fn update(&mut self, base: &VkBase, command_buffer: vk::CommandBuffer) {
+    pub fn update(&mut self, base: &VkBase, ressources: &mut Ressources) {
         if !self.visible || !self.is_dirty() {
             return;
         }
@@ -485,85 +387,14 @@ impl Ui {
             self.build();
         }
 
-        for mat in &mut self.materials {
-            mat.clear();
-        }
+        ressources.clear_batches();
 
-        self.get_instaces();
+        self.get_instaces(ressources);
 
-        for mat in &mut self.materials {
-            mat.update(base, command_buffer);
-        }
-
-        let memory_barrier = vk::MemoryBarrier {
-            src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
-            dst_access_mask: vk::AccessFlags::VERTEX_ATTRIBUTE_READ,
-            ..Default::default()
-        };
-
-        unsafe {
-            base.device.cmd_pipeline_barrier(
-                command_buffer,
-                vk::PipelineStageFlags::TRANSFER,
-                vk::PipelineStageFlags::VERTEX_INPUT,
-                vk::DependencyFlags::empty(),
-                &[memory_barrier],
-                &[],
-                &[],
-            );
-        }
+        ressources.upload(base);
     }
 
-    pub fn draw(&mut self, device: &ash::Device, cmd: vk::CommandBuffer) {
-        if !self.visible {
-            return;
-        }
-
-        let clip = vk::Rect2D {
-            offset: vk::Offset2D { x: 0, y: 0 },
-            extent: self.size.into(),
-        };
-
-        unsafe {
-            device.cmd_bind_descriptor_sets(
-                cmd,
-                vk::PipelineBindPoint::GRAPHICS,
-                self.materials[0].pipeline().layout,
-                0,
-                &[self.ubo_set],
-                &[],
-            );
-            for mat in &self.materials {
-                if mat.draw(device, cmd, clip) {
-                    device.cmd_set_scissor(cmd, 0, &[clip]);
-                }
-            }
-        }
-    }
-
-    pub fn create_desc_pool(&mut self, device: &ash::Device) {
-        let pool_sizes = [
-            vk::DescriptorPoolSize {
-                ty: vk::DescriptorType::UNIFORM_BUFFER,
-                descriptor_count: 1,
-            },
-            vk::DescriptorPoolSize {
-                ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                descriptor_count: MAX_IMGS,
-            },
-        ];
-
-        let pool_info = vk::DescriptorPoolCreateInfo {
-            pool_size_count: pool_sizes.len() as _,
-            p_pool_sizes: pool_sizes.as_ptr(),
-            max_sets: MAX_IMGS + 1,
-            ..Default::default()
-        };
-
-        self.desc_pool = unsafe { device.create_descriptor_pool(&pool_info, None).unwrap() }
-    }
-
-    fn create_ubo_desc_layout(device: &ash::Device) -> vk::DescriptorSetLayout {
+    pub fn create_ubo_desc_layout(device: &ash::Device) -> vk::DescriptorSetLayout {
         let layout_binding = vk::DescriptorSetLayoutBinding {
             binding: 0,
             descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
@@ -585,7 +416,7 @@ impl Ui {
         }
     }
 
-    fn create_img_desc_layout(device: &ash::Device) -> vk::DescriptorSetLayout {
+    pub fn create_img_desc_layout(device: &ash::Device) -> vk::DescriptorSetLayout {
         let layout_binding = vk::DescriptorSetLayoutBinding {
             binding: 0,
             descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
@@ -605,87 +436,6 @@ impl Ui {
                 .create_descriptor_set_layout(&layout_info, None)
                 .unwrap()
         }
-    }
-
-    fn create_desc_sets(
-        &mut self,
-        device: &ash::Device,
-        layouts: &[vk::DescriptorSetLayout],
-        uniform_buffer: &Buffer,
-        image_view: vk::ImageView,
-        atlas_view: vk::ImageView,
-        sampler: vk::Sampler,
-    ) {
-        let allocate_info = vk::DescriptorSetAllocateInfo {
-            descriptor_pool: self.desc_pool,
-            descriptor_set_count: layouts.len() as _,
-            p_set_layouts: layouts.as_ptr(),
-            ..Default::default()
-        };
-        let mut sets = unsafe {
-            device
-                .allocate_descriptor_sets(&allocate_info)
-                .unwrap()
-                .into_iter()
-        };
-
-        let ubo_set = sets.next().unwrap();
-        let img_set = sets.next().unwrap();
-        let atl_set = sets.next().unwrap();
-
-        let buffer_info = vk::DescriptorBufferInfo {
-            buffer: uniform_buffer.inner,
-            offset: 0,
-            range: size_of::<Matrix4>() as u64,
-        };
-
-        let image_info = vk::DescriptorImageInfo {
-            sampler,
-            image_view,
-            image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-        };
-
-        let atlas_image_info = vk::DescriptorImageInfo {
-            sampler,
-            image_view: atlas_view,
-            image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-        };
-
-        let descriptor_writes = [
-            vk::WriteDescriptorSet {
-                dst_set: ubo_set,
-                dst_binding: 0,
-                dst_array_element: 0,
-                descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
-                descriptor_count: 1,
-                p_buffer_info: &buffer_info,
-                ..Default::default()
-            },
-            vk::WriteDescriptorSet {
-                dst_set: img_set,
-                dst_binding: 0,
-                dst_array_element: 0,
-                descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                descriptor_count: 1,
-                p_image_info: &image_info,
-                ..Default::default()
-            },
-            vk::WriteDescriptorSet {
-                dst_set: atl_set,
-                dst_binding: 0,
-                dst_array_element: 0,
-                descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                descriptor_count: 1,
-                p_image_info: &atlas_image_info,
-                ..Default::default()
-            },
-        ];
-
-        unsafe { device.update_descriptor_sets(&descriptor_writes, &[]) };
-
-        self.ubo_set = ubo_set;
-        self.img_set = img_set;
-        self.atl_set = atl_set;
     }
 }
 

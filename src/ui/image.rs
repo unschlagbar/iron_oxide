@@ -1,8 +1,12 @@
 use ash::vk::Rect2D;
 
 use crate::{
-    graphics::{VertexDescription, formats::RGBA},
-    ui::{BuildContext, Ui, UiElement, UiRef, UiUnit, materials::AtlasInstance, widget::Widget},
+    graphics::formats::RGBA,
+    ui::{
+        BuildContext, Ressources, UiElement, UiRef, UiUnit,
+        materials::{AtlasInstance, MatType},
+        widget::Widget,
+    },
 };
 
 pub struct Image {
@@ -18,9 +22,13 @@ impl Widget for Image {
         context.apply_data(context.child_start_pos, context.available_size);
     }
 
-    fn instance(&mut self, element: UiRef, ui: &mut Ui, clip: Option<Rect2D>) -> Option<Rect2D> {
-        let material = &mut ui.materials[2];
-        let atlas_entry = &ui.texture_atlas.images[self.atlas_index as usize];
+    fn instance(
+        &mut self,
+        element: UiRef,
+        ressources: &mut Ressources,
+        clip: Option<Rect2D>,
+    ) -> Option<Rect2D> {
+        let atlas_entry = &ressources.texture_atlas.images[self.atlas_index as usize];
         let to_add = AtlasInstance {
             color: self.color,
             pos: element.pos,
@@ -29,7 +37,7 @@ impl Widget for Image {
             uv_size: atlas_entry.uv_size,
             z_index: element.z_index,
         };
-        material.add(to_add.to_add(), 0, clip);
+        ressources.add(MatType::Atlas, &to_add, clip);
         clip
     }
 }

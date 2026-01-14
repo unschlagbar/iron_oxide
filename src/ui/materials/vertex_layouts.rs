@@ -6,6 +6,7 @@ use crate::{
     primitives::Vec2,
 };
 
+#[repr(align(4))]
 #[derive(Debug, Default, Clone, Copy)]
 pub struct UiInstance {
     pub color: RGBA,
@@ -85,11 +86,12 @@ impl VertexDescription for UiInstance {
     ];
 }
 
+#[repr(align(4))]
 #[derive(Debug, Clone, Copy)]
 pub struct AtlasInstance {
-    pub color: RGBA,
     pub pos: Vec2,
     pub size: Vec2,
+    pub color: RGBA,
     pub uv_start: (u16, u16),
     pub uv_size: (u16, u16),
     pub z_index: i16,
@@ -143,11 +145,12 @@ impl VertexDescription for AtlasInstance {
     ];
 }
 
+#[repr(align(4))]
 #[derive(Debug, Clone, Copy)]
 pub struct FontInstance {
-    pub color: RGBA,
     pub pos: Vec2,
     pub size: Vec2,
+    pub color: RGBA,
     pub uv_start: (u16, u16),
     pub uv_size: (u16, u16),
     pub z_index: i16,

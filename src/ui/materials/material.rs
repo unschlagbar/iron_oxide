@@ -1,28 +1,71 @@
-use ash::{
-    Device,
-    vk::{self, Rect2D},
-};
+use ash::vk::{self, Buffer, Rect2D};
+use winit::dpi::PhysicalSize;
 
 use crate::{
-    graphics::{Buffer, VkBase},
+    graphics::{VertexDescription, VkBase},
     ui::pipeline::Pipeline,
 };
 
-pub trait Material {
-    fn pipeline(&self) -> &Pipeline;
-    fn buffer(&mut self) -> &mut Buffer;
-    fn staging_buffer(&mut self) -> &mut Buffer;
-    fn destroy(&mut self, device: &Device) {
-        self.pipeline().destroy(device);
-        self.buffer().destroy(device);
-        self.staging_buffer().destroy(device);
+use std::{any::TypeId, fmt};
+
+#[derive(Debug)]
+pub struct Material {
+    pub buffer: Buffer,
+    pub buffer_size: u64,
+    pub pipeline: Pipeline,
+    pub instance_type: TypeId,
+    // In u32
+    pub stride: usize,
+    pub desc_set: vk::DescriptorSet,
+}
+
+impl Material {
+    pub fn destroy(&mut self, device: &ash::Device) {
+        self.pipeline.destroy(device);
     }
+}
 
-    fn size_of(&self) -> u32;
+impl Material {
+    pub fn new<T: VertexDescription>(
+        base: &VkBase,
+        window_size: PhysicalSize<u32>,
+        render_pass: vk::RenderPass,
+        descriptor_set_layouts: &[vk::DescriptorSetLayout],
+        desc_set: vk::DescriptorSet,
+        shaders: (&[u8], &[u8]),
+    ) -> Self {
+        assert!(align_of::<T>() >= 4);
+        Self {
+            buffer: Buffer::null(),
+            buffer_size: 0,
+            pipeline: Pipeline::create_ui::<T>(
+                base,
+                window_size,
+                render_pass,
+                descriptor_set_layouts,
+                shaders,
+            ),
+            instance_type: TypeId::of::<T>(),
+            stride: size_of::<T>(),
+            desc_set,
+        }
+    }
+}
 
-    fn add(&mut self, to_add: *const (), descriptor: u32, clip: Option<Rect2D>);
-    fn clear(&mut self);
+pub struct DrawBatch {
+    pub clip: Option<Rect2D>,
+    pub data: Vec<u8>,
+    pub size: u32,
+    pub offset: u32,
+}
 
-    fn update(&mut self, base: &VkBase, cmd_buf: vk::CommandBuffer);
-    fn draw(&self, device: &ash::Device, cmd: vk::CommandBuffer, clip: Rect2D) -> bool;
+impl fmt::Debug for DrawBatch {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DrawBatch")
+            .field("clip", &self.clip)
+            .field("data_len", &self.data.len())
+            .field("size", &self.size)
+            .field("offset", &self.offset)
+            .finish()
+    }
 }

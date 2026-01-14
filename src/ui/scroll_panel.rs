@@ -4,7 +4,9 @@ use winit::event::MouseScrollDelta;
 use super::{BuildContext, UiElement, UiUnit};
 use crate::{
     primitives::Vec2,
-    ui::{FlexDirection, Ui, UiEvent, UiRect, UiRef, system::InputResult, widget::Widget},
+    ui::{
+        FlexDirection, Ressources, Ui, UiEvent, UiRect, UiRef, system::InputResult, widget::Widget,
+    },
 };
 
 #[derive(Default)]
@@ -89,7 +91,12 @@ impl Widget for ScrollPanel {
         }
     }
 
-    fn instance(&mut self, element: UiRef, _: &mut Ui, _: Option<Rect2D>) -> Option<Rect2D> {
+    fn instance(
+        &mut self,
+        element: UiRef,
+        _: &mut Ressources,
+        _: Option<Rect2D>,
+    ) -> Option<Rect2D> {
         Some(Rect2D {
             offset: element.pos.into(),
             extent: element.size.into(),

@@ -7,13 +7,13 @@ use winit::{
 };
 
 use crate::{
-    graphics::{VertexDescription, formats::RGBA},
+    graphics::formats::RGBA,
     primitives::Vec2,
     ui::{
-        Align, BuildContext, InputResult, QueuedEvent, TextInputContext, Ui, UiElement, UiEvent,
-        UiRef,
+        Align, BuildContext, InputResult, QueuedEvent, Ressources, TextInputContext, Ui, UiElement,
+        UiEvent, UiRef,
         callback::TextExitContext,
-        materials::{FontInstance, UiInstance},
+        materials::{FontInstance, MatType, UiInstance},
         text_layout::TextLayout,
         widget::Widget,
     },
@@ -143,16 +143,14 @@ impl Widget for Text {
         context.apply_data(offset, layout.size);
     }
 
-    fn instance(&mut self, element: UiRef, ui: &mut Ui, clip: Option<Rect2D>) -> Option<Rect2D> {
-        if self.dirty {
-            let parent = element.parent.unwrap().as_ref();
-            let mut context = BuildContext::default(&ui.font, parent.size);
-            context.child_start_pos = parent.pos;
-            self.build(element.childs_mut(ui), &mut context);
-        }
-
+    fn instance(
+        &mut self,
+        element: UiRef,
+        ressources: &mut Ressources,
+        clip: Option<Rect2D>,
+    ) -> Option<Rect2D> {
         for inst in &self.font_instances {
-            ui.materials[1].add(inst.to_add(), 0, clip)
+            ressources.add(MatType::Font, inst, clip);
         }
 
         if let Some(cursor) = &self.cursor
@@ -167,7 +165,6 @@ impl Widget for Text {
             };
 
             let scale = self.layout.font_size * 1.2 - self.layout.font_size;
-            let material = &mut ui.materials[0];
             let to_add = UiInstance {
                 color: self.color,
                 border_color: RGBA::ZERO,
@@ -179,7 +176,7 @@ impl Widget for Text {
                 corner: 0,
                 z_index: element.z_index,
             };
-            material.add(to_add.to_add(), 0, clip);
+            ressources.add(MatType::Basic, &to_add, clip);
         }
 
         clip

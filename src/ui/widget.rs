@@ -5,7 +5,7 @@ use winit::event::KeyEvent;
 
 use crate::{
     primitives::Vec2,
-    ui::{BuildContext, InputResult, Ui, UiElement, UiEvent, UiRef, UiUnit},
+    ui::{BuildContext, InputResult, Ressources, Ui, UiElement, UiEvent, UiRef, UiUnit},
 };
 
 #[allow(unused)]
@@ -16,7 +16,12 @@ pub trait Widget: Any + 'static {
         (UiUnit::Undefined, UiUnit::Undefined)
     }
 
-    fn instance(&mut self, element: UiRef, ui: &mut Ui, clip: Option<Rect2D>) -> Option<Rect2D> {
+    fn instance(
+        &mut self,
+        element: UiRef,
+        ressources: &mut Ressources,
+        clip: Option<Rect2D>,
+    ) -> Option<Rect2D> {
         clip
     }
 

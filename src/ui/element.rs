@@ -9,7 +9,7 @@ use winit::{event::KeyEvent, window::CursorIcon};
 use super::{BuildContext, Text, Ui, UiEvent, system::InputResult};
 use crate::{
     primitives::Vec2,
-    ui::{UiRef, widget::Widget},
+    ui::{Ressources, UiRef, widget::Widget},
 };
 #[test]
 fn size() {
@@ -76,16 +76,16 @@ impl UiElement {
         self.size = context.element_size;
     }
 
-    pub fn get_instances(&mut self, ui: &mut Ui, clip: Option<Rect2D>) {
+    pub fn get_instances(&mut self, ressources: &mut Ressources, clip: Option<Rect2D>) {
         let mut inner_clip = clip;
 
         if self.visible {
             let element = UiRef::new(self);
-            inner_clip = self.widget.instance(element, ui, clip);
+            inner_clip = self.widget.instance(element, ressources, clip);
         }
 
         for child in &mut self.childs {
-            child.get_instances(ui, inner_clip);
+            child.get_instances(ressources, inner_clip);
         }
     }
 

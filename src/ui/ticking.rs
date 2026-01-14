@@ -3,7 +3,9 @@ use std::time::Instant;
 use ash::vk::Rect2D;
 
 use super::{BuildContext, UiElement, UiUnit};
-use crate::ui::{ButtonContext, Ui, UiEvent, UiRef, system::InputResult, widget::Widget};
+use crate::ui::{
+    ButtonContext, Ressources, Ui, UiEvent, UiRef, system::InputResult, widget::Widget,
+};
 
 pub struct Ticking<T: Widget> {
     pub last_tick: Instant,
@@ -25,8 +27,13 @@ impl<T: Widget> Widget for Ticking<T> {
         self.inner.get_size()
     }
 
-    fn instance(&mut self, element: UiRef, ui: &mut Ui, clip: Option<Rect2D>) -> Option<Rect2D> {
-        self.inner.instance(element, ui, clip)
+    fn instance(
+        &mut self,
+        element: UiRef,
+        ressources: &mut Ressources,
+        clip: Option<Rect2D>,
+    ) -> Option<Rect2D> {
+        self.inner.instance(element, ressources, clip)
     }
 
     fn tick(&mut self, element: UiRef, ui: &mut Ui) {

@@ -1,23 +1,25 @@
 mod buffer;
 //mod camera;
 mod asset_manager;
+mod buffer_manager;
 pub mod formats;
 mod image;
-mod oxinstance;
 pub mod platform;
 mod shader_modul;
 mod single_time_commands;
 mod swapchain;
 mod texture_atlas;
 mod vertex_description;
+mod vk_base;
 
 pub use asset_manager::AssetManager;
 pub use buffer::Buffer;
 //pub use camera::Camera;
+pub use buffer_manager::BufferManager;
 pub use image::Image;
-pub use oxinstance::VkBase;
 pub use shader_modul::create_shader_modul;
 pub use single_time_commands::SinlgeTimeCommands;
 pub use swapchain::Swapchain;
 pub use texture_atlas::TextureAtlas;
 pub use vertex_description::VertexDescription;
+pub use vk_base::VkBase;
