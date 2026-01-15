@@ -1,7 +1,7 @@
 use std::u32;
 
 use ash::vk::{
-    Buffer, BufferCreateInfo, BufferUsageFlags, DeviceMemory, MemoryAllocateInfo,
+    Buffer, BufferCreateInfo, BufferUsageFlags, DeviceMemory, MemoryAllocateInfo, MemoryMapFlags,
     MemoryPropertyFlags, SharingMode,
 };
 
@@ -14,7 +14,7 @@ pub struct BufferManager {
     pub device_local: u32,
 
     pub memory_pool: Vec<Memory>,
-    pub buffers: Vec<Buffer>,
+    pub buffers: Vec<(Buffer, u64, u64)>,
 }
 
 impl BufferManager {
@@ -68,11 +68,17 @@ impl BufferManager {
         };
 
         let mem = unsafe { base.device.allocate_memory(&alloc_info, None).unwrap() };
+        let mapped = unsafe {
+            base.device
+                .map_memory(mem, 0, allocation_size, MemoryMapFlags::empty())
+                .unwrap() as _
+        };
         self.memory_pool.push(Memory {
             mem_type_idx: memory_type_index,
             size: allocation_size,
             used: 0,
             memory: mem,
+            mapped,
         });
     }
 
@@ -99,23 +105,47 @@ impl BufferManager {
 
         let mem = &mut self.memory_pool[0];
         assert!(mem.correct_mem_type(mem_requirements.memory_type_bits));
-        mem.bind_buffer(base, buffer, buffer_size);
+        let offset = mem.bind_buffer(base, buffer, buffer_size);
 
-        self.buffers.push(buffer);
+        self.buffers.push((buffer, offset, buffer_size));
         (buffer, buffer_size)
     }
 
-    pub fn destroy_buffers(&mut self, base: &VkBase) {
-        self.memory_pool[0].used = 0;
+    pub fn destroy_buffers(&mut self, base: &VkBase, start: usize) {
+        if start > 0 {
+            let buffer = &self.buffers[start - 1];
+            self.memory_pool[0].used = buffer.1 + buffer.2;
+        } else {
+            self.memory_pool[0].used = 0;
+        }
         unsafe {
             self.buffers
-                .drain(..)
-                .for_each(|buffer| base.device.destroy_buffer(buffer, None));
+                .drain(start..)
+                .for_each(|(buffer, _, _)| base.device.destroy_buffer(buffer, None));
+        }
+    }
+
+    pub fn destroy_buffer(&mut self, base: &VkBase, buffer: Buffer) {
+        if let Some(pos) = self.buffers.iter_mut().position(|(b, _, _)| *b == buffer) {
+            unsafe { base.device.destroy_buffer(self.buffers[pos].0, None) };
+
+            if pos + 1 == self.buffers.len() {
+                let buffer = self.buffers.pop().unwrap();
+                self.memory_pool[0].used = buffer.1;
+            } else if self.buffers[pos..]
+                .iter()
+                .all(|&(buffer, _, _)| buffer == Buffer::null())
+            {
+                self.memory_pool[0].used = self.buffers[pos].1;
+                self.buffers.drain(pos..);
+            } else {
+                self.buffers[pos].0 = Buffer::null();
+            }
         }
     }
 
     pub fn destroy(&mut self, base: &VkBase) {
-        self.destroy_buffers(base);
+        self.destroy_buffers(base, 0);
         self.memory_pool
             .drain(..)
             .for_each(|memory| memory.destroy(base));
@@ -128,6 +158,7 @@ pub struct Memory {
     pub size: u64,
     pub used: u64,
     pub memory: DeviceMemory,
+    pub mapped: *mut u8,
 }
 
 impl Memory {
@@ -137,16 +168,22 @@ impl Memory {
         }
     }
 
-    pub fn bind_buffer(&mut self, base: &VkBase, buffer: Buffer, buffer_size: u64) {
+    pub fn bind_buffer(&mut self, base: &VkBase, buffer: Buffer, buffer_size: u64) -> u64 {
+        let offset = self.used;
         unsafe {
             base.device
-                .bind_buffer_memory(buffer, self.memory, self.used)
+                .bind_buffer_memory(buffer, self.memory, offset)
                 .unwrap()
         };
         self.used += buffer_size;
+        offset
     }
 
     pub fn correct_mem_type(&self, memory_type_bits: u32) -> bool {
         memory_type_bits & (1 << self.mem_type_idx) != 0
+    }
+
+    pub fn get_ptr(&self, offset: usize) -> *mut u8 {
+        unsafe { self.mapped.add(offset) }
     }
 }

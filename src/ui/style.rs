@@ -1,5 +1,5 @@
 use super::UiUnit;
-use crate::{primitives::Vec2, ui::BuildContext};
+use crate::{graphics::formats::RGBA, primitives::Vec2, ui::BuildContext};
 
 #[derive(Debug, Clone, Copy)]
 pub struct UiRect {
@@ -100,4 +100,17 @@ pub enum FlexDirection {
     #[default]
     Vertical,
     Horizontal,
+}
+
+
+pub struct Shadow {
+    pub offset: (i16, i16),
+    pub blur: u16,
+    pub color: RGBA
+}
+
+impl Shadow {
+    pub const fn new(blur: u16, color: RGBA) -> Self {
+        Self { offset: (0, 0), blur, color }
+    }
 }

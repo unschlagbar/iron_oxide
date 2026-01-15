@@ -17,6 +17,7 @@ impl Pipeline {
         render_pass: vk::RenderPass,
         descriptor_set_layouts: &[vk::DescriptorSetLayout],
         shaders: (&[u8], &[u8]),
+        alpha: bool,
     ) -> Self {
         let layout_info = vk::PipelineLayoutCreateInfo {
             set_layout_count: descriptor_set_layouts.len() as _,
@@ -125,13 +126,14 @@ impl Pipeline {
             dst_color_blend_factor: vk::BlendFactor::ONE_MINUS_SRC_ALPHA,
             color_blend_op: vk::BlendOp::ADD,
             alpha_blend_op: vk::BlendOp::ADD,
+            src_alpha_blend_factor: vk::BlendFactor::SRC_ALPHA,
+            dst_alpha_blend_factor: vk::BlendFactor::ONE_MINUS_SRC_ALPHA,
             color_write_mask: vk::ColorComponentFlags::RGBA,
             ..Default::default()
         };
 
         let color_blending = vk::PipelineColorBlendStateCreateInfo {
             logic_op_enable: vk::FALSE,
-            logic_op: vk::LogicOp::COPY,
             attachment_count: 1,
             p_attachments: &color_blend_attachment,
             blend_constants: [0.0, 0.0, 0.0, 0.0],
@@ -140,7 +142,7 @@ impl Pipeline {
 
         let depth_stencil = vk::PipelineDepthStencilStateCreateInfo {
             depth_test_enable: vk::TRUE,
-            depth_write_enable: vk::TRUE,
+            depth_write_enable: !alpha as u32,
             depth_compare_op: vk::CompareOp::GREATER,
             depth_bounds_test_enable: vk::FALSE,
             stencil_test_enable: vk::FALSE,

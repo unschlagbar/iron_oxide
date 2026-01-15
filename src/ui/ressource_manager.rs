@@ -1,16 +1,16 @@
 use std::{any::TypeId, slice};
 
 use ash::vk::{
-    BufferUsageFlags, CommandBuffer, DescriptorBufferInfo, DescriptorImageInfo, DescriptorPool,
-    DescriptorPoolCreateInfo, DescriptorPoolSize, DescriptorSet, DescriptorSetAllocateInfo,
-    DescriptorSetLayout, DescriptorType, ImageLayout, ImageView, MemoryMapFlags, PipelineBindPoint,
-    Rect2D, Sampler, WriteDescriptorSet,
+    Buffer, BufferUsageFlags, CommandBuffer, DescriptorBufferInfo, DescriptorImageInfo,
+    DescriptorPool, DescriptorPoolCreateInfo, DescriptorPoolSize, DescriptorSet,
+    DescriptorSetAllocateInfo, DescriptorSetLayout, DescriptorType, ImageLayout, ImageView,
+    PipelineBindPoint, Rect2D, Sampler, WriteDescriptorSet,
 };
 
 use crate::{
-    graphics::{self, BufferManager, TextureAtlas, VertexDescription, VkBase},
+    graphics::{BufferManager, DrawBatch, Material, TextureAtlas, VertexDescription, VkBase},
     primitives::Matrix4,
-    ui::materials::{DrawBatch, MatType, Material},
+    ui::materials::MatType,
 };
 
 pub const MAX_IMGS: u32 = 2;
@@ -76,7 +76,7 @@ impl Ressources {
         &mut self,
         device: &ash::Device,
         layouts: &[DescriptorSetLayout],
-        uniform_buffer: &graphics::Buffer,
+        uniform_buffer: Buffer,
         image_view: ImageView,
         atlas_view: ImageView,
         sampler: Sampler,
@@ -99,7 +99,7 @@ impl Ressources {
         let atl_set = sets.next().unwrap();
 
         let buffer_info = DescriptorBufferInfo {
-            buffer: uniform_buffer.inner,
+            buffer: uniform_buffer,
             offset: 0,
             range: size_of::<Matrix4>() as u64,
         };
@@ -197,6 +197,10 @@ impl Ressources {
 
             let batches = &self.draw_batches[i];
 
+            if batches.is_empty() {
+                continue;
+            }
+
             unsafe {
                 if mat.desc_set != DescriptorSet::null() {
                     device.cmd_bind_descriptor_sets(
@@ -235,51 +239,46 @@ impl Ressources {
         }
     }
 
-    pub fn upload(&mut self, base: &VkBase) {
-        self.buffer_manager.destroy_buffers(base);
+    pub fn upload(&mut self, base: &VkBase, start: usize) {
+        self.buffer_manager.destroy_buffers(base, start);
 
         for (i, mat) in self.materials.iter_mut().enumerate() {
-            let mut buf = Vec::new();
-            let stride = mat.stride as u32;
-
-            for batch in &mut self.draw_batches[i] {
-                batch.offset = buf.len() as u32 / stride;
-                batch.size = batch.data.len() as u32 / stride;
-
-                buf.extend_from_slice(&batch.data);
-            }
-
-            if buf.is_empty() {
+            if self.draw_batches[i].is_empty() {
                 continue;
             }
 
-            let offset = self.buffer_manager.memory_pool[0].used;
+            let stride = mat.stride as u32;
+            let mut capacity = 0;
+            
+            for batch in &mut self.draw_batches[i] {
+                batch.offset = capacity / stride;
+                batch.size = batch.data.len() as u32 / stride;
+                
+                capacity += batch.data.len() as u32;
+            }
+
+            let mut buf = Vec::with_capacity(capacity as usize);
+
+            for batch in &mut self.draw_batches[i] {
+                buf.extend_from_slice(&batch.data);
+            }
 
             let (buffer, buffer_size) = self.buffer_manager.create_buffer(
                 base,
                 buf.len() as u64,
                 BufferUsageFlags::VERTEX_BUFFER,
             );
+
             mat.buffer = buffer;
             mat.buffer_size = buffer_size;
 
-            let mem = &self.buffer_manager.memory_pool[0];
+            let offset = self.buffer_manager.buffers.last().unwrap().1 as usize;
 
-            let mapped_memory: *mut u8 = unsafe {
-                base.device
-                    .map_memory(
-                        mem.memory,
-                        offset,
-                        buf.len() as u64,
-                        MemoryMapFlags::empty(),
-                    )
-                    .unwrap()
-                    .cast()
-            };
+            let mem = &self.buffer_manager.memory_pool[0];
+            let dest = mem.get_ptr(offset);
+
             unsafe {
-                buf.as_ptr()
-                    .copy_to_nonoverlapping(mapped_memory, buf.len());
-                base.device.unmap_memory(mem.memory);
+                buf.as_ptr().copy_to_nonoverlapping(dest, buf.len());
             };
         }
     }

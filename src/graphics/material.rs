@@ -1,10 +1,7 @@
 use ash::vk::{self, Buffer, Rect2D};
 use winit::dpi::PhysicalSize;
 
-use crate::{
-    graphics::{VertexDescription, VkBase},
-    ui::pipeline::Pipeline,
-};
+use crate::graphics::{Pipeline, VertexDescription, VkBase};
 
 use std::{any::TypeId, fmt};
 
@@ -32,6 +29,7 @@ impl Material {
         render_pass: vk::RenderPass,
         descriptor_set_layouts: &[vk::DescriptorSetLayout],
         desc_set: vk::DescriptorSet,
+        alpha: bool,
         shaders: (&[u8], &[u8]),
     ) -> Self {
         assert!(align_of::<T>() >= 4);
@@ -44,6 +42,7 @@ impl Material {
                 render_pass,
                 descriptor_set_layouts,
                 shaders,
+                alpha,
             ),
             instance_type: TypeId::of::<T>(),
             stride: size_of::<T>(),

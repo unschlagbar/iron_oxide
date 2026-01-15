@@ -132,7 +132,7 @@ impl VkBase {
 
         let layer_names: &[&CStr] = {
             if cfg!(debug_assertions) {
-                &[c"VK_LAYER_KHRONOS_validation"]
+                &[c"VK_LAYER_KHRONOS_validation", c"VK_LAYER_LUNARG_monitor"]
             } else {
                 &[]
             }

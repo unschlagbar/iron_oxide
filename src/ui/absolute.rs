@@ -5,9 +5,7 @@ use crate::{
     graphics::formats::RGBA,
     primitives::Vec2,
     ui::{
-        FlexDirection, Ressources, UiRef,
-        materials::{MatType, UiInstance},
-        widget::Widget,
+        FlexDirection, Ressources, UiRef, materials::{MatType, ShadowInstance, UiInstance}, style::Shadow, widget::Widget
     },
 };
 
@@ -21,6 +19,7 @@ pub struct Absolute {
     pub border_color: RGBA,
     pub border: [u8; 4],
     pub corner: [UiUnit; 4],
+    pub shadow: Shadow,
     pub padding: UiRect,
 }
 
@@ -86,6 +85,21 @@ impl Widget for Absolute {
             z_index: element.z_index,
         };
         ressources.add(MatType::Basic, &to_add, clip);
+
+        if self.shadow.color != RGBA::ZERO {
+            let to_add = ShadowInstance {
+                color: self.shadow.color,
+                x: element.pos.x as i16 + self.shadow.offset.0,
+                y: element.pos.y as i16 + self.shadow.offset.0,
+                width: element.size.x as _,
+                height: element.size.y as _,
+                blur: self.shadow.blur,
+                corner: self.corner[0].px(element.size) as u16,
+                z_index: element.z_index - 1,
+            };
+            ressources.add(MatType::Shadow, &to_add, clip);
+        }
+
         clip
     }
 }
@@ -102,6 +116,7 @@ impl Default for Absolute {
             border_color: RGBA::GREEN,
             border: [0; 4],
             corner: [UiUnit::Zero; 4],
+            shadow: Shadow::new(0, RGBA::ZERO),
             padding: UiRect::default(),
         }
     }

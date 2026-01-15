@@ -216,3 +216,76 @@ impl VertexDescription for FontInstance {
         },
     ];
 }
+
+#[repr(align(4))]
+#[derive(Debug, Clone, Copy)]
+pub struct ShadowInstance {
+    pub x: i16,
+    pub y: i16,
+    pub width: i16,
+    pub height: i16,
+    pub blur: u16,
+    pub corner: u16,
+    pub z_index: i16,
+    pub color: RGBA,
+}
+
+impl VertexDescription for ShadowInstance {
+    const GET_BINDING_DESCRIPTION: &[VertexInputBindingDescription] =
+        &[VertexInputBindingDescription {
+            binding: 0,
+            stride: size_of::<Self>() as _,
+            input_rate: vk::VertexInputRate::INSTANCE,
+        }];
+
+    const GET_ATTRIBUTE_DESCRIPTIONS: &[VertexInputAttributeDescription] = &[
+        VertexInputAttributeDescription {
+            binding: 0,
+            location: 0,
+            format: Format::R8G8B8A8_UNORM,
+            offset: offset_of!(Self, color) as u32,
+        },
+        VertexInputAttributeDescription {
+            binding: 0,
+            location: 1,
+            format: Format::R16_SINT,
+            offset: offset_of!(Self, x) as u32,
+        },
+        VertexInputAttributeDescription {
+            binding: 0,
+            location: 2,
+            format: Format::R16_SINT,
+            offset: offset_of!(Self, y) as u32,
+        },
+        VertexInputAttributeDescription {
+            binding: 0,
+            location: 3,
+            format: Format::R16_SINT,
+            offset: offset_of!(Self, width) as u32,
+        },
+        VertexInputAttributeDescription {
+            binding: 0,
+            location: 4,
+            format: Format::R16_SINT,
+            offset: offset_of!(Self, height) as u32,
+        },
+        VertexInputAttributeDescription {
+            binding: 0,
+            location: 5,
+            format: Format::R16_UINT,
+            offset: offset_of!(Self, blur) as u32,
+        },
+        VertexInputAttributeDescription {
+            binding: 0,
+            location: 6,
+            format: Format::R16_UINT,
+            offset: offset_of!(Self, corner) as u32,
+        },
+        VertexInputAttributeDescription {
+            binding: 0,
+            location: 7,
+            format: Format::R16_SINT,
+            offset: offset_of!(Self, z_index) as u32,
+        },
+    ];
+}

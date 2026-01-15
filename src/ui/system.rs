@@ -378,7 +378,7 @@ impl Ui {
 
 //Vulkan & graphics Stuff!!
 impl Ui {
-    pub fn update(&mut self, base: &VkBase, ressources: &mut Ressources) {
+    pub fn update(&mut self, base: &VkBase, ressources: &mut Ressources, start: usize) {
         if !self.visible || !self.is_dirty() {
             return;
         }
@@ -391,7 +391,7 @@ impl Ui {
 
         self.get_instaces(ressources);
 
-        ressources.upload(base);
+        ressources.upload(base, start);
     }
 
     pub fn create_ubo_desc_layout(device: &ash::Device) -> vk::DescriptorSetLayout {
