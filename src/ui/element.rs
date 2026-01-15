@@ -21,8 +21,8 @@ pub struct UiElement {
     pub name: &'static str,
     pub visible: bool,
     pub transparent: bool,
-    pub size: Vec2,
-    pub pos: Vec2,
+    pub size: Vec2<i16>,
+    pub pos: Vec2<i16>,
     pub z_index: i16,
     pub parent: Option<UiRef>,
     pub childs: Vec<Self>,
@@ -65,15 +65,15 @@ impl UiElement {
 
     pub fn build(&mut self, context: &mut BuildContext) {
         context.z_index = self.z_index;
-        context.element_pos = self.pos;
-        context.element_size = self.size;
+        context.element_pos = Vec2::new(self.pos.x as f32, self.pos.y as f32);
+        context.element_size = Vec2::new(self.pos.x as f32, self.pos.y as f32);
 
         let childs = self.childs_mut();
 
         self.widget.build(childs, context);
 
-        self.pos = context.element_pos;
-        self.size = context.element_size;
+        self.pos = Vec2::new(context.element_pos.x as i16, context.element_pos.y as i16);
+        self.size = Vec2::new(context.element_size.x as i16, context.element_size.y as i16);
     }
 
     pub fn get_instances(&mut self, ressources: &mut Ressources, clip: Option<Rect2D>) {
@@ -89,8 +89,8 @@ impl UiElement {
         }
     }
 
-    pub fn offset_element(&mut self, offset: Vec2) {
-        self.pos += offset;
+    pub fn offset_element(&mut self, offset: Vec2<f32>) {
+        self.pos += Vec2::new(offset.x as i16, offset.y as i16);
 
         if let Some(text) = self.downcast_mut::<Text>() {
             for i in &mut text.font_instances {
@@ -103,7 +103,7 @@ impl UiElement {
         }
     }
 
-    pub fn is_in(&self, pos: Vec2) -> bool {
+    pub fn is_in(&self, pos: Vec2<i16>) -> bool {
         self.pos <= pos && self.pos.x + self.size.x >= pos.x && self.pos.y + self.size.y >= pos.y
     }
 
@@ -125,7 +125,7 @@ impl UiElement {
             return InputResult::None;
         }
 
-        if self.is_in(ui.cursor_pos) {
+        if self.is_in(Vec2::new(ui.cursor_pos.x as i16, ui.cursor_pos.y as i16)) {
             for child in &mut self.childs {
                 if child.update_hover(ui, _event) == InputResult::New {
                     return InputResult::New;

@@ -52,7 +52,7 @@ impl UiUnit {
     }
 
     #[inline]
-    pub fn py(&self, size: Vec2) -> f32 {
+    pub fn py(&self, size: Vec2<f32>) -> f32 {
         match self {
             Self::Zero => 0.0,
             Self::Undefined => 100.0,
@@ -67,7 +67,7 @@ impl UiUnit {
         }
     }
 
-    pub fn px(&self, size: Vec2) -> f32 {
+    pub fn px(&self, size: Vec2<f32>) -> f32 {
         match self {
             Self::Zero => 0.0,
             Self::Undefined => 100.0,
@@ -100,7 +100,7 @@ pub enum Align {
 
 impl Align {
     #[inline]
-    pub fn get_pos(&self, space: Vec2, size: Vec2, offset: Vec2) -> Vec2 {
+    pub fn get_pos(&self, space: Vec2<f32>, size: Vec2<f32>, offset: Vec2<f32>) -> Vec2<f32> {
         match self {
             Align::Center => (space - size) * 0.5 + offset,
             Align::Top => Vec2::new((space.x - size.x) * 0.5 + offset.x, offset.y),

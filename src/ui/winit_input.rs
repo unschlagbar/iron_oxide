@@ -33,7 +33,7 @@ impl Ui {
                 position,
             } => self.handle_input((*position).into(), UiEvent::Move),
             WindowEvent::CursorLeft { device_id: _ } => {
-                self.handle_input(Vec2::new(-1.0, -1.0), UiEvent::Move)
+                self.handle_input(Vec2::new(-1, -1), UiEvent::Move)
             }
             WindowEvent::MouseWheel {
                 device_id: _,

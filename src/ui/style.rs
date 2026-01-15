@@ -64,15 +64,15 @@ impl UiRect {
         self.top.pixely(context) + self.bottom.pixely(context)
     }
 
-    pub fn start(&self, context: &BuildContext) -> Vec2 {
+    pub fn start(&self, context: &BuildContext) -> Vec2<f32> {
         Vec2::new(self.left.pixelx(context), self.top.pixely(context))
     }
 
-    pub fn end(&self, context: &BuildContext) -> Vec2 {
+    pub fn end(&self, context: &BuildContext) -> Vec2<f32> {
         Vec2::new(self.right.pixelx(context), self.bottom.pixely(context))
     }
 
-    pub fn size(&self, context: &BuildContext) -> Vec2 {
+    pub fn size(&self, context: &BuildContext) -> Vec2<f32> {
         Vec2::new(
             self.left.pixelx(context) + self.right.pixelx(context),
             self.top.pixely(context) + self.bottom.pixelx(context),

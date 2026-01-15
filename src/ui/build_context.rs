@@ -5,17 +5,17 @@ use super::Font;
 #[derive(Debug)]
 pub struct BuildContext {
     /// Size of current element
-    pub element_size: Vec2,
+    pub element_size: Vec2<f32>,
     /// Final position of current element
-    pub element_pos: Vec2,
+    pub element_pos: Vec2<f32>,
     /// Depth
     pub z_index: i16,
 
     /// Available layout space given by parent (content box)
-    pub available_size: Vec2,
+    pub available_size: Vec2<f32>,
 
     /// Absolute start position for children
-    pub child_start_pos: Vec2,
+    pub child_start_pos: Vec2<f32>,
 
     /// For measuring in the current flex-direction
     pub used_main: f32,
@@ -29,7 +29,7 @@ pub struct BuildContext {
 }
 
 impl BuildContext {
-    pub fn default(font: &Font, parent_size: Vec2) -> Self {
+    pub fn default(font: &Font, parent_size: Vec2<f32>) -> Self {
         Self {
             element_size: Vec2::zero(),
             element_pos: Vec2::zero(),
@@ -46,7 +46,7 @@ impl BuildContext {
         }
     }
 
-    pub fn new_from(parent: &Self, available: Vec2, start: Vec2, dir: FlexDirection) -> Self {
+    pub fn new_from(parent: &Self, available: Vec2<f32>, start: Vec2<f32>, dir: FlexDirection) -> Self {
         Self {
             element_size: Vec2::zero(),
             element_pos: Vec2::zero(),
@@ -69,7 +69,7 @@ impl BuildContext {
     }
 
     /// Gets the remaining space
-    pub fn remaining_space(&self) -> Vec2 {
+    pub fn remaining_space(&self) -> Vec2<f32> {
         match self.flex_direction {
             FlexDirection::Horizontal => self.available_size - Vec2::new(self.used_main, 0.0),
             FlexDirection::Vertical => self.available_size - Vec2::new(0.0, self.used_main),
@@ -77,7 +77,7 @@ impl BuildContext {
     }
 
     /// Gets the remaining space
-    pub fn size(&self) -> Vec2 {
+    pub fn size(&self) -> Vec2<f32> {
         if self.used_cross > 0.0 {
             match self.flex_direction {
                 FlexDirection::Horizontal => Vec2::new(self.used_main, self.used_cross),
@@ -89,7 +89,7 @@ impl BuildContext {
     }
 
     /// Places an element in the flow layout (similar to CSS block-level flex positioning)
-    pub fn place_child(&mut self, child_size: Vec2) {
+    pub fn place_child(&mut self, child_size: Vec2<f32>) {
         match self.flex_direction {
             FlexDirection::Horizontal => {
                 self.used_main += child_size.x;
@@ -103,7 +103,7 @@ impl BuildContext {
     }
 
     /// Places an element in the flow layout (similar to CSS block-level flex positioning)
-    pub fn pos_child(&self) -> Vec2 {
+    pub fn pos_child(&self) -> Vec2<f32> {
         match self.flex_direction {
             FlexDirection::Horizontal => {
                 let x = self.child_start_pos.x + self.used_main;
@@ -118,12 +118,12 @@ impl BuildContext {
         }
     }
 
-    pub fn apply_data(&mut self, pos: Vec2, size: Vec2) {
+    pub fn apply_data(&mut self, pos: Vec2<f32>, size: Vec2<f32>) {
         self.element_pos = pos;
         self.element_size = size;
     }
 
-    pub fn final_size(&self) -> Vec2 {
+    pub fn final_size(&self) -> Vec2<f32> {
         match self.flex_direction {
             FlexDirection::Horizontal => Vec2::new(self.used_main, self.used_cross),
             FlexDirection::Vertical => Vec2::new(self.used_cross, self.used_main),

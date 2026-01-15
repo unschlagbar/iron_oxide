@@ -249,7 +249,7 @@ pub struct TextLine {
 #[derive(Debug)]
 pub struct LayoutText {
     pub lines: Vec<TextLine>,
-    pub size: Vec2,
+    pub size: Vec2<f32>,
     pub uv_height: u16,
 }
 
@@ -270,8 +270,8 @@ impl LayoutText {
 #[derive(Debug)]
 pub struct Glyph {
     pub char: char,
-    pub pos: Vec2,
-    pub size: Vec2,
+    pub pos: Vec2<f32>,
+    pub size: Vec2<f32>,
     pub uv_start: (u16, u16),
     pub uv_size: (u16, u16),
 }

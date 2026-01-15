@@ -83,7 +83,7 @@ impl Widget for Container {
             y: element.pos.y as _,
             width: element.size.x as _,
             height: element.size.y as _,
-            corner: self.corner[0].px(element.size) as _,
+            corner: self.corner[0].px(Vec2::new(element.size.x as f32, element.size.y as f32)) as _,
             z_index: element.z_index,
         };
         ressources.add(MatType::Basic, &to_add, clip);

@@ -11,8 +11,8 @@ use crate::{
 
 #[derive(Default)]
 pub struct ScrollPanel {
-    pub scroll_offset: Vec2,
-    pub size: Vec2,
+    pub scroll_offset: Vec2<f32>,
+    pub size: Vec2<f32>,
     pub padding: UiRect,
     pub child_hash: u32,
 }
@@ -66,7 +66,7 @@ impl Widget for ScrollPanel {
                 MouseScrollDelta::PixelDelta(pos) => pos.y as f32,
             };
             let old_offset = self.scroll_offset.y;
-            let min = (element.size.y - self.size.y).min(0.0);
+            let min = (element.size.y as f32 - self.size.y).min(0.0);
 
             self.scroll_offset.y += delta;
             self.scroll_offset.y = self.scroll_offset.y.clamp(min, 0.0);

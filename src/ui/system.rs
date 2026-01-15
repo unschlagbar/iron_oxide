@@ -19,8 +19,8 @@ use crate::{
 
 pub struct Ui {
     pub(crate) elements: Vec<UiElement>,
-    pub size: Vec2,
-    pub cursor_pos: Vec2,
+    pub size: Vec2<f32>,
+    pub cursor_pos: Vec2<i16>,
 
     /// Target Cursor.
     /// Should only be used from hovered Elements
@@ -248,7 +248,7 @@ impl Ui {
     }
 
     /// TODO disable hover in touch mode
-    pub fn handle_input(&mut self, cursor_pos: Vec2, event: UiEvent) -> InputResult {
+    pub fn handle_input(&mut self, cursor_pos: Vec2<i16>, event: UiEvent) -> InputResult {
         let ui = unsafe { &mut *ptr::from_mut(self) };
         self.cursor_pos = cursor_pos;
 
@@ -261,7 +261,7 @@ impl Ui {
         } else if event == UiEvent::Press {
             let mut exit = false;
             if let Some(focused) = &mut self.selection.focused
-                && !focused.as_ref().is_in(cursor_pos)
+                && !focused.as_ref().is_in(Vec2::new(ui.cursor_pos.x as i16, ui.cursor_pos.y as i16))
             {
                 let widget = &mut focused.as_mut().widget;
                 widget.interaction(focused.as_ui_ref(), self, UiEvent::End);
@@ -278,7 +278,7 @@ impl Ui {
 
         if self.new_absolute || event == UiEvent::Move {
             for element in &mut self.elements {
-                if element.is_in(cursor_pos) {
+                if element.is_in(Vec2::new(ui.cursor_pos.x as i16, ui.cursor_pos.y as i16)) {
                     // We still need to break since there could be a absolute element above
                     element.update_hover(ui, event);
                 }
@@ -348,7 +348,7 @@ impl Ui {
         !self.tick_queue.is_empty()
     }
 
-    pub fn resize(&mut self, new_size: Vec2) {
+    pub fn resize(&mut self, new_size: Vec2<f32>) {
         self.layout_changed();
         self.size = new_size;
     }

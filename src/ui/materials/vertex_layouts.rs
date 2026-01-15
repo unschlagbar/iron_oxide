@@ -89,8 +89,8 @@ impl VertexDescription for UiInstance {
 #[repr(align(4))]
 #[derive(Debug, Clone, Copy)]
 pub struct AtlasInstance {
-    pub pos: Vec2,
-    pub size: Vec2,
+    pub pos: Vec2<f32>,
+    pub size: Vec2<f32>,
     pub color: RGBA,
     pub uv_start: (u16, u16),
     pub uv_size: (u16, u16),
@@ -148,8 +148,8 @@ impl VertexDescription for AtlasInstance {
 #[repr(align(4))]
 #[derive(Debug, Clone, Copy)]
 pub struct FontInstance {
-    pub pos: Vec2,
-    pub size: Vec2,
+    pub pos: Vec2<f32>,
+    pub size: Vec2<f32>,
     pub color: RGBA,
     pub uv_start: (u16, u16),
     pub uv_size: (u16, u16),
