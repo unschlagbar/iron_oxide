@@ -1,10 +1,11 @@
 use std::{any::TypeId, slice};
 
 use ash::vk::{
-    Buffer, BufferUsageFlags, CommandBuffer, DescriptorBufferInfo, DescriptorImageInfo,
-    DescriptorPool, DescriptorPoolCreateInfo, DescriptorPoolSize, DescriptorSet,
-    DescriptorSetAllocateInfo, DescriptorSetLayout, DescriptorType, ImageLayout, ImageView,
-    PipelineBindPoint, Rect2D, Sampler, WriteDescriptorSet,
+    BorderColor, Buffer, BufferUsageFlags, CommandBuffer, CompareOp, DescriptorBufferInfo,
+    DescriptorImageInfo, DescriptorPool, DescriptorPoolCreateInfo, DescriptorPoolSize,
+    DescriptorSet, DescriptorSetAllocateInfo, DescriptorSetLayout, DescriptorType, FALSE, Filter,
+    ImageLayout, ImageView, PipelineBindPoint, Rect2D, Sampler, SamplerAddressMode,
+    SamplerCreateInfo, SamplerMipmapMode, TRUE, WriteDescriptorSet,
 };
 
 use crate::{
@@ -23,16 +24,15 @@ pub struct Ressources {
 
     pub desc_pool: DescriptorPool,
     pub ubo_set: DescriptorSet,
-    pub img_set: DescriptorSet,
-    pub atl_set: DescriptorSet,
 
+    pub sampler: Sampler,
     pub texture_atlas: TextureAtlas,
 }
 
 impl Ressources {
     pub fn new(base: &VkBase, atlas: TextureAtlas) -> Self {
         let mut buffer_manager = BufferManager::new(base);
-        buffer_manager.allocate_memory(base, buffer_manager.host_visible, 5_000_000);
+        buffer_manager.allocate_memory(base, buffer_manager.host_visible, 500_000);
 
         let pool_sizes = [
             DescriptorPoolSize {
@@ -45,7 +45,7 @@ impl Ressources {
             },
         ];
 
-        let pool_info = DescriptorPoolCreateInfo {
+        let create_info = DescriptorPoolCreateInfo {
             pool_size_count: pool_sizes.len() as _,
             p_pool_sizes: pool_sizes.as_ptr(),
             max_sets: MAX_IMGS + 1,
@@ -54,9 +54,30 @@ impl Ressources {
 
         let desc_pool = unsafe {
             base.device
-                .create_descriptor_pool(&pool_info, None)
+                .create_descriptor_pool(&create_info, None)
                 .unwrap()
         };
+
+        let create_info = SamplerCreateInfo {
+            mag_filter: Filter::NEAREST,
+            min_filter: Filter::NEAREST,
+            mipmap_mode: SamplerMipmapMode::NEAREST,
+            address_mode_u: SamplerAddressMode::CLAMP_TO_BORDER,
+            address_mode_v: SamplerAddressMode::CLAMP_TO_BORDER,
+            address_mode_w: SamplerAddressMode::CLAMP_TO_BORDER,
+            mip_lod_bias: 0.0,
+            anisotropy_enable: FALSE,
+            max_anisotropy: 0.0,
+            compare_enable: FALSE,
+            compare_op: CompareOp::ALWAYS,
+            min_lod: 0.0,
+            max_lod: 0.0,
+            border_color: BorderColor::FLOAT_TRANSPARENT_BLACK,
+            unnormalized_coordinates: TRUE,
+            ..Default::default()
+        };
+
+        let sampler = unsafe { base.device.create_sampler(&create_info, None).unwrap() };
 
         Self {
             buffer_manager,
@@ -65,9 +86,8 @@ impl Ressources {
 
             desc_pool,
             ubo_set: DescriptorSet::null(),
-            img_set: DescriptorSet::null(),
-            atl_set: DescriptorSet::null(),
 
+            sampler,
             texture_atlas: atlas,
         }
     }
@@ -76,27 +96,26 @@ impl Ressources {
         &mut self,
         device: &ash::Device,
         layouts: &[DescriptorSetLayout],
+        layout_mats: &[usize],
         uniform_buffer: Buffer,
         image_view: ImageView,
         atlas_view: ImageView,
-        sampler: Sampler,
     ) {
         let allocate_info = DescriptorSetAllocateInfo {
             descriptor_pool: self.desc_pool,
-            descriptor_set_count: layouts.len() as _,
+            descriptor_set_count: layouts.len() as u32,
             p_set_layouts: layouts.as_ptr(),
             ..Default::default()
         };
-        let mut sets = unsafe {
-            device
-                .allocate_descriptor_sets(&allocate_info)
-                .unwrap()
-                .into_iter()
-        };
+        let sets = unsafe { device.allocate_descriptor_sets(&allocate_info).unwrap() };
 
-        let ubo_set = sets.next().unwrap();
-        let img_set = sets.next().unwrap();
-        let atl_set = sets.next().unwrap();
+        assert_eq!(sets.len() - 1, layout_mats.len());
+
+        self.ubo_set = sets[0];
+
+        for (&mat_i, set) in layout_mats.iter().zip(&sets[1..]) {
+            self.materials[mat_i].desc_set = *set;
+        }
 
         let buffer_info = DescriptorBufferInfo {
             buffer: uniform_buffer,
@@ -105,20 +124,20 @@ impl Ressources {
         };
 
         let image_info = DescriptorImageInfo {
-            sampler,
+            sampler: self.sampler,
             image_view,
             image_layout: ImageLayout::SHADER_READ_ONLY_OPTIMAL,
         };
 
         let atlas_image_info = DescriptorImageInfo {
-            sampler,
+            sampler: self.sampler,
             image_view: atlas_view,
             image_layout: ImageLayout::SHADER_READ_ONLY_OPTIMAL,
         };
 
         let descriptor_writes = [
             WriteDescriptorSet {
-                dst_set: ubo_set,
+                dst_set: sets[0],
                 dst_binding: 0,
                 dst_array_element: 0,
                 descriptor_type: DescriptorType::UNIFORM_BUFFER,
@@ -127,7 +146,7 @@ impl Ressources {
                 ..Default::default()
             },
             WriteDescriptorSet {
-                dst_set: img_set,
+                dst_set: sets[1],
                 dst_binding: 0,
                 dst_array_element: 0,
                 descriptor_type: DescriptorType::COMBINED_IMAGE_SAMPLER,
@@ -136,7 +155,7 @@ impl Ressources {
                 ..Default::default()
             },
             WriteDescriptorSet {
-                dst_set: atl_set,
+                dst_set: sets[2],
                 dst_binding: 0,
                 dst_array_element: 0,
                 descriptor_type: DescriptorType::COMBINED_IMAGE_SAMPLER,
@@ -147,10 +166,6 @@ impl Ressources {
         ];
 
         unsafe { device.update_descriptor_sets(&descriptor_writes, &[]) };
-
-        self.ubo_set = ubo_set;
-        self.img_set = img_set;
-        self.atl_set = atl_set;
     }
 
     pub fn add_mat(&mut self, material: Material) {
@@ -249,11 +264,11 @@ impl Ressources {
 
             let stride = mat.stride as u32;
             let mut capacity = 0;
-            
+
             for batch in &mut self.draw_batches[i] {
                 batch.offset = capacity / stride;
                 batch.size = batch.data.len() as u32 / stride;
-                
+
                 capacity += batch.data.len() as u32;
             }
 
@@ -292,6 +307,7 @@ impl Ressources {
         self.texture_atlas.destroy(&base.device);
 
         unsafe {
+            base.device.destroy_sampler(self.sampler, None);
             base.device.destroy_descriptor_pool(self.desc_pool, None);
         }
     }

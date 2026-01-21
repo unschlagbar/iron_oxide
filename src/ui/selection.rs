@@ -1,6 +1,6 @@
 use crate::ui::{UiElement, UiRef};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(crate) struct Selection {
     /// Represents the element the cursor points at
     pub hovered: Option<Select>,
@@ -44,10 +44,6 @@ impl Selection {
         self.captured = Some(Select::new(element));
     }
 
-    pub fn clear_capture(&mut self) {
-        self.captured = None;
-    }
-
     pub fn check_removed(&mut self, id: u32) -> bool {
         let was_hover;
 
@@ -76,7 +72,7 @@ impl Selection {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct Select {
     ptr: UiRef,
     id: u32,

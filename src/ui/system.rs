@@ -8,10 +8,10 @@ use winit::window::CursorIcon;
 
 use super::{BuildContext, Font, UiElement, UiEvent};
 use crate::{
-    graphics::VkBase,
+    graphics::{Ressources, VkBase},
     primitives::Vec2,
     ui::{
-        Absolute, QueuedEvent, Ressources, UiRef,
+        Absolute, QueuedEvent, UiRef,
         events::{QueuedEventHandler, TickEvent},
         selection::{Select, Selection},
     },
@@ -215,11 +215,8 @@ impl Ui {
         for element in &mut self.elements {
             if element.id == id {
                 return Some(UiRef::new(element));
-            } else {
-                let result = element.get_child(id);
-                if result.is_some() {
-                    return result;
-                }
+            } else if let Some(result) = element.get_child(id) {
+                return Some(result);
             }
         }
         None
@@ -254,14 +251,20 @@ impl Ui {
 
         // 1. Check and update Captured
         if let Some(captured) = &mut self.selection.captured {
+            let element = UiRef::new(captured.as_mut());
             let widget = &mut captured.as_mut().widget;
-            if widget.interaction(UiRef::new(captured.as_mut()), self, event) == InputResult::New {
+
+            if event == UiEvent::Release {
+                self.selection.captured = None;
+            }
+
+            if widget.interaction(element, self, event).is_new() {
                 return InputResult::New;
             }
         } else if event == UiEvent::Press {
             let mut exit = false;
             if let Some(focused) = &mut self.selection.focused
-                && !focused.as_ref().is_in(Vec2::new(ui.cursor_pos.x as i16, ui.cursor_pos.y as i16))
+                && !focused.as_ref().is_in(ui.cursor_pos)
             {
                 let widget = &mut focused.as_mut().widget;
                 widget.interaction(focused.as_ui_ref(), self, UiEvent::End);
@@ -278,8 +281,8 @@ impl Ui {
 
         if self.new_absolute || event == UiEvent::Move {
             for element in &mut self.elements {
-                if element.is_in(Vec2::new(ui.cursor_pos.x as i16, ui.cursor_pos.y as i16)) {
-                    // We still need to break since there could be a absolute element above
+                if element.is_in(ui.cursor_pos) {
+                    // We still can't break since there could be a absolute element above
                     element.update_hover(ui, event);
                 }
             }
@@ -293,8 +296,12 @@ impl Ui {
                 let widget = &mut last.as_mut().widget;
                 widget.interaction(UiRef::new(last.as_mut()), self, UiEvent::HoverEnd);
 
+                
+                println!("not same");
                 new.as_mut().handle_hover(ui, event)
             } else {
+                println!("same");
+
                 last.as_mut().handle_hover(ui, event)
             }
         } else {
@@ -374,10 +381,7 @@ impl Ui {
     pub const fn is_dirty(&self) -> bool {
         !matches!(self.dirty, DirtyFlags::None)
     }
-}
 
-//Vulkan & graphics Stuff!!
-impl Ui {
     pub fn update(&mut self, base: &VkBase, ressources: &mut Ressources, start: usize) {
         if !self.visible || !self.is_dirty() {
             return;
@@ -393,7 +397,10 @@ impl Ui {
 
         ressources.upload(base, start);
     }
+}
 
+//Vulkan & graphics Stuff!!
+impl Ui {
     pub fn create_ubo_desc_layout(device: &ash::Device) -> vk::DescriptorSetLayout {
         let layout_binding = vk::DescriptorSetLayoutBinding {
             binding: 0,

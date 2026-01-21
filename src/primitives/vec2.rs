@@ -1,5 +1,7 @@
 use std::{
-    cmp::Ordering, fmt, ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign}
+    cmp::Ordering,
+    fmt,
+    ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
 #[derive(Debug, Clone, Default)]
@@ -261,6 +263,27 @@ impl From<PhysicalPosition<f64>> for Vec2<i16> {
         Vec2::new(size.x as i16, size.y as i16)
     }
 }
+
+impl Vec2<i16> {
+    pub const MAX: Self = Self {
+        x: i16::MAX,
+        y: i16::MAX,
+    };
+    pub const MIN: Self = Self {
+        x: i16::MIN,
+        y: i16::MIN,
+    };
+    pub const fn one() -> Self {
+        Self { x: 1, y: 1 }
+    }
+    pub const fn min(&self) -> i16 {
+        if self.x < self.y { self.x } else { self.y }
+    }
+    pub const fn max(&self) -> i16 {
+        if self.x > self.y { self.x } else { self.y }
+    }
+}
+
 #[cfg(feature = "vulkan")]
 impl From<Vec2<i16>> for Offset2D {
     fn from(size: Vec2<i16>) -> Self {

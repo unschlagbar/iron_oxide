@@ -46,7 +46,7 @@ impl Swapchain {
                     .unwrap(),
                 surface_loader
                     .get_physical_device_surface_formats(base.physical_device, surface)
-                    .unwrap_unchecked()
+                    .unwrap()
                     .into_iter()
                     .find(|format| {
                         format.format == target_format
@@ -55,7 +55,7 @@ impl Swapchain {
                     .unwrap(),
                 surface_loader
                     .get_physical_device_surface_present_modes(base.physical_device, surface)
-                    .unwrap_unchecked()
+                    .unwrap()
                     .into_iter()
                     .find(|pm| *pm == present_mode)
                     .unwrap_or(PresentModeKHR::FIFO),
@@ -124,7 +124,7 @@ impl Swapchain {
                 .unwrap();
         }
 
-        // Wayland tells with width == u32::MAY that we can decide the size
+        // Wayland tells with width = u32::MAY that we can decide the size
         if self.capabilities.current_extent.width == u32::MAX {
             self.capabilities.current_extent.width = size.width;
             self.capabilities.current_extent.height = size.height;
@@ -164,10 +164,7 @@ impl Swapchain {
                 base.device.destroy_framebuffer(self.framebuffers[i], None);
                 base.device.destroy_image_view(self.image_views[i], None);
             }
-            let new = self
-                .loader
-                .create_swapchain(&create_info, None)
-                .unwrap_unchecked();
+            let new = self.loader.create_swapchain(&create_info, None).unwrap();
             self.loader.destroy_swapchain(self.inner, None);
             self.inner = new;
         }

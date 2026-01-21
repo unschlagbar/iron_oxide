@@ -46,7 +46,12 @@ impl BuildContext {
         }
     }
 
-    pub fn new_from(parent: &Self, available: Vec2<f32>, start: Vec2<f32>, dir: FlexDirection) -> Self {
+    pub fn new_from(
+        parent: &Self,
+        available: Vec2<f32>,
+        start: Vec2<f32>,
+        dir: FlexDirection,
+    ) -> Self {
         Self {
             element_size: Vec2::zero(),
             element_pos: Vec2::zero(),
@@ -116,6 +121,26 @@ impl BuildContext {
                 Vec2::new(x, y)
             }
         }
+    }
+
+    /// Gets the hard limited space
+    pub fn hard_size(&self, size: Vec2<f32>) -> Vec2<f32> {
+        Vec2::new(
+            if self.available_size.x == f32::MAX
+                && matches!(self.flex_direction, FlexDirection::Vertical)
+            {
+                self.used_cross.max(size.x)
+            } else {
+                self.available_size.x
+            },
+            if self.available_size.y == f32::MAX
+                && matches!(self.flex_direction, FlexDirection::Horizontal)
+            {
+                self.used_cross.max(size.y)
+            } else {
+                self.available_size.y
+            },
+        )
     }
 
     pub fn apply_data(&mut self, pos: Vec2<f32>, size: Vec2<f32>) {

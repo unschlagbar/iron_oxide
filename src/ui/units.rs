@@ -81,6 +81,23 @@ impl UiUnit {
             Self::Rem(rem) => *rem,
         }
     }
+
+    pub fn px_i16(&self, size: Vec2<i16>) -> u16 {
+        match self {
+            Self::Zero => 0,
+            Self::Undefined => 100,
+            Self::Auto => u16::MAX,
+            Self::Fill => size.x as _,
+            Self::Px(pixel) => *pixel as u16,
+            Self::Relative(percent) | Self::RelativeWidth(percent) => {
+                (size.x as f32 * percent) as u16
+            }
+            Self::RelativeHeight(percent) => (size.y as f32 * percent) as u16,
+            Self::RelativeMax(percent) => (size.max() as f32 * percent) as u16,
+            Self::RelativeMin(percent) => (size.min() as f32 * percent) as u16,
+            Self::Rem(rem) => *rem as u16,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]

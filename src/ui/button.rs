@@ -3,10 +3,10 @@ use winit::window::CursorIcon;
 
 use super::{BuildContext, UiElement, UiRect, UiUnit};
 use crate::{
-    graphics::formats::RGBA,
+    graphics::{Ressources, formats::RGBA},
     primitives::Vec2,
     ui::{
-        ButtonContext, FlexDirection, QueuedEvent, Ressources, Ui, UiEvent, UiRef,
+        ButtonContext, FlexDirection, QueuedEvent, Ui, UiEvent, UiRef,
         materials::{MatType, UiInstance},
         system::InputResult,
         widget::Widget,
@@ -87,11 +87,11 @@ impl Widget for Button {
             color: self.color,
             border_color: self.border_color,
             border: self.border,
-            x: element.pos.x as _,
-            y: element.pos.y as _,
-            width: element.size.x as _,
-            height: element.size.y as _,
-            corner: self.corner[0].px(Vec2::new(element.size.x as f32, element.size.y as f32)) as u16,
+            x: element.pos.x,
+            y: element.pos.y,
+            width: element.size.x,
+            height: element.size.y,
+            corner: self.corner[0].px_i16(element.size),
             z_index: element.z_index,
         };
         ressources.add(MatType::Basic, &to_add, clip);
@@ -114,8 +114,6 @@ impl Widget for Button {
                 ui.selection.set_capture(element);
             }
             UiEvent::Release => {
-                ui.selection.clear_capture();
-
                 if is_in {
                     self.state = ButtonState::Hovered;
                 } else {
@@ -135,7 +133,7 @@ impl Widget for Button {
             _ => return InputResult::None,
         }
 
-        if self.state != ButtonState::Normal {
+        if self.state != ButtonState::Normal && is_in {
             ui.cursor_icon = self.cursor;
         }
 

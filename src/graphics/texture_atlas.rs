@@ -136,7 +136,9 @@ impl TextureAtlas {
             extent,
             Format::R8G8B8A8_UNORM,
             ImageTiling::OPTIMAL,
-            ImageUsageFlags::TRANSFER_DST | ImageUsageFlags::SAMPLED,
+            ImageUsageFlags::TRANSFER_DST
+                | ImageUsageFlags::SAMPLED
+                | ImageUsageFlags::TRANSFER_SRC,
             MemoryPropertyFlags::DEVICE_LOCAL,
         );
 

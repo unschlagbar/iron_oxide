@@ -224,11 +224,11 @@ impl Image {
         extent: vk::Extent3D,
         path: &str,
     ) {
-        let image_size = extent.width as u64 * extent.height as u64 * 4;
+        let image_size = extent.width as usize * extent.height as usize * 4;
 
         let mut staging_buffer = Buffer::create(
             base,
-            image_size,
+            image_size as u64,
             vk::BufferUsageFlags::TRANSFER_DST,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         );
@@ -262,25 +262,26 @@ impl Image {
             );
         }
 
-        let cmd_buf = SinlgeTimeCommands::begin(base, cmd_pool);
         img.trasition_layout(base, cmd_buf, self.layout);
         SinlgeTimeCommands::end(base, cmd_pool, cmd_buf);
 
-        let data_ptr = unsafe {
-            base.device
+        let mut buf: Vec<u8> = Vec::with_capacity(image_size);
+
+        unsafe {
+            let src = base
+                .device
                 .map_memory(
                     staging_buffer.mem,
                     0,
-                    image_size,
+                    image_size as u64,
                     vk::MemoryMapFlags::empty(),
                 )
-                .unwrap()
-        };
-        let data =
-            unsafe { std::slice::from_raw_parts(data_ptr as *const u8, image_size as usize) };
-        unsafe {
+                .unwrap();
+            buf.as_mut_ptr()
+                .copy_from_nonoverlapping(src as *const u8, image_size);
             base.device.unmap_memory(staging_buffer.mem);
-        }
+            buf.set_len(image_size);
+        };
 
         // 6. PNG schreiben
         let file = File::create(path).expect("Failed to create PNG file");
@@ -289,8 +290,10 @@ impl Image {
         let mut encoder = Encoder::new(&mut w, extent.width, extent.height);
         encoder.set_color(png::ColorType::Rgba);
         encoder.set_depth(png::BitDepth::Eight);
+        encoder.set_compression(png::Compression::Fastest);
+
         let mut writer = encoder.write_header().unwrap();
-        writer.write_image_data(data).unwrap();
+        writer.write_image_data(&buf).unwrap();
 
         staging_buffer.destroy(&base.device);
     }

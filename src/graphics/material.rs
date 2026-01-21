@@ -28,7 +28,6 @@ impl Material {
         window_size: PhysicalSize<u32>,
         render_pass: vk::RenderPass,
         descriptor_set_layouts: &[vk::DescriptorSetLayout],
-        desc_set: vk::DescriptorSet,
         alpha: bool,
         shaders: (&[u8], &[u8]),
     ) -> Self {
@@ -46,7 +45,7 @@ impl Material {
             ),
             instance_type: TypeId::of::<T>(),
             stride: size_of::<T>(),
-            desc_set,
+            desc_set: vk::DescriptorSet::null(),
         }
     }
 }

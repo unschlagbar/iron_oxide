@@ -1,5 +1,5 @@
 use ash::{
-    ext,
+    Entry, ext,
     khr::{self, surface},
     prelude::VkResult,
     vk,
@@ -39,11 +39,11 @@ impl VkBase {
         app_name: &CStr,
         window: &Window,
     ) -> (Self, surface::Instance, vk::SurfaceKHR) {
-        #[cfg(feature = "linked")]
-        let entry = ash::Entry::linked();
+        #[cfg(not(feature = "loaded"))]
+        let entry = Entry::linked();
 
-        #[cfg(not(feature = "linked"))]
-        let entry = unsafe { ash::Entry::load().unwrap() };
+        #[cfg(feature = "loaded")]
+        let entry = unsafe { Entry::load().unwrap() };
 
         let display_handle = window.display_handle().unwrap().as_raw();
         let window_handle = window.window_handle().unwrap().as_raw();
@@ -317,6 +317,16 @@ impl VkBase {
 
     pub fn device_wait_idle(&self) {
         unsafe { self.device.device_wait_idle().unwrap() }
+    }
+
+    pub fn destroy(&mut self) {
+        unsafe {
+            self.device.destroy_device(None);
+            #[cfg(debug_assertions)]
+            self.debug_utils
+                .destroy_debug_utils_messenger(self.utils_messenger, None);
+            self.instance.destroy_instance(None)
+        };
     }
 }
 

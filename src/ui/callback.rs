@@ -1,6 +1,6 @@
 use winit::event::KeyEvent;
 
-use crate::ui::{Ui, UiRef, text::ExitReason};
+use crate::ui::{Ui, UiRef, text_input::ExitReason};
 
 use super::UiEvent;
 

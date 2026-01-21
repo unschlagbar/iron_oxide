@@ -1,11 +1,13 @@
 use ash::vk::Rect2D;
 
 use crate::{
-    graphics::formats::RGBA, primitives::Vec2, ui::{
-        BuildContext, Ressources, UiElement, UiRef, UiUnit,
+    graphics::{Ressources, formats::RGBA},
+    primitives::Vec2,
+    ui::{
+        BuildContext, UiElement, UiRef, UiUnit,
         materials::{AtlasInstance, MatType},
         widget::Widget,
-    }
+    },
 };
 
 pub struct Image {

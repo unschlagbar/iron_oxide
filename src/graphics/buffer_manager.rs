@@ -1,5 +1,3 @@
-use std::u32;
-
 use ash::vk::{
     Buffer, BufferCreateInfo, BufferUsageFlags, DeviceMemory, MemoryAllocateInfo, MemoryMapFlags,
     MemoryPropertyFlags, SharingMode,

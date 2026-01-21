@@ -163,7 +163,7 @@ impl SinlgeTimeCommands {
         cmd_buf: vk::CommandBuffer,
         fence: vk::Fence,
     ) {
-        unsafe { base.device.end_command_buffer(cmd_buf).unwrap_unchecked() }
+        unsafe { base.device.end_command_buffer(cmd_buf).unwrap() }
 
         let submits = vk::SubmitInfo {
             command_buffer_count: 1,
@@ -174,7 +174,7 @@ impl SinlgeTimeCommands {
         unsafe {
             base.device
                 .queue_submit(base.queue, &[submits], fence)
-                .unwrap_unchecked();
+                .unwrap();
             base.device
                 .wait_for_fences(&[fence], true, u64::MAX)
                 .unwrap();

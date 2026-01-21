@@ -129,7 +129,6 @@ impl Pipeline {
             src_alpha_blend_factor: vk::BlendFactor::SRC_ALPHA,
             dst_alpha_blend_factor: vk::BlendFactor::ONE_MINUS_SRC_ALPHA,
             color_write_mask: vk::ColorComponentFlags::RGBA,
-            ..Default::default()
         };
 
         let color_blending = vk::PipelineColorBlendStateCreateInfo {

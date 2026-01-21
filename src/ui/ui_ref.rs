@@ -4,7 +4,7 @@ use std::{
     ptr::NonNull,
 };
 
-use crate::ui::{Ui, UiElement};
+use crate::ui::{Ui, UiElement, widget::Widget};
 
 /// Handles immutable elements that can only be mutated by involving a &mut Uistate
 #[derive(Clone, Copy)]
@@ -28,6 +28,12 @@ impl UiRef {
     #[allow(unused)]
     pub fn get_mut<'a>(&mut self, ui: &'a mut Ui) -> &'a mut UiElement {
         unsafe { self.inner.as_mut() }
+    }
+
+    #[allow(unused)]
+    #[inline]
+    pub fn downcast_mut<'a, T: Widget>(&mut self, ui: &'a mut Ui) -> Option<&'a mut T> {
+        unsafe { self.inner.as_mut().downcast_mut() }
     }
 
     pub const fn as_ref<'a>(&self) -> &'a UiElement {

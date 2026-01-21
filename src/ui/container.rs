@@ -2,10 +2,10 @@ use ash::vk::Rect2D;
 
 use super::{BuildContext, UiElement, UiRect, UiUnit};
 use crate::{
-    graphics::formats::RGBA,
+    graphics::{Ressources, formats::RGBA},
     primitives::Vec2,
     ui::{
-        FlexDirection, Ressources, UiRef,
+        FlexDirection, UiRef,
         materials::{MatType, UiInstance},
         widget::Widget,
     },
@@ -79,11 +79,11 @@ impl Widget for Container {
             color: self.color,
             border_color: self.border_color,
             border: self.border,
-            x: element.pos.x as _,
-            y: element.pos.y as _,
-            width: element.size.x as _,
-            height: element.size.y as _,
-            corner: self.corner[0].px(Vec2::new(element.size.x as f32, element.size.y as f32)) as _,
+            x: element.pos.x,
+            y: element.pos.y,
+            width: element.size.x,
+            height: element.size.y,
+            corner: self.corner[0].px_i16(element.size),
             z_index: element.z_index,
         };
         ressources.add(MatType::Basic, &to_add, clip);

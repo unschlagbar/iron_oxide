@@ -8,8 +8,9 @@ use winit::{event::KeyEvent, window::CursorIcon};
 
 use super::{BuildContext, Text, Ui, UiEvent, system::InputResult};
 use crate::{
+    graphics::Ressources,
     primitives::Vec2,
-    ui::{Ressources, UiRef, widget::Widget},
+    ui::{UiRef, widget::Widget},
 };
 #[test]
 fn size() {
@@ -38,10 +39,20 @@ impl UiElement {
         self.widget.type_id() == TypeId::of::<T>()
     }
 
-    pub fn downcast<T: Widget>(&self) -> Option<&T> {
+    pub fn downcast_ref<T: Widget>(&self) -> Option<&T> {
         if self.type_of::<T>() {
             let gg = unsafe { &*(&*self.widget as *const dyn Widget as *const T) };
             Some(gg)
+        } else {
+            None
+        }
+    }
+
+    pub fn downcast<T: Widget>(self) -> Option<T> {
+        if self.type_of::<T>() {
+            let raw = Box::into_raw(self.widget);
+            let boxed_t = unsafe { Box::from_raw(raw as *mut T) };
+            Some(*boxed_t)
         } else {
             None
         }
@@ -113,7 +124,7 @@ impl UiElement {
 
     pub fn get_text_at_pos(&self, pos: usize) -> Option<&str> {
         let child = self.childs.get(pos)?;
-        if let Some(text) = child.downcast::<Text>() {
+        if let Some(text) = child.downcast_ref::<Text>() {
             Some(&text.text)
         } else {
             None
@@ -125,7 +136,7 @@ impl UiElement {
             return InputResult::None;
         }
 
-        if self.is_in(Vec2::new(ui.cursor_pos.x as i16, ui.cursor_pos.y as i16)) {
+        if self.is_in(ui.cursor_pos) {
             for child in &mut self.childs {
                 if child.update_hover(ui, _event) == InputResult::New {
                     return InputResult::New;
@@ -254,7 +265,7 @@ impl Debug for UiElement {
             .field("visible", &self.visible)
             .field("size", &self.size)
             .field("pos", &self.pos)
-            .field("parent", &self.parent)
+            //.field("parent", &self.parent)
             .finish()
     }
 }
