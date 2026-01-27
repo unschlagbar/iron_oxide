@@ -1,110 +1,71 @@
-use std::{
-    fmt::{Debug, Formatter},
-    fs::File,
-    io::BufWriter,
-};
+use std::{fmt::Debug, fs::File, io::BufWriter};
 
-use ash::vk::{self, ImageLayout, ImageView};
+use ash::vk::{
+    AccessFlags, Buffer, BufferImageCopy, BufferUsageFlags, CommandBuffer, CommandPool,
+    DependencyFlags, Extent3D, Format, Handle, Image, ImageAspectFlags, ImageCreateInfo,
+    ImageLayout, ImageMemoryBarrier, ImageSubresourceLayers, ImageSubresourceRange, ImageView,
+    ImageViewCreateInfo, ImageViewType, Offset3D, PipelineStageFlags,
+};
 use png::Encoder;
 
-use crate::graphics::SinlgeTimeCommands;
+use crate::graphics::{Ressources, SinlgeTimeCommands};
 
-use super::{Buffer, VkBase};
+use super::VkBase;
 
-#[derive(Clone)]
-pub struct Image {
-    pub inner: vk::Image,
-    pub mem: vk::DeviceMemory,
-    pub view: vk::ImageView,
-    pub format: vk::Format,
+#[derive(Debug, Default, Clone)]
+pub struct VulkanImage {
+    pub image: Image,
+    pub view: ImageView,
+    pub format: Format,
     pub layout: ImageLayout,
+    pub extent: Extent3D,
 }
 
-impl Image {
-    pub fn create(
-        base: &VkBase,
-        extent: vk::Extent3D,
-        format: vk::Format,
-        tiling: vk::ImageTiling,
-        usage: vk::ImageUsageFlags,
-        properties: vk::MemoryPropertyFlags,
-    ) -> Self {
-        let image = unsafe {
-            let create_info = vk::ImageCreateInfo {
-                image_type: vk::ImageType::TYPE_2D,
-                format,
-                extent,
-                mip_levels: 1,
-                array_layers: 1,
-                samples: vk::SampleCountFlags::TYPE_1,
-                tiling,
-                usage,
-                sharing_mode: vk::SharingMode::EXCLUSIVE,
-                initial_layout: ImageLayout::UNDEFINED,
-                ..Default::default()
-            };
-            base.device.create_image(&create_info, None).unwrap()
-        };
+impl VulkanImage {
+    pub fn create(base: &VkBase, create_info: &ImageCreateInfo) -> Self {
+        let image = unsafe { base.device.create_image(create_info, None).unwrap() };
 
-        let memory_requirements = unsafe { base.device.get_image_memory_requirements(image) };
-
-        let allocate_info = vk::MemoryAllocateInfo {
-            allocation_size: memory_requirements.size,
-            memory_type_index: super::buffer::find_memory_type(
-                base,
-                memory_requirements.memory_type_bits,
-                properties,
-            ),
-            ..Default::default()
-        };
-
-        let mem = unsafe { base.device.allocate_memory(&allocate_info, None).unwrap() };
-        unsafe { base.device.bind_image_memory(image, mem, 0).unwrap() };
+        let format = create_info.format;
+        let layout = create_info.initial_layout;
+        let extent = create_info.extent;
         Self {
-            inner: image,
-            mem,
+            image,
             view: ImageView::null(),
             format,
-            layout: vk::ImageLayout::UNDEFINED,
+            layout,
+            extent,
         }
     }
 
-    pub fn create_view(&mut self, base: &VkBase, aspect_flags: vk::ImageAspectFlags) {
-        let create_info = vk::ImageViewCreateInfo {
-            image: self.inner,
-            view_type: vk::ImageViewType::TYPE_2D,
-            format: self.format,
-            subresource_range: vk::ImageSubresourceRange {
-                aspect_mask: aspect_flags,
-                base_mip_level: 0,
-                level_count: 1,
-                base_array_layer: 0,
-                layer_count: 1,
-            },
-            ..Default::default()
-        };
-        self.view = unsafe { base.device.create_image_view(&create_info, None).unwrap() }
+    pub fn aspect_flags(&self) -> ImageAspectFlags {
+        match self.format {
+            Format::D16_UNORM
+            | Format::D16_UNORM_S8_UINT
+            | Format::D24_UNORM_S8_UINT
+            | Format::D32_SFLOAT
+            | Format::D32_SFLOAT_S8_UINT => ImageAspectFlags::DEPTH,
+            _ => ImageAspectFlags::COLOR,
+        }
     }
 
     pub fn trasition_layout(
         &mut self,
         base: &VkBase,
-        cmd_buf: vk::CommandBuffer,
+        cmd_buf: CommandBuffer,
         new_layout: ImageLayout,
     ) {
-        let mut barrier = vk::ImageMemoryBarrier {
+        let mut barrier = ImageMemoryBarrier {
             old_layout: self.layout,
             new_layout,
-            image: self.inner,
-            subresource_range: vk::ImageSubresourceRange {
+            image: self.image,
+            subresource_range: ImageSubresourceRange {
                 aspect_mask: {
-                    if self.format == vk::Format::D32_SFLOAT || self.format == vk::Format::D16_UNORM
-                    {
-                        vk::ImageAspectFlags::DEPTH
-                    } else if self.format == vk::Format::D24_UNORM_S8_UINT {
-                        vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL
+                    if self.format == Format::D32_SFLOAT || self.format == Format::D16_UNORM {
+                        ImageAspectFlags::DEPTH
+                    } else if self.format == Format::D24_UNORM_S8_UINT {
+                        ImageAspectFlags::DEPTH | ImageAspectFlags::STENCIL
                     } else {
-                        vk::ImageAspectFlags::COLOR
+                        ImageAspectFlags::COLOR
                     }
                 },
                 base_mip_level: 0,
@@ -120,50 +81,50 @@ impl Image {
 
         match (new_layout, self.layout) {
             (ImageLayout::TRANSFER_DST_OPTIMAL, ImageLayout::UNDEFINED) => {
-                barrier.src_access_mask = vk::AccessFlags::NONE;
-                barrier.dst_access_mask = vk::AccessFlags::TRANSFER_WRITE;
+                barrier.src_access_mask = AccessFlags::NONE;
+                barrier.dst_access_mask = AccessFlags::TRANSFER_WRITE;
 
-                source_stage = vk::PipelineStageFlags::TOP_OF_PIPE;
-                destination_stage = vk::PipelineStageFlags::TRANSFER;
+                source_stage = PipelineStageFlags::TOP_OF_PIPE;
+                destination_stage = PipelineStageFlags::TRANSFER;
             }
             (
                 ImageLayout::SHADER_READ_ONLY_OPTIMAL,
                 ImageLayout::TRANSFER_DST_OPTIMAL | ImageLayout::TRANSFER_SRC_OPTIMAL,
             ) => {
-                barrier.src_access_mask = vk::AccessFlags::TRANSFER_WRITE;
-                barrier.dst_access_mask = vk::AccessFlags::SHADER_READ;
+                barrier.src_access_mask = AccessFlags::TRANSFER_WRITE;
+                barrier.dst_access_mask = AccessFlags::SHADER_READ;
 
-                source_stage = vk::PipelineStageFlags::TRANSFER;
-                destination_stage = vk::PipelineStageFlags::FRAGMENT_SHADER;
+                source_stage = PipelineStageFlags::TRANSFER;
+                destination_stage = PipelineStageFlags::FRAGMENT_SHADER;
             }
             (ImageLayout::GENERAL, ImageLayout::UNDEFINED) => {
-                barrier.src_access_mask = vk::AccessFlags::TRANSFER_WRITE;
-                barrier.dst_access_mask = vk::AccessFlags::SHADER_READ;
+                barrier.src_access_mask = AccessFlags::TRANSFER_WRITE;
+                barrier.dst_access_mask = AccessFlags::SHADER_READ;
 
-                source_stage = vk::PipelineStageFlags::TRANSFER;
-                destination_stage = vk::PipelineStageFlags::FRAGMENT_SHADER;
+                source_stage = PipelineStageFlags::TRANSFER;
+                destination_stage = PipelineStageFlags::FRAGMENT_SHADER;
             }
             (ImageLayout::TRANSFER_SRC_OPTIMAL, ImageLayout::UNDEFINED) => {
-                barrier.src_access_mask = vk::AccessFlags::TRANSFER_WRITE;
-                barrier.dst_access_mask = vk::AccessFlags::SHADER_READ;
+                barrier.src_access_mask = AccessFlags::TRANSFER_WRITE;
+                barrier.dst_access_mask = AccessFlags::SHADER_READ;
 
-                source_stage = vk::PipelineStageFlags::TRANSFER;
-                destination_stage = vk::PipelineStageFlags::FRAGMENT_SHADER;
+                source_stage = PipelineStageFlags::TRANSFER;
+                destination_stage = PipelineStageFlags::FRAGMENT_SHADER;
             }
             (ImageLayout::TRANSFER_SRC_OPTIMAL, ImageLayout::SHADER_READ_ONLY_OPTIMAL) => {
-                barrier.src_access_mask = vk::AccessFlags::SHADER_READ;
-                barrier.dst_access_mask = vk::AccessFlags::TRANSFER_READ;
+                barrier.src_access_mask = AccessFlags::SHADER_READ;
+                barrier.dst_access_mask = AccessFlags::TRANSFER_READ;
 
-                source_stage = vk::PipelineStageFlags::FRAGMENT_SHADER;
-                destination_stage = vk::PipelineStageFlags::TRANSFER;
+                source_stage = PipelineStageFlags::FRAGMENT_SHADER;
+                destination_stage = PipelineStageFlags::TRANSFER;
             }
             (ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL, ImageLayout::UNDEFINED) => {
-                barrier.src_access_mask = vk::AccessFlags::NONE;
-                barrier.dst_access_mask = vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
-                    | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE;
+                barrier.src_access_mask = AccessFlags::NONE;
+                barrier.dst_access_mask = AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+                    | AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE;
 
-                source_stage = vk::PipelineStageFlags::TOP_OF_PIPE;
-                destination_stage = vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS;
+                source_stage = PipelineStageFlags::TOP_OF_PIPE;
+                destination_stage = PipelineStageFlags::EARLY_FRAGMENT_TESTS;
             }
             _ => panic!(
                 "From layout: {:?} to layout: {:?} is not implemented!",
@@ -176,7 +137,7 @@ impl Image {
                 cmd_buf,
                 source_stage,
                 destination_stage,
-                vk::DependencyFlags::empty(),
+                DependencyFlags::empty(),
                 &[],
                 &[],
                 &[barrier],
@@ -184,80 +145,90 @@ impl Image {
         }
     }
 
-    pub fn copy_from_buffer(
-        &self,
-        base: &VkBase,
-        cmd_buf: vk::CommandBuffer,
-        buffer: &Buffer,
-        extent: vk::Extent3D,
-        aspect_mask: vk::ImageAspectFlags,
-    ) {
-        let region = vk::BufferImageCopy {
+    pub fn copy_from_buffer(&self, base: &VkBase, cmd_buf: CommandBuffer, buffer: Buffer) {
+        let region = BufferImageCopy {
             buffer_offset: 0,
             buffer_row_length: 0,
             buffer_image_height: 0,
-            image_subresource: vk::ImageSubresourceLayers {
-                aspect_mask,
+            image_subresource: ImageSubresourceLayers {
+                aspect_mask: self.aspect_flags(),
                 mip_level: 0,
                 base_array_layer: 0,
                 layer_count: 1,
             },
-            image_offset: vk::Offset3D::default(),
-            image_extent: extent,
+            image_offset: Offset3D::default(),
+            image_extent: self.extent,
         };
 
         unsafe {
             base.device.cmd_copy_buffer_to_image(
                 cmd_buf,
-                buffer.inner,
-                self.inner,
+                buffer,
+                self.image,
                 ImageLayout::TRANSFER_DST_OPTIMAL,
                 &[region],
             )
         };
     }
 
+    pub fn create_view(&mut self, base: &VkBase) {
+        let create_info = ImageViewCreateInfo {
+            image: self.image,
+            view_type: ImageViewType::TYPE_2D,
+            format: self.format,
+            subresource_range: ImageSubresourceRange {
+                aspect_mask: self.aspect_flags(),
+                base_mip_level: 0,
+                level_count: 1,
+                base_array_layer: 0,
+                layer_count: 1,
+            },
+            ..Default::default()
+        };
+        self.view = unsafe { base.device.create_image_view(&create_info, None).unwrap() }
+    }
+
     pub fn save_to_png(
         &self,
         base: &VkBase,
-        cmd_pool: vk::CommandPool,
-        extent: vk::Extent3D,
+        ressources: &mut Ressources,
+        cmd_pool: CommandPool,
+        extent: Extent3D,
         path: &str,
     ) {
-        let image_size = extent.width as usize * extent.height as usize * 4;
+        let size = extent.width as usize * extent.height as usize * 4;
 
-        let mut staging_buffer = Buffer::create(
+        let (staging_buffer, offset) = ressources.mem_manager.create_buffer(
             base,
-            image_size as u64,
-            vk::BufferUsageFlags::TRANSFER_DST,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+            0,
+            size as u64,
+            BufferUsageFlags::TRANSFER_DST,
         );
+        let mut img = self.clone();
 
         let cmd_buf = SinlgeTimeCommands::begin(base, cmd_pool);
 
-        let mut img = self.clone();
-
         img.trasition_layout(base, cmd_buf, ImageLayout::TRANSFER_SRC_OPTIMAL);
 
-        let region = vk::BufferImageCopy {
+        let region = BufferImageCopy {
             buffer_offset: 0,
             buffer_row_length: 0,
             buffer_image_height: 0,
-            image_subresource: vk::ImageSubresourceLayers {
-                aspect_mask: vk::ImageAspectFlags::COLOR,
+            image_subresource: ImageSubresourceLayers {
+                aspect_mask: ImageAspectFlags::COLOR,
                 mip_level: 0,
                 base_array_layer: 0,
                 layer_count: 1,
             },
-            image_offset: vk::Offset3D::default(),
+            image_offset: Offset3D::default(),
             image_extent: extent,
         };
         unsafe {
             base.device.cmd_copy_image_to_buffer(
                 cmd_buf,
-                self.inner,
+                self.image,
                 ImageLayout::TRANSFER_SRC_OPTIMAL,
-                staging_buffer.inner,
+                staging_buffer,
                 &[region],
             );
         }
@@ -265,22 +236,13 @@ impl Image {
         img.trasition_layout(base, cmd_buf, self.layout);
         SinlgeTimeCommands::end(base, cmd_pool, cmd_buf);
 
-        let mut buf: Vec<u8> = Vec::with_capacity(image_size);
+        let mut buf: Vec<u8> = Vec::with_capacity(size);
 
         unsafe {
-            let src = base
-                .device
-                .map_memory(
-                    staging_buffer.mem,
-                    0,
-                    image_size as u64,
-                    vk::MemoryMapFlags::empty(),
-                )
-                .unwrap();
+            let src = ressources.mem_manager.memory_pool[0].get_ptr(offset as usize);
             buf.as_mut_ptr()
-                .copy_from_nonoverlapping(src as *const u8, image_size);
-            base.device.unmap_memory(staging_buffer.mem);
-            buf.set_len(image_size);
+                .copy_from_nonoverlapping(src as *const u8, size);
+            buf.set_len(size);
         };
 
         // 6. PNG schreiben
@@ -295,27 +257,24 @@ impl Image {
         let mut writer = encoder.write_header().unwrap();
         writer.write_image_data(&buf).unwrap();
 
-        staging_buffer.destroy(&base.device);
+        ressources.mem_manager.pop_buffer(base);
     }
 
-    #[inline]
-    pub fn destroy(&self, device: &ash::Device) {
-        unsafe {
-            if self.view != ImageView::null() {
-                device.destroy_image_view(self.view, None);
-            }
-            device.destroy_image(self.inner, None);
-            device.free_memory(self.mem, None);
+    pub fn destroy_view(&mut self, device: &ash::Device) {
+        if !self.view.is_null() {
+            unsafe { device.destroy_image_view(self.view, None) };
+            self.view = ImageView::null()
         }
     }
-}
 
-impl Debug for Image {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Image {{ format: {:?}, layout: {:?} }}",
-            self.format, self.layout
-        )
+    pub fn destroy(&mut self, device: &ash::Device) {
+        if !self.view.is_null() {
+            unsafe {
+                device.destroy_image_view(self.view, None);
+                device.destroy_image(self.image, None);
+            };
+            self.view = ImageView::null();
+            self.image = Image::null();
+        }
     }
 }

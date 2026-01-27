@@ -1,10 +1,8 @@
-use std::mem::MaybeUninit;
-
 use ash::{
     Device,
     khr::{surface, swapchain},
     vk::{
-        self, Extent2D, ImageView, PresentModeKHR, RenderPass, SurfaceCapabilitiesKHR,
+        self, Extent2D, Framebuffer, ImageView, PresentModeKHR, RenderPass, SurfaceCapabilitiesKHR,
         SurfaceFormatKHR, SurfaceKHR, SurfaceTransformFlagsKHR, SwapchainKHR,
     },
 };
@@ -26,11 +24,12 @@ pub struct Swapchain {
 }
 
 impl Swapchain {
-    pub fn create(
+    pub fn new(
         base: &VkBase,
         present_mode: vk::PresentModeKHR,
         surface_loader: surface::Instance,
         surface: SurfaceKHR,
+        size: PhysicalSize<u32>,
     ) -> Self {
         let loader = swapchain::Device::new(&base.instance, &base.device);
         let target_format = if cfg!(target_os = "android") {
@@ -39,27 +38,31 @@ impl Swapchain {
             vk::Format::B8G8R8A8_UNORM
         };
 
-        let (capabilities, format, present_mode) = unsafe {
-            (
-                surface_loader
-                    .get_physical_device_surface_capabilities(base.physical_device, surface)
-                    .unwrap(),
-                surface_loader
-                    .get_physical_device_surface_formats(base.physical_device, surface)
-                    .unwrap()
-                    .into_iter()
-                    .find(|format| {
-                        format.format == target_format
-                            && format.color_space == vk::ColorSpaceKHR::SRGB_NONLINEAR
-                    })
-                    .unwrap(),
-                surface_loader
-                    .get_physical_device_surface_present_modes(base.physical_device, surface)
-                    .unwrap()
-                    .into_iter()
-                    .find(|pm| *pm == present_mode)
-                    .unwrap_or(PresentModeKHR::FIFO),
-            )
+        let mut capabilities = unsafe {
+            surface_loader
+                .get_physical_device_surface_capabilities(base.physical_device, surface)
+                .unwrap()
+        };
+
+        let format = unsafe {
+            surface_loader
+                .get_physical_device_surface_formats(base.physical_device, surface)
+                .unwrap()
+                .into_iter()
+                .find(|format| {
+                    format.format == target_format
+                        && format.color_space == vk::ColorSpaceKHR::SRGB_NONLINEAR
+                })
+                .unwrap()
+        };
+
+        let present_mode = unsafe {
+            surface_loader
+                .get_physical_device_surface_present_modes(base.physical_device, surface)
+                .unwrap()
+                .into_iter()
+                .find(|pm| *pm == present_mode)
+                .unwrap_or(PresentModeKHR::FIFO)
         };
 
         let composite_alpha = if capabilities
@@ -71,15 +74,19 @@ impl Swapchain {
             vk::CompositeAlphaFlagsKHR::INHERIT
         };
 
+        // Wayland tells with width = u32::MAY that we can decide the size
+        if capabilities.current_extent.width == u32::MAX {
+            capabilities.current_extent.width = size.width;
+            capabilities.current_extent.height = size.height;
+        }
+
         Self {
             loader,
             inner: SwapchainKHR::null(),
             surface_loader,
             surface,
             image_views: Vec::new(),
-            #[allow(invalid_value)]
-            #[allow(clippy::uninit_assumed_init)]
-            capabilities: unsafe { MaybeUninit::uninit().assume_init() },
+            capabilities,
             format,
             present_mode,
             composite_alpha,
@@ -90,11 +97,13 @@ impl Swapchain {
     pub fn create_framebuffer(
         &mut self,
         base: &VkBase,
-        image_extend: Extent2D,
+        image_extent: Extent2D,
         render_pass: RenderPass,
         attachment: ImageView,
     ) {
-        self.framebuffers = vec![vk::Framebuffer::null(); self.image_views.len()];
+        if self.framebuffers.len() != self.image_views.len() {
+            self.framebuffers = vec![Framebuffer::null(); self.image_views.len()];
+        }
 
         for (frame_buffer, &image_view) in self.framebuffers.iter_mut().zip(&self.image_views) {
             let attachments = [image_view, attachment];
@@ -102,8 +111,8 @@ impl Swapchain {
                 render_pass,
                 attachment_count: attachments.len() as u32,
                 p_attachments: attachments.as_ptr(),
-                width: image_extend.width,
-                height: image_extend.height,
+                width: image_extent.width,
+                height: image_extent.height,
                 layers: 1,
                 ..Default::default()
             };
@@ -175,8 +184,9 @@ impl Swapchain {
 
     fn create_image_views(&mut self, base: &VkBase) {
         let present_images = unsafe { self.loader.get_swapchain_images(self.inner).unwrap() };
-        if self.image_views.is_empty() {
-            self.image_views = vec![vk::ImageView::null(); present_images.len()];
+
+        if self.image_views.len() != present_images.len() {
+            self.image_views = vec![ImageView::null(); present_images.len()];
         }
 
         for (image, image_view) in present_images.into_iter().zip(&mut self.image_views) {

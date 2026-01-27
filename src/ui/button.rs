@@ -40,12 +40,16 @@ impl Widget for Button {
 
         let width = match self.width {
             UiUnit::Fill => context.remaining_space().x - margin.x,
-            _ => self.width.px(context.available_size - margin),
+            _ => self
+                .width
+                .px(context.available_size - margin, context.scale_factor),
         };
 
         let height = match self.height {
             UiUnit::Fill => context.remaining_space().y - margin.y,
-            _ => self.height.py(context.available_size - margin),
+            _ => self
+                .height
+                .py(context.available_size - margin, context.scale_factor),
         };
 
         let mut size = Vec2::new(width, height);
@@ -54,7 +58,7 @@ impl Widget for Button {
         let child_start = pos + padding_start;
 
         let mut child_ctx =
-            BuildContext::new_from(context, size - padding, child_start, self.flex_direction);
+            BuildContext::new(context, size - padding, child_start, self.flex_direction);
 
         for child in childs {
             child.build(&mut child_ctx);
@@ -73,7 +77,7 @@ impl Widget for Button {
         context.apply_data(pos, size);
     }
 
-    fn get_size(&mut self) -> (UiUnit, UiUnit) {
+    fn build_size(&mut self) -> (UiUnit, UiUnit) {
         (self.width, self.height)
     }
 
@@ -81,6 +85,7 @@ impl Widget for Button {
         &mut self,
         element: UiRef,
         ressources: &mut Ressources,
+        scale_factor: f32,
         clip: Option<Rect2D>,
     ) -> Option<Rect2D> {
         let to_add = UiInstance {
@@ -91,7 +96,7 @@ impl Widget for Button {
             y: element.pos.y,
             width: element.size.x,
             height: element.size.y,
-            corner: self.corner[0].px_i16(element.size),
+            corner: self.corner[0].px_i16(element.size, scale_factor),
             z_index: element.z_index,
         };
         ressources.add(MatType::Basic, &to_add, clip);
@@ -113,12 +118,11 @@ impl Widget for Button {
                 self.state = ButtonState::Pressed;
                 ui.selection.set_capture(element);
             }
-            UiEvent::Release => {
+            UiEvent::Release | UiEvent::TouchRelease => {
                 if is_in {
                     self.state = ButtonState::Hovered;
                 } else {
                     self.state = ButtonState::Normal;
-                    ui.selection.clear_hover();
                 }
             }
             UiEvent::Move => {

@@ -1,5 +1,5 @@
 use winit::{
-    event::WindowEvent,
+    event::{TouchPhase, WindowEvent},
     window::{CursorIcon, Window},
 };
 
@@ -46,7 +46,27 @@ impl Ui {
                 button,
             } => self.handle_input(self.cursor_pos, (*state, *button).into()),
             //Todo! Implement
-            WindowEvent::Touch(_touch) => InputResult::None,
+            WindowEvent::Touch(touch) => match touch.phase {
+                TouchPhase::Started => {
+                    self.cursor_pos = touch.location.into();
+                    self.handle_input(self.cursor_pos, UiEvent::Move);
+                    self.handle_input(self.cursor_pos, UiEvent::Press)
+                }
+                TouchPhase::Ended => {
+                    let result = self.handle_input(self.cursor_pos, UiEvent::Release);
+                    self.cursor_pos = Vec2::new(-1, -1);
+                    self.handle_input(self.cursor_pos, UiEvent::HoverEnd);
+                    result
+                }
+                TouchPhase::Cancelled => {
+                    self.cursor_pos = Vec2::new(-1, -1);
+                    self.handle_input(self.cursor_pos, UiEvent::Release)
+                }
+                TouchPhase::Moved => {
+                    self.cursor_pos = touch.location.into();
+                    self.handle_input(self.cursor_pos, UiEvent::Move)
+                }
+            },
             WindowEvent::KeyboardInput {
                 device_id: _,
                 event,

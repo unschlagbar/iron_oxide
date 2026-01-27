@@ -2,12 +2,9 @@ use ash::{
     Entry, ext,
     khr::{self, surface},
     prelude::VkResult,
-    vk,
+    vk::{self, PhysicalDevice},
 };
-use std::{
-    ffi::{CStr, c_char},
-    ptr,
-};
+use std::ffi::{CStr, c_char};
 use winit::{
     raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle},
     window::Window,
@@ -118,7 +115,7 @@ impl VkBase {
         let app_info = vk::ApplicationInfo {
             p_application_name: app_name.as_ptr(),
             application_version: vk::make_api_version(0, 1, 0, 0),
-            p_engine_name: ptr::null(),
+            p_engine_name: app_name.as_ptr(),
             engine_version: vk::make_api_version(0, 1, 0, 0),
             api_version,
             ..Default::default()
@@ -132,7 +129,7 @@ impl VkBase {
 
         let layer_names: &[&CStr] = {
             if cfg!(debug_assertions) {
-                &[c"VK_LAYER_KHRONOS_validation", c"VK_LAYER_LUNARG_monitor"]
+                &[c"VK_LAYER_KHRONOS_validation"]
             } else {
                 &[]
             }
@@ -172,7 +169,7 @@ impl VkBase {
     fn select_physical_device(
         instance: &ash::Instance,
         capabilities: u32,
-    ) -> (vk::PhysicalDevice, u32) {
+    ) -> (PhysicalDevice, u32) {
         let devices = unsafe { instance.enumerate_physical_devices() }
             .expect("Bro how do you see this without a GPU?");
 
@@ -211,7 +208,7 @@ impl VkBase {
 
     fn create_logical_device(
         instance: &ash::Instance,
-        physical_device: vk::PhysicalDevice,
+        physical_device: PhysicalDevice,
         queue_family_index: u32,
         capabilities: u32,
     ) -> ash::Device {
@@ -224,30 +221,15 @@ impl VkBase {
         let mut acceleration_structure_features =
             vk::PhysicalDeviceAccelerationStructureFeaturesKHR {
                 acceleration_structure: vk::TRUE,
-                p_next: ptr::from_mut(&mut raytracing_pipeline_structure_features).cast(),
                 ..Default::default()
             };
 
         let mut buffer_device_address_features = vk::PhysicalDeviceBufferDeviceAddressFeaturesKHR {
             buffer_device_address: vk::TRUE,
-            p_next: ptr::from_mut(&mut acceleration_structure_features).cast(),
             ..Default::default()
         };
 
-        let features2 = {
-            if capabilities != 0 {
-                vk::PhysicalDeviceFeatures2 {
-                    p_next: ptr::from_mut(&mut buffer_device_address_features).cast(),
-                    features: vk::PhysicalDeviceFeatures {
-                        shader_int64: vk::FALSE,
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                }
-            } else {
-                vk::PhysicalDeviceFeatures2::default()
-            }
-        };
+        let mut features2 = vk::PhysicalDeviceFeatures2::default();
 
         let extensions: &[&CStr] = {
             if capabilities != 0 {
@@ -271,24 +253,61 @@ impl VkBase {
 
         let queue_create_infos = [queue_create_info];
 
-        let device_create_info = vk::DeviceCreateInfo {
+        let mut create_info = vk::DeviceCreateInfo {
             pp_enabled_extension_names: extensions.as_ptr().cast(),
             enabled_extension_count: extensions.len() as u32,
             queue_create_info_count: queue_create_infos.len() as u32,
             p_queue_create_infos: queue_create_infos.as_ptr(),
-            p_next: ptr::from_ref(&features2).cast(),
             ..Default::default()
         };
 
+        if capabilities != 0 {
+            create_info = create_info
+                .push_next(&mut features2)
+                .push_next(&mut buffer_device_address_features)
+                .push_next(&mut acceleration_structure_features)
+                .push_next(&mut raytracing_pipeline_structure_features);
+        }
+
         unsafe {
             instance
-                .create_device(physical_device, &device_create_info, None)
+                .create_device(physical_device, &create_info, None)
                 .unwrap()
         }
     }
 
+    #[allow(unused)]
+    fn select_queue(&mut self, surface: vk::SurfaceKHR, surface_loader: &khr::surface::Instance) {
+        let mut queue_family = u32::MAX;
+        unsafe {
+            let family_queue = self
+                .instance
+                .get_physical_device_queue_family_properties(self.physical_device);
+
+            for (i, f) in family_queue.into_iter().enumerate() {
+                if f.queue_flags.contains(vk::QueueFlags::GRAPHICS)
+                    && surface_loader
+                        .get_physical_device_surface_support(
+                            self.physical_device,
+                            i as u32,
+                            surface,
+                        )
+                        .unwrap()
+                {
+                    queue_family = i as u32;
+                }
+            }
+
+            if queue_family != u32::MAX {
+                self.queue_family_index = queue_family;
+            } else {
+                panic!("No queue for surface found!");
+            }
+        }
+    }
+
     fn get_queue_family_index(
-        physical_device: vk::PhysicalDevice,
+        physical_device: PhysicalDevice,
         instance: &ash::Instance,
         surface: vk::SurfaceKHR,
         surface_loader: &khr::surface::Instance,

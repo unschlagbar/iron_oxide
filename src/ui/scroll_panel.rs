@@ -37,7 +37,7 @@ impl Widget for ScrollPanel {
         let available_size = space - padding;
         let child_start_pos = pos + self.padding.start(context);
 
-        let mut child_context = BuildContext::new_from(
+        let mut child_context = BuildContext::new(
             context,
             available_size,
             child_start_pos + self.scroll_offset,
@@ -94,6 +94,7 @@ impl Widget for ScrollPanel {
         &mut self,
         element: UiRef,
         _: &mut Ressources,
+        _: f32,
         _: Option<Rect2D>,
     ) -> Option<Rect2D> {
         Some(Rect2D {
@@ -102,7 +103,7 @@ impl Widget for ScrollPanel {
         })
     }
 
-    fn get_size(&mut self) -> (UiUnit, UiUnit) {
+    fn build_size(&mut self) -> (UiUnit, UiUnit) {
         (UiUnit::Fill, UiUnit::Fill)
     }
 }

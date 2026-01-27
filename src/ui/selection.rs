@@ -32,10 +32,6 @@ impl Selection {
         self.hovered = Some(Select::new(element));
     }
 
-    pub fn clear_hover(&mut self) {
-        self.hovered = None;
-    }
-
     pub fn get_focused<'a>(&mut self) -> Option<&'a mut UiElement> {
         self.focused.as_mut().map(|x| x.as_mut())
     }

@@ -92,8 +92,8 @@ pub struct AtlasInstance {
     pub pos: Vec2<f32>,
     pub size: Vec2<f32>,
     pub color: RGBA,
-    pub uv_start: (u16, u16),
-    pub uv_size: (u16, u16),
+    pub uv_start: Vec2<u16>,
+    pub uv_size: Vec2<u16>,
     pub z_index: i16,
 }
 

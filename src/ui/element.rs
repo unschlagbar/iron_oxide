@@ -10,12 +10,8 @@ use super::{BuildContext, Text, Ui, UiEvent, system::InputResult};
 use crate::{
     graphics::Ressources,
     primitives::Vec2,
-    ui::{UiRef, widget::Widget},
+    ui::{TextInput, UiRef, widget::Widget},
 };
-#[test]
-fn size() {
-    println!("size: {}", size_of::<UiElement>())
-}
 
 pub struct UiElement {
     pub(crate) id: u32,
@@ -87,16 +83,23 @@ impl UiElement {
         self.size = Vec2::new(context.element_size.x as i16, context.element_size.y as i16);
     }
 
-    pub fn get_instances(&mut self, ressources: &mut Ressources, clip: Option<Rect2D>) {
+    pub fn get_instances(
+        &mut self,
+        ressources: &mut Ressources,
+        scale_factor: f32,
+        clip: Option<Rect2D>,
+    ) {
         let mut inner_clip = clip;
 
         if self.visible {
             let element = UiRef::new(self);
-            inner_clip = self.widget.instance(element, ressources, clip);
+            inner_clip = self
+                .widget
+                .instance(element, ressources, scale_factor, clip);
         }
 
         for child in &mut self.childs {
-            child.get_instances(ressources, inner_clip);
+            child.get_instances(ressources, scale_factor, inner_clip);
         }
     }
 
@@ -104,6 +107,10 @@ impl UiElement {
         self.pos += Vec2::new(offset.x as i16, offset.y as i16);
 
         if let Some(text) = self.downcast_mut::<Text>() {
+            for i in &mut text.font_instances {
+                i.pos += offset;
+            }
+        } else if let Some(text) = self.downcast_mut::<TextInput>() {
             for i in &mut text.font_instances {
                 i.pos += offset;
             }

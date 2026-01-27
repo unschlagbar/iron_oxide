@@ -6,21 +6,20 @@ use winit::event::KeyEvent;
 use crate::{
     graphics::Ressources,
     primitives::Vec2,
-    ui::{BuildContext, InputResult, Ui, UiElement, UiEvent, UiRef, UiUnit},
+    ui::{BuildContext, InputResult, Ui, UiElement, UiEvent, UiRef},
 };
 
 #[allow(unused)]
 pub trait Widget: Any + 'static {
     fn build(&mut self, childs: &mut [UiElement], context: &mut BuildContext);
 
-    fn get_size(&mut self) -> (UiUnit, UiUnit) {
-        (UiUnit::Undefined, UiUnit::Undefined)
-    }
+    fn build_size(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {}
 
     fn instance(
         &mut self,
         element: UiRef,
         ressources: &mut Ressources,
+        scale_factor: f32,
         clip: Option<Rect2D>,
     ) -> Option<Rect2D> {
         clip

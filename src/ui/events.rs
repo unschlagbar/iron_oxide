@@ -6,6 +6,7 @@ use crate::ui::{UiElement, UiRef};
 pub enum UiEvent {
     Press,
     Release,
+    TouchRelease,
     RightPress,
     RightRelease,
     Move,
@@ -14,6 +15,13 @@ pub enum UiEvent {
     HoverEnd,
     End,
     Submit,
+    UnFocus,
+}
+
+impl UiEvent {
+    pub fn is_release(&self) -> bool {
+        matches!(self, Self::Release | Self::TouchRelease)
+    }
 }
 
 impl From<TouchPhase> for UiEvent {

@@ -282,6 +282,12 @@ impl Vec2<i16> {
     pub const fn max(&self) -> i16 {
         if self.x > self.y { self.x } else { self.y }
     }
+    pub fn into_f32(self) -> Vec2<f32> {
+        Vec2 {
+            x: self.x as f32,
+            y: self.y as f32,
+        }
+    }
 }
 
 #[cfg(feature = "vulkan")]
@@ -299,6 +305,16 @@ impl From<Vec2<i16>> for Extent2D {
         Extent2D {
             width: size.x as _,
             height: size.y as _,
+        }
+    }
+}
+
+#[cfg(feature = "vulkan")]
+impl From<PhysicalPosition<i32>> for Vec2<i16> {
+    fn from(size: PhysicalPosition<i32>) -> Self {
+        Self {
+            x: size.x as i16,
+            y: size.y as i16,
         }
     }
 }

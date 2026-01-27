@@ -11,15 +11,15 @@ use crate::{
     graphics::{Ressources, VkBase},
     primitives::Vec2,
     ui::{
-        Absolute, QueuedEvent, UiRef,
+        Absolute, QueuedEvent, Ticking, UiRef,
         events::{QueuedEventHandler, TickEvent},
         selection::{Select, Selection},
     },
 };
 
 pub struct Ui {
-    pub(crate) elements: Vec<UiElement>,
     pub size: Vec2<f32>,
+    pub scale_factor: f32,
     pub cursor_pos: Vec2<i16>,
 
     /// Target Cursor.
@@ -27,13 +27,13 @@ pub struct Ui {
     pub cursor_icon: CursorIcon,
     /// current Cursor.
     pub current_cursor_icon: CursorIcon,
-    pub mouse_down: bool,
 
     pub font: Font,
     pub visible: bool,
     pub(crate) dirty: DirtyFlags,
     pub new_absolute: bool,
 
+    pub(crate) elements: Vec<UiElement>,
     // Check all this before removing a Node!
     // If not checked this will result in undefined behavior!
     pub(crate) selection: Selection,
@@ -46,6 +46,7 @@ pub struct Ui {
 impl Ui {
     pub fn create(visible: bool) -> Ui {
         Ui {
+            scale_factor: 1.0,
             visible,
             elements: Vec::new(),
             dirty: DirtyFlags::Layout,
@@ -54,7 +55,6 @@ impl Ui {
             cursor_pos: Vec2::default(),
             cursor_icon: CursorIcon::Default,
             current_cursor_icon: CursorIcon::Default,
-            mouse_down: false,
             new_absolute: false,
 
             selection: Selection::default(),
@@ -66,7 +66,8 @@ impl Ui {
     }
 
     pub fn add_child_to_root(&mut self, mut element: UiElement) -> UiRef {
-        let z_index = if element.type_of::<Absolute>() {
+        // Todo Find better solution!
+        let z_index = if element.type_of::<Absolute>() || element.type_of::<Ticking<Absolute>>() {
             self.new_absolute = true;
             500
         } else {
@@ -142,8 +143,7 @@ impl Ui {
                 }
                 Some(removed)
             } else {
-                println!("Child to remove not found: {}", element.id);
-                None
+                panic!("Child to remove not found: {}", element.id);
             }
         } else if let Some(i) = self.elements.iter().position(|c| c.id == element.id) {
             element.remove_residue(self);
@@ -156,8 +156,7 @@ impl Ui {
             }
             Some(removed)
         } else {
-            println!("Child to remove not found: {}", element.id);
-            None
+            panic!("Child to remove not found: {}", element.id);
         }
     }
 
@@ -191,7 +190,7 @@ impl Ui {
     }
 
     pub(crate) fn build(&mut self) {
-        let mut build_context = BuildContext::default(&self.font, self.size);
+        let mut build_context = BuildContext::default(&self.font, self.size, self.scale_factor);
 
         for element in &mut self.elements {
             element.build(&mut build_context);
@@ -206,7 +205,7 @@ impl Ui {
         }
 
         for raw_e in &mut self.elements {
-            raw_e.get_instances(ressources, None);
+            raw_e.get_instances(ressources, self.scale_factor, None);
         }
     }
 
@@ -254,7 +253,7 @@ impl Ui {
             let element = UiRef::new(captured.as_mut());
             let widget = &mut captured.as_mut().widget;
 
-            if event == UiEvent::Release {
+            if event.is_release() {
                 self.selection.captured = None;
             }
 
@@ -296,12 +295,8 @@ impl Ui {
                 let widget = &mut last.as_mut().widget;
                 widget.interaction(UiRef::new(last.as_mut()), self, UiEvent::HoverEnd);
 
-                
-                println!("not same");
                 new.as_mut().handle_hover(ui, event)
             } else {
-                println!("same");
-
                 last.as_mut().handle_hover(ui, event)
             }
         } else {
@@ -326,7 +321,7 @@ impl Ui {
                 let element_ref = UiRef::new(element);
                 element.widget.tick(element_ref, ui2);
             } else {
-                println!("Tick element not found: {}", id);
+                panic!("Tick element not found: {}", id);
             };
         }
     }

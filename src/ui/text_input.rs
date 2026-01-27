@@ -62,20 +62,18 @@ impl TextInput {
         self.dirty = true;
     }
 
-    pub fn focus(ui: &mut Ui, mut element: UiRef) {
+    pub fn focus(ui: &mut Ui, element: UiRef) {
         ui.set_focus(element);
+        ui.set_ticking(element);
+    }
 
-        let mut_element = element.get_mut(ui);
-        let this: &mut Self = mut_element.downcast_mut().unwrap();
-
+    pub fn set_cursor(&mut self) {
         // Todo! Move this code to interaction!
-        this.cursor = Some(InputCursor {
-            index: this.font_instances.len(),
+        self.cursor = Some(InputCursor {
+            index: self.font_instances.len(),
             start_time: Instant::now(),
             is_on: true,
         });
-
-        ui.set_ticking(element);
     }
 
     pub fn unfocus(ui: &mut Ui, mut element: UiRef, reason: ExitReason) {
@@ -94,7 +92,12 @@ impl TextInput {
         }
 
         ui.remove_tick(element.id);
-        ui.set_event(QueuedEvent::new(&element, UiEvent::Submit, reason as u16));
+        let event = if matches!(reason, ExitReason::Submit) {
+            UiEvent::Submit
+        } else {
+            UiEvent::UnFocus
+        };
+        ui.set_event(QueuedEvent::new(&element, event, reason as u16));
     }
 
     pub fn move_cursor(&mut self, offset: isize) {
@@ -117,6 +120,43 @@ impl TextInput {
             is_on: true,
         });
     }
+
+    pub fn point_cursor(&mut self, ui: &mut Ui) {
+        let cursor_pos: Vec2<f32> = ui.cursor_pos.into_f32();
+        let margin = self.layout.font_size / 8.0;
+
+        let cursor_i = if let Some(cursor) = &self.cursor {
+            cursor.index as isize
+        } else {
+            panic!()
+        };
+        let mut new_i = isize::MAX;
+
+        if self.text.is_empty() {
+            new_i = 0;
+        } else {
+            for (i, glyph) in self.font_instances.iter().enumerate() {
+                if cursor_pos >= glyph.pos - margin && cursor_pos <= glyph.pos + glyph.size + margin
+                {
+                    if glyph.pos.x + glyph.size.x * 0.5 <= cursor_pos.x {
+                        new_i = i as isize + 1;
+                    } else {
+                        new_i = i as isize;
+                    }
+                    break;
+                }
+            }
+        }
+
+        if new_i == isize::MAX {
+            new_i = self.font_instances.len() as isize;
+        }
+
+        if new_i != cursor_i {
+            self.move_cursor(new_i - cursor_i);
+            ui.color_changed();
+        }
+    }
 }
 
 impl Widget for TextInput {
@@ -133,7 +173,7 @@ impl Widget for TextInput {
         let align = self.align;
         let mut offset = context.pos_child();
 
-        let font_size = self.layout.font_size;
+        let font_size = self.layout.font_size * context.scale_factor;
 
         let layout = self.layout.build(text, context);
 
@@ -174,6 +214,7 @@ impl Widget for TextInput {
         &mut self,
         element: UiRef,
         ressources: &mut Ressources,
+        scale_factor: f32,
         clip: Option<Rect2D>,
     ) -> Option<Rect2D> {
         for inst in &self.font_instances {
@@ -191,15 +232,17 @@ impl Widget for TextInput {
                 return clip;
             };
 
-            let scale = self.layout.font_size * 1.2 - self.layout.font_size;
+            let font_size = self.layout.font_size;
+            let scale = font_size * 1.2 - font_size;
+
             let to_add = UiInstance {
                 color: self.color,
                 border_color: RGBA::ZERO,
                 border: [0; 4],
-                x: pos.x as _,
-                y: (pos.y - scale * 0.5) as _,
-                width: 2,
-                height: (self.layout.font_size + scale) as _,
+                x: pos.x as i16,
+                y: (pos.y - scale * 0.5) as i16,
+                width: 2 * scale_factor as i16,
+                height: (font_size * scale_factor + scale) as i16,
                 corner: 0,
                 z_index: element.z_index,
             };
@@ -238,8 +281,10 @@ impl Widget for TextInput {
                 ui.selection.set_capture(element);
             } else if self.focus_on_click {
                 Self::focus(ui, element);
+                self.set_cursor();
                 ui.color_changed();
             }
+            self.point_cursor(ui);
         }
 
         ui.cursor_icon = CursorIcon::Text;
@@ -259,6 +304,7 @@ impl Widget for TextInput {
             if !matches!(context.submit, ExitReason::None) {
                 let reason = context.submit;
                 Self::unfocus(ui, element, reason);
+                ui.selection.focused = None;
                 return InputResult::New;
             }
 
@@ -347,6 +393,7 @@ impl Default for TextInput {
     }
 }
 
+#[derive(Debug)]
 pub struct InputCursor {
     /// The index into chars
     pub index: usize,

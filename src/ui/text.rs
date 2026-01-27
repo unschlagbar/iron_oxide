@@ -64,7 +64,7 @@ impl Widget for Text {
         let align = self.align;
         let mut offset = context.pos_child();
 
-        let font_size = self.layout.font_size;
+        let font_size = self.layout.font_size * context.scale_factor;
 
         let layout = self.layout.build(text, context);
 
@@ -100,6 +100,7 @@ impl Widget for Text {
         &mut self,
         element: UiRef,
         ressources: &mut Ressources,
+        _: f32,
         clip: Option<Rect2D>,
     ) -> Option<Rect2D> {
         for inst in &self.font_instances {

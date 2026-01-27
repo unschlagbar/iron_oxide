@@ -27,6 +27,7 @@ impl Widget for Image {
         &mut self,
         element: UiRef,
         ressources: &mut Ressources,
+        _: f32,
         clip: Option<Rect2D>,
     ) -> Option<Rect2D> {
         let atlas_entry = &ressources.texture_atlas.images[self.atlas_index as usize];

@@ -87,15 +87,16 @@ impl TextLayout {
 
         let font = context.font();
         let uv_height = font.height;
-        let mut layout = LayoutText::new(uv_height, self.font_size);
+        let font_size = self.font_size * context.scale_factor;
+        let mut layout = LayoutText::new(uv_height, font_size);
 
         let mut current_width = 0.0;
         let mut last_whitespace = true;
         let mut last_splitable = false;
         let mut split_point = i32::MAX;
 
-        let line_height = self.font_size + self.font_size / 8.0 * self.line_spacing;
-        let uv_scale = self.font_size / uv_height as f32;
+        let line_height = font_size + font_size / 8.0 * self.line_spacing;
+        let uv_scale = font_size / uv_height as f32;
 
         for mut c in text.chars() {
             let whitespace = c.is_whitespace();
@@ -200,7 +201,7 @@ impl TextLayout {
             }
 
             if !overflowed {
-                let y = layout.size.y - self.font_size;
+                let y = layout.size.y - font_size;
                 let line = layout.last();
                 let pos = Vec2::new(line.width, y);
                 let uv = font.get_uv(c);
@@ -208,7 +209,7 @@ impl TextLayout {
                 line.content.push(Glyph {
                     char: c,
                     pos,
-                    size: Vec2::new(char_width, self.font_size),
+                    size: Vec2::new(char_width, font_size),
                     uv_start: (uv.0, uv.1),
                     uv_size: (uv.2, uv_height),
                 });

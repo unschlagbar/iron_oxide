@@ -4,6 +4,9 @@ use super::Font;
 
 #[derive(Debug)]
 pub struct BuildContext {
+    /// The scale that should be applied to pixels
+    pub scale_factor: f32,
+
     /// Size of current element
     pub element_size: Vec2<f32>,
     /// Final position of current element
@@ -29,8 +32,10 @@ pub struct BuildContext {
 }
 
 impl BuildContext {
-    pub fn default(font: &Font, parent_size: Vec2<f32>) -> Self {
+    pub fn default(font: &Font, parent_size: Vec2<f32>, scale_factor: f32) -> Self {
         Self {
+            scale_factor,
+
             element_size: Vec2::zero(),
             element_pos: Vec2::zero(),
             z_index: 0,
@@ -46,13 +51,10 @@ impl BuildContext {
         }
     }
 
-    pub fn new_from(
-        parent: &Self,
-        available: Vec2<f32>,
-        start: Vec2<f32>,
-        dir: FlexDirection,
-    ) -> Self {
+    pub fn new(&self, available: Vec2<f32>, start: Vec2<f32>, dir: FlexDirection) -> Self {
         Self {
+            scale_factor: self.scale_factor,
+
             element_size: Vec2::zero(),
             element_pos: Vec2::zero(),
             z_index: 0,
@@ -64,7 +66,7 @@ impl BuildContext {
             used_cross: 0.0,
 
             flex_direction: dir,
-            font: parent.font,
+            font: self.font,
         }
     }
 
@@ -143,9 +145,12 @@ impl BuildContext {
         )
     }
 
-    pub fn apply_data(&mut self, pos: Vec2<f32>, size: Vec2<f32>) {
-        self.element_pos = pos;
+    pub fn apply_size(&mut self, size: Vec2<f32>) {
         self.element_size = size;
+    }
+
+    pub fn apply_pos(&mut self, pos: Vec2<f32>) {
+        self.element_pos = pos;
     }
 
     pub fn final_size(&self) -> Vec2<f32> {

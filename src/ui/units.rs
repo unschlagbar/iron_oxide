@@ -25,7 +25,7 @@ impl UiUnit {
             Self::Undefined => 100.0,
             Self::Auto => f32::MAX,
             Self::Fill => context.remaining_space().x,
-            Self::Px(pixel) => *pixel,
+            Self::Px(pixel) => *pixel * context.scale_factor,
             Self::Relative(percent) | Self::RelativeWidth(percent) => parent_size.x * percent,
             Self::RelativeHeight(percent) => parent_size.y * percent,
             Self::RelativeMax(percent) => parent_size.max() * percent,
@@ -42,7 +42,7 @@ impl UiUnit {
             Self::Undefined => 100.0,
             Self::Auto => f32::MAX,
             Self::Fill => context.remaining_space().y,
-            Self::Px(pixel) => *pixel,
+            Self::Px(pixel) => *pixel * context.scale_factor,
             Self::Relative(percent) | Self::RelativeHeight(percent) => parent_size.y * percent,
             Self::RelativeWidth(percent) => parent_size.x * percent,
             Self::RelativeMax(percent) => parent_size.max() * percent,
@@ -52,13 +52,13 @@ impl UiUnit {
     }
 
     #[inline]
-    pub fn py(&self, size: Vec2<f32>) -> f32 {
+    pub fn py(&self, size: Vec2<f32>, scale_factor: f32) -> f32 {
         match self {
             Self::Zero => 0.0,
             Self::Undefined => 100.0,
             Self::Auto => f32::MAX,
             Self::Fill => size.y,
-            Self::Px(pixel) => *pixel,
+            Self::Px(pixel) => *pixel * scale_factor,
             Self::Relative(percent) | Self::RelativeHeight(percent) => size.y * percent,
             Self::RelativeWidth(percent) => size.x * percent,
             Self::RelativeMax(percent) => size.max() * percent,
@@ -67,13 +67,13 @@ impl UiUnit {
         }
     }
 
-    pub fn px(&self, size: Vec2<f32>) -> f32 {
+    pub fn px(&self, size: Vec2<f32>, scale_factor: f32) -> f32 {
         match self {
             Self::Zero => 0.0,
             Self::Undefined => 100.0,
             Self::Auto => f32::MAX,
             Self::Fill => size.x,
-            Self::Px(pixel) => *pixel,
+            Self::Px(pixel) => *pixel * scale_factor,
             Self::Relative(percent) | Self::RelativeWidth(percent) => size.x * percent,
             Self::RelativeHeight(percent) => size.y * percent,
             Self::RelativeMax(percent) => size.max() * percent,
@@ -82,13 +82,13 @@ impl UiUnit {
         }
     }
 
-    pub fn px_i16(&self, size: Vec2<i16>) -> u16 {
+    pub fn px_i16(&self, size: Vec2<i16>, scale_factor: f32) -> u16 {
         match self {
             Self::Zero => 0,
             Self::Undefined => 100,
             Self::Auto => u16::MAX,
             Self::Fill => size.x as _,
-            Self::Px(pixel) => *pixel as u16,
+            Self::Px(pixel) => (*pixel * scale_factor) as u16,
             Self::Relative(percent) | Self::RelativeWidth(percent) => {
                 (size.x as f32 * percent) as u16
             }

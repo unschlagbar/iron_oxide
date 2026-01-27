@@ -43,7 +43,7 @@ impl Widget for Absolute {
                 Vec2::new(self.x.pixelx(context), self.y.pixely(context)),
             );
 
-        let mut child_ctx = BuildContext::new_from(
+        let mut child_ctx = BuildContext::new(
             context,
             size - padding,
             pos + self.padding.start(context),
@@ -66,7 +66,7 @@ impl Widget for Absolute {
         context.apply_data(pos, size);
     }
 
-    fn get_size(&mut self) -> (UiUnit, UiUnit) {
+    fn build_size(&mut self) -> (UiUnit, UiUnit) {
         (self.width, self.height)
     }
 
@@ -74,6 +74,7 @@ impl Widget for Absolute {
         &mut self,
         element: UiRef,
         ressources: &mut Ressources,
+        scale_factor: f32,
         clip: Option<Rect2D>,
     ) -> Option<Rect2D> {
         let to_add = UiInstance {
@@ -84,7 +85,7 @@ impl Widget for Absolute {
             y: element.pos.y,
             width: element.size.x,
             height: element.size.y,
-            corner: self.corner[0].px_i16(element.size),
+            corner: self.corner[0].px_i16(element.size, scale_factor),
             z_index: element.z_index,
         };
         ressources.add(MatType::Basic, &to_add, clip);

@@ -1,10 +1,10 @@
-mod buffer;
+//mod buffer;
 //mod camera;
 mod asset_manager;
-mod buffer_manager;
 pub mod formats;
 mod image;
 mod material;
+mod memory_manager;
 mod pipeline;
 pub mod platform;
 mod ressource_manager;
@@ -16,10 +16,8 @@ mod vertex_description;
 mod vk_base;
 
 pub use asset_manager::AssetManager;
-pub use buffer::Buffer;
-//pub use camera::Camera;
-pub use buffer_manager::BufferManager;
-pub use image::Image;
+pub use image::VulkanImage;
+pub use memory_manager::MemManager;
 pub use pipeline::Pipeline;
 pub use ressource_manager::Ressources;
 pub use shader_modul::create_shader_modul;

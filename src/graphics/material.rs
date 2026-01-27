@@ -8,7 +8,6 @@ use std::{any::TypeId, fmt};
 #[derive(Debug)]
 pub struct Material {
     pub buffer: Buffer,
-    pub buffer_size: u64,
     pub pipeline: Pipeline,
     pub instance_type: TypeId,
     // In u32
@@ -31,10 +30,9 @@ impl Material {
         alpha: bool,
         shaders: (&[u8], &[u8]),
     ) -> Self {
-        assert!(align_of::<T>() >= 4);
+        debug_assert!(align_of::<T>() >= 4);
         Self {
             buffer: Buffer::null(),
-            buffer_size: 0,
             pipeline: Pipeline::create_ui::<T>(
                 base,
                 window_size,

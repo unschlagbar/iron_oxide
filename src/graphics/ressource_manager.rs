@@ -9,8 +9,8 @@ use ash::vk::{
 };
 
 use crate::{
-    graphics::{BufferManager, DrawBatch, Material, TextureAtlas, VertexDescription, VkBase},
-    primitives::Matrix4,
+    graphics::{DrawBatch, Material, MemManager, TextureAtlas, VertexDescription, VkBase},
+    primitives::{Matrix4, Vec2},
     ui::materials::MatType,
 };
 
@@ -18,7 +18,7 @@ pub const MAX_IMGS: u32 = 2;
 
 #[derive(Debug)]
 pub struct Ressources {
-    pub buffer_manager: BufferManager,
+    pub mem_manager: MemManager,
     pub materials: Vec<Material>,
     pub draw_batches: Vec<Vec<DrawBatch>>,
 
@@ -26,13 +26,17 @@ pub struct Ressources {
     pub ubo_set: DescriptorSet,
 
     pub sampler: Sampler,
+    pub sampler_smooth: Sampler,
     pub texture_atlas: TextureAtlas,
 }
 
 impl Ressources {
-    pub fn new(base: &VkBase, atlas: TextureAtlas) -> Self {
-        let mut buffer_manager = BufferManager::new(base);
-        buffer_manager.allocate_memory(base, buffer_manager.host_visible, 500_000);
+    pub fn new(base: &VkBase) -> Self {
+        let mut mem_manager = MemManager::new(base);
+        mem_manager.allocate_memory(base, mem_manager.host_visible, 1_000_000, 0);
+        mem_manager.allocate_memory(base, mem_manager.device_local, 1_000_000, 1);
+
+        mem_manager.map_memory(base, 0, 0, u64::MAX);
 
         let pool_sizes = [
             DescriptorPoolSize {
@@ -79,8 +83,30 @@ impl Ressources {
 
         let sampler = unsafe { base.device.create_sampler(&create_info, None).unwrap() };
 
+        let create_info = SamplerCreateInfo {
+            mag_filter: Filter::LINEAR,
+            min_filter: Filter::LINEAR,
+            mipmap_mode: SamplerMipmapMode::NEAREST,
+            address_mode_u: SamplerAddressMode::CLAMP_TO_BORDER,
+            address_mode_v: SamplerAddressMode::CLAMP_TO_BORDER,
+            address_mode_w: SamplerAddressMode::CLAMP_TO_BORDER,
+            mip_lod_bias: 0.0,
+            anisotropy_enable: FALSE,
+            max_anisotropy: 0.0,
+            compare_enable: FALSE,
+            compare_op: CompareOp::ALWAYS,
+            min_lod: 0.0,
+            max_lod: 0.0,
+            border_color: BorderColor::FLOAT_TRANSPARENT_BLACK,
+            unnormalized_coordinates: TRUE,
+            ..Default::default()
+        };
+
+        let sampler_smooth = unsafe { base.device.create_sampler(&create_info, None).unwrap() };
+        let texture_atlas = TextureAtlas::new(Vec2::new(256, 256));
+
         Self {
-            buffer_manager,
+            mem_manager,
             draw_batches: Vec::new(),
             materials: Vec::new(),
 
@@ -88,7 +114,8 @@ impl Ressources {
             ubo_set: DescriptorSet::null(),
 
             sampler,
-            texture_atlas: atlas,
+            sampler_smooth,
+            texture_atlas,
         }
     }
 
@@ -109,7 +136,7 @@ impl Ressources {
         };
         let sets = unsafe { device.allocate_descriptor_sets(&allocate_info).unwrap() };
 
-        assert_eq!(sets.len() - 1, layout_mats.len());
+        debug_assert_eq!(sets.len() - 1, layout_mats.len());
 
         self.ubo_set = sets[0];
 
@@ -130,7 +157,7 @@ impl Ressources {
         };
 
         let atlas_image_info = DescriptorImageInfo {
-            sampler: self.sampler,
+            sampler: self.sampler_smooth,
             image_view: atlas_view,
             image_layout: ImageLayout::SHADER_READ_ONLY_OPTIMAL,
         };
@@ -180,7 +207,7 @@ impl Ressources {
         clip: Option<Rect2D>,
     ) {
         let material = &self.materials[mat_type as usize];
-        assert_eq!(material.instance_type, TypeId::of::<T>());
+        debug_assert_eq!(material.instance_type, TypeId::of::<T>());
 
         let mat_batch = &mut self.draw_batches[mat_type as usize];
         let to_add = to_add as *const T as *const u8;
@@ -193,7 +220,6 @@ impl Ressources {
             data.extend_from_slice(other);
 
             mat_batch.push(DrawBatch {
-                //desc,
                 clip,
                 data,
                 size: 0,
@@ -255,7 +281,7 @@ impl Ressources {
     }
 
     pub fn upload(&mut self, base: &VkBase, start: usize) {
-        self.buffer_manager.destroy_buffers(base, start);
+        self.mem_manager.destroy_buffers(base, start);
 
         for (i, mat) in self.materials.iter_mut().enumerate() {
             if self.draw_batches[i].is_empty() {
@@ -278,18 +304,18 @@ impl Ressources {
                 buf.extend_from_slice(&batch.data);
             }
 
-            let (buffer, buffer_size) = self.buffer_manager.create_buffer(
+            let (buffer, _) = self.mem_manager.create_buffer(
                 base,
+                0,
                 buf.len() as u64,
                 BufferUsageFlags::VERTEX_BUFFER,
             );
 
             mat.buffer = buffer;
-            mat.buffer_size = buffer_size;
 
-            let offset = self.buffer_manager.buffers.last().unwrap().1 as usize;
+            let offset = self.mem_manager.buffers.last().unwrap().offset as usize;
 
-            let mem = &self.buffer_manager.memory_pool[0];
+            let mem = &self.mem_manager.memory_pool[0];
             let dest = mem.get_ptr(offset);
 
             unsafe {
@@ -303,11 +329,12 @@ impl Ressources {
             mat.destroy(&base.device);
         }
 
-        self.buffer_manager.destroy(base);
         self.texture_atlas.destroy(&base.device);
+        self.mem_manager.destroy(base);
 
         unsafe {
             base.device.destroy_sampler(self.sampler, None);
+            base.device.destroy_sampler(self.sampler_smooth, None);
             base.device.destroy_descriptor_pool(self.desc_pool, None);
         }
     }
