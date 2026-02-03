@@ -1,11 +1,13 @@
+use core::f32;
+
 use ash::vk::Rect2D;
 use winit::event::MouseScrollDelta;
 
-use super::{BuildContext, UiElement, UiUnit};
+use super::{BuildContext, UiElement};
 use crate::{
     graphics::Ressources,
     primitives::Vec2,
-    ui::{FlexDirection, Ui, UiEvent, UiRect, UiRef, system::InputResult, widget::Widget},
+    ui::{FlexDirection, Ui, UiEvent, UiRect, UiRef, UiUnit, system::InputResult, widget::Widget},
 };
 
 #[derive(Default)]
@@ -17,8 +19,8 @@ pub struct ScrollPanel {
 }
 
 impl Widget for ScrollPanel {
-    fn build(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
-        let space = context.remaining_space();
+    fn build_layout(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
+        let space = context.element_size;
         let padding = self.padding.size(context);
 
         let child_hash: u32 = if let Some(child) = childs.first() {
@@ -37,7 +39,7 @@ impl Widget for ScrollPanel {
         let available_size = space - padding;
         let child_start_pos = pos + self.padding.start(context);
 
-        let mut child_context = BuildContext::new(
+        let mut child_context = BuildContext::child(
             context,
             available_size,
             child_start_pos + self.scroll_offset,
@@ -48,14 +50,42 @@ impl Widget for ScrollPanel {
             child.build(&mut child_context);
         }
 
-        self.size.y = child_context.final_size().y + padding.y;
-
         // if we resize the element we dont want the scroll offset to be larger than it should be
         if space.y < self.size.y {
             self.scroll_offset.y = self.scroll_offset.y.max(space.y - self.size.y);
         }
 
-        context.apply_data(pos, space);
+        context.apply_pos(pos);
+    }
+
+    fn build_size(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
+        let padding = self.padding.size(context);
+
+        let size = Vec2::new(
+            UiUnit::Fill(1.0).size_x(context),
+            UiUnit::Fill(1.0).size_y(context),
+        );
+
+        let mut child_ctx = context.child(size - padding, Vec2::zero(), FlexDirection::default());
+
+        for child in &mut *childs {
+            child.predict_size(&mut child_ctx);
+        }
+
+        // Size must be defined in order to work
+        for child in childs {
+            child.build_size(&mut child_ctx);
+        }
+
+        self.size = child_ctx.final_size() + padding;
+        context.apply_size(size);
+    }
+
+    fn predict_size(&mut self, context: &mut BuildContext) {
+        context.fill_x(1.0);
+        context.fill_y(1.0);
+
+        context.predict_child(Vec2::zero());
     }
 
     fn interaction(&mut self, element: UiRef, ui: &mut Ui, event: UiEvent) -> InputResult {
@@ -101,9 +131,5 @@ impl Widget for ScrollPanel {
             offset: element.pos.into(),
             extent: element.size.into(),
         })
-    }
-
-    fn build_size(&mut self) -> (UiUnit, UiUnit) {
-        (UiUnit::Fill, UiUnit::Fill)
     }
 }

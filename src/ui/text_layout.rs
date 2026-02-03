@@ -247,7 +247,7 @@ pub struct TextLine {
 }
 
 /// Represents the result of text layout before rendering.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct LayoutText {
     pub lines: Vec<TextLine>,
     pub size: Vec2<f32>,

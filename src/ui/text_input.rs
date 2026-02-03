@@ -15,7 +15,7 @@ use crate::{
         UiEvent, UiRef,
         callback::TextExitContext,
         materials::{FontInstance, MatType, UiInstance},
-        text_layout::TextLayout,
+        text_layout::{LayoutText, TextLayout},
         widget::Widget,
     },
 };
@@ -33,6 +33,7 @@ pub struct TextInput {
     pub on_blur: Option<fn(TextExitContext)>,
 
     pub dirty: bool,
+    pub build_layout: LayoutText,
     pub font_instances: Vec<FontInstance>,
 }
 
@@ -49,6 +50,7 @@ impl TextInput {
             on_input: Some(default_on_input),
             on_blur: None,
             dirty: false,
+            build_layout: LayoutText::default(),
             font_instances: text.font_instances,
         }
     }
@@ -160,32 +162,22 @@ impl TextInput {
 }
 
 impl Widget for TextInput {
-    fn build(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
-        self.dirty = false;
+    fn build_layout(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
         self.font_instances.clear();
-
-        let text = if self.text.is_empty() {
-            "\u{200B}"
-        } else {
-            &self.text
-        };
 
         let align = self.align;
         let mut offset = context.pos_child();
-
+        let align_size = context.size();
         let font_size = self.layout.font_size * context.scale_factor;
 
-        let layout = self.layout.build(text, context);
-
-        let align_size = context.size();
-
-        let offset_y = offset.y;
+        context.place_child(context.element_size);
 
         if align.vertical_centered() {
-            offset.y += (align_size.y - font_size * layout.lines.len() as f32).max(0.0) * 0.5;
+            offset.y +=
+                (align_size.y - font_size * self.build_layout.lines.len() as f32).max(0.0) * 0.5;
         }
 
-        for line in &layout.lines {
+        for line in &self.build_layout.lines {
             let mut offset = offset;
             if align.horizontal_centered() {
                 offset.x += (align_size.x - line.width) * 0.5;
@@ -202,12 +194,25 @@ impl Widget for TextInput {
                 });
             }
         }
+        context.apply_pos(offset);
+    }
 
-        context.place_child(context.hard_size(layout.size));
-        context.apply_data(
-            Vec2::new(offset.x, offset_y),
-            context.hard_size(layout.size),
-        );
+    fn build_size(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
+        context.place_child(self.build_layout.size);
+        context.apply_size(self.build_layout.size);
+    }
+
+    fn predict_size(&mut self, context: &mut BuildContext) {
+        self.dirty = false;
+
+        let text = if self.text.is_empty() {
+            "\u{200B}"
+        } else {
+            &self.text
+        };
+
+        self.build_layout = self.layout.build(text, context);
+        context.predict_child(self.build_layout.size);
     }
 
     fn instance(
@@ -377,7 +382,7 @@ impl Default for TextInput {
     fn default() -> Self {
         Self {
             text: "Text".to_string(),
-            color: RGBA::WHITE,
+            color: RGBA::grey(220),
             layout: TextLayout::default(),
             align: Align::default(),
 
@@ -388,6 +393,7 @@ impl Default for TextInput {
             on_blur: None,
 
             dirty: true,
+            build_layout: LayoutText::default(),
             font_instances: Vec::new(),
         }
     }

@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use ash::vk::Rect2D;
 
-use super::{BuildContext, UiElement, UiUnit};
+use super::{BuildContext, UiElement};
 use crate::{
     graphics::Ressources,
     ui::{ButtonContext, Ui, UiEvent, UiRef, system::InputResult, widget::Widget},
@@ -16,16 +16,20 @@ pub struct Ticking<T: Widget> {
 }
 
 impl<T: Widget> Widget for Ticking<T> {
-    fn build(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
-        self.inner.build(childs, context);
+    fn build_layout(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
+        self.inner.build_layout(childs, context);
     }
 
     fn interaction(&mut self, element: UiRef, ui: &mut Ui, event: UiEvent) -> InputResult {
         self.inner.interaction(element, ui, event)
     }
 
-    fn build_size(&mut self) -> (UiUnit, UiUnit) {
-        self.inner.build_size()
+    fn build_size(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
+        self.inner.build_size(childs, context)
+    }
+
+    fn predict_size(&mut self, context: &mut BuildContext) {
+        self.inner.predict_size(context);
     }
 
     fn instance(

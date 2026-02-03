@@ -33,7 +33,7 @@ impl Ui {
                 position,
             } => self.handle_input((*position).into(), UiEvent::Move),
             WindowEvent::CursorLeft { device_id: _ } => {
-                self.handle_input(Vec2::new(-1, -1), UiEvent::Move)
+                self.handle_input(self.cursor_pos, UiEvent::HoverEnd)
             }
             WindowEvent::MouseWheel {
                 device_id: _,
@@ -77,6 +77,14 @@ impl Ui {
                 } else {
                     InputResult::None
                 }
+            }
+            WindowEvent::ScaleFactorChanged {
+                scale_factor,
+                inner_size_writer: _,
+            } => {
+                self.scale_factor = *scale_factor as f32;
+                self.layout_changed();
+                InputResult::New
             }
             _ => InputResult::None,
         };

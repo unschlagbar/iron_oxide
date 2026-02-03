@@ -11,9 +11,11 @@ use crate::{
 
 #[allow(unused)]
 pub trait Widget: Any + 'static {
-    fn build(&mut self, childs: &mut [UiElement], context: &mut BuildContext);
+    fn build_layout(&mut self, childs: &mut [UiElement], context: &mut BuildContext);
 
     fn build_size(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {}
+
+    fn predict_size(&mut self, context: &mut BuildContext) {}
 
     fn instance(
         &mut self,
@@ -83,5 +85,5 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
 impl<T: Default + Widget + Sized + 'static> ElementBuilder for T {}
 
 impl Widget for () {
-    fn build(&mut self, _: &mut [UiElement], _: &mut BuildContext) {}
+    fn build_layout(&mut self, _: &mut [UiElement], _: &mut BuildContext) {}
 }

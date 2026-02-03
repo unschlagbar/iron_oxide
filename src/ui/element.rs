@@ -73,14 +73,31 @@ impl UiElement {
     pub fn build(&mut self, context: &mut BuildContext) {
         context.z_index = self.z_index;
         context.element_pos = Vec2::new(self.pos.x as f32, self.pos.y as f32);
-        context.element_size = Vec2::new(self.pos.x as f32, self.pos.y as f32);
+        context.element_size = Vec2::new(self.size.x as f32, self.size.y as f32);
 
         let childs = self.childs_mut();
 
-        self.widget.build(childs, context);
+        self.widget.build_layout(childs, context);
 
         self.pos = Vec2::new(context.element_pos.x as i16, context.element_pos.y as i16);
         self.size = Vec2::new(context.element_size.x as i16, context.element_size.y as i16);
+    }
+
+    pub fn build_size(&mut self, context: &mut BuildContext) {
+        context.z_index = self.z_index;
+        context.element_pos = Vec2::new(self.pos.x as f32, self.pos.y as f32);
+        context.element_size = Vec2::new(self.size.x as f32, self.size.y as f32);
+
+        let childs = self.childs_mut();
+
+        self.widget.build_size(childs, context);
+
+        self.pos = Vec2::new(context.element_pos.x as i16, context.element_pos.y as i16);
+        self.size = Vec2::new(context.element_size.x as i16, context.element_size.y as i16);
+    }
+
+    pub(crate) fn predict_size(&mut self, context: &mut BuildContext) {
+        self.widget.predict_size(context);
     }
 
     pub fn get_instances(
@@ -197,6 +214,36 @@ impl UiElement {
             }
         }
         Some(UiRef::new(childs.last_mut().unwrap()))
+    }
+
+    /// Inserts a child to self and returns a weak reference to it
+    pub(crate) fn insert_child(
+        &mut self,
+        child: UiElement,
+        ui: &mut Ui,
+        idx: usize,
+    ) -> Option<UiRef> {
+        let childs = &mut self.childs;
+        let ptr = childs.as_ptr();
+
+        childs.insert(idx, child);
+
+        // if a realloc happens we need to update the child pointers
+        if ptr != childs.as_ptr() {
+            for child in childs.iter_mut() {
+                child.update_ptrs(ui);
+            }
+        } else {
+            for child in &mut childs[idx..] {
+                child.update_ptrs(ui);
+            }
+        }
+
+        if let Some(child) = childs.get_mut(idx) {
+            Some(UiRef::new(child))
+        } else {
+            None
+        }
     }
 
     /// Removes all pointers that point to the element to prevent invalid dereferencing

@@ -10,7 +10,7 @@ pub struct UiRect {
 }
 
 impl UiRect {
-    pub const fn new(pixel: f32) -> Self {
+    pub const fn px(pixel: f32) -> Self {
         Self {
             left: UiUnit::Px(pixel),
             right: UiUnit::Px(pixel),
@@ -19,9 +19,18 @@ impl UiRect {
         }
     }
 
+    pub const fn new(data: [UiUnit; 4]) -> Self {
+        Self {
+            left: data[0],
+            right: data[1],
+            top: data[2],
+            bottom: data[3],
+        }
+    }
+
     pub const fn from(pixel: &[f32]) -> Self {
         match pixel.len() {
-            1 => Self::new(pixel[0]),
+            1 => Self::px(pixel[0]),
             2 => Self {
                 left: UiUnit::Px(pixel[0]),
                 top: UiUnit::Px(pixel[1]),
@@ -53,6 +62,42 @@ impl UiRect {
             top: value,
             right: UiUnit::Zero,
             bottom: value,
+        }
+    }
+
+    pub const fn left(pixel: f32) -> Self {
+        Self {
+            left: UiUnit::Px(pixel),
+            top: UiUnit::Zero,
+            right: UiUnit::Zero,
+            bottom: UiUnit::Zero,
+        }
+    }
+
+    pub const fn top(pixel: f32) -> Self {
+        Self {
+            left: UiUnit::Zero,
+            top: UiUnit::Px(pixel),
+            right: UiUnit::Zero,
+            bottom: UiUnit::Zero,
+        }
+    }
+
+    pub const fn right(pixel: f32) -> Self {
+        Self {
+            left: UiUnit::Zero,
+            top: UiUnit::Zero,
+            right: UiUnit::Px(pixel),
+            bottom: UiUnit::Zero,
+        }
+    }
+
+    pub const fn bottom(pixel: f32) -> Self {
+        Self {
+            left: UiUnit::Zero,
+            top: UiUnit::Zero,
+            right: UiUnit::Zero,
+            bottom: UiUnit::Px(pixel),
         }
     }
 
@@ -102,8 +147,9 @@ pub enum FlexDirection {
     Horizontal,
 }
 
+#[derive(Debug)]
 pub struct Shadow {
-    pub offset: (i16, i16),
+    pub offset: Vec2<i16>,
     pub blur: u16,
     pub color: RGBA,
 }
@@ -111,9 +157,19 @@ pub struct Shadow {
 impl Shadow {
     pub const fn new(blur: u16, color: RGBA) -> Self {
         Self {
-            offset: (0, 0),
+            offset: Vec2::new(0, 0),
             blur,
             color,
+        }
+    }
+}
+
+impl Default for Shadow {
+    fn default() -> Self {
+        Self {
+            offset: Vec2::default(),
+            blur: 0,
+            color: RGBA::ZERO,
         }
     }
 }

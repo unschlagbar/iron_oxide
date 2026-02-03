@@ -163,7 +163,7 @@ impl Swapchain {
             pre_transform: SurfaceTransformFlagsKHR::IDENTITY,
             composite_alpha: self.composite_alpha,
             present_mode: self.present_mode,
-            clipped: vk::TRUE,
+            clipped: vk::FALSE,
             old_swapchain: self.inner,
             ..Default::default()
         };

@@ -1,84 +1,125 @@
 use crate::{primitives::Vec2, ui::BuildContext};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 #[repr(u8)]
 pub enum UiUnit {
-    Zero,
     Undefined,
-    Auto,
-    Fill,
+    Zero,
     Px(f32),
+    #[default]
+    Fit,
+    Fill(f32),
     Relative(f32),
     RelativeHeight(f32),
     RelativeWidth(f32),
     RelativeMax(f32),
     RelativeMin(f32),
-    Rem(f32),
 }
 
 impl UiUnit {
+    pub const FILL: Self = Self::Relative(1.0);
+
+    /// Gets pre values
+    /// Undefined | Zero | Px(x) => 0 | x;
+    /// Depends on child => f32::MIN;
+    /// Depends on parent => f32::MAX;
+    pub fn pre_size(&self) -> f32 {
+        match self {
+            Self::Fit => f32::MIN,
+            Self::Undefined | Self::Zero | Self::Px(_) => 0.0,
+            _ => f32::MAX,
+        }
+    }
+
+    pub fn size_x(&self, context: &BuildContext) -> f32 {
+        match *self {
+            Self::Undefined => 0.0,
+            Self::Zero => 0.0,
+            Self::Px(value) => value * context.scale_factor,
+            Self::Fit => context.available_size.x,
+            Self::Fill(weight) => context.fill_size_x(weight),
+            Self::Relative(value) | Self::RelativeWidth(value) => context.available_size.x * value,
+            Self::RelativeHeight(value) => context.available_size.y * value,
+            Self::RelativeMax(value) => context.available_size.max() * value,
+            Self::RelativeMin(value) => context.available_size.min() * value,
+        }
+    }
+
+    pub fn size_y(&self, context: &BuildContext) -> f32 {
+        match *self {
+            Self::Undefined => 0.0,
+            Self::Zero => 0.0,
+            Self::Px(value) => value * context.scale_factor,
+            Self::Fit => context.available_size.y,
+            Self::Fill(weight) => context.fill_size_y(weight),
+            Self::Relative(value) | Self::RelativeHeight(value) => context.available_size.y * value,
+            Self::RelativeWidth(value) => context.available_size.x * value,
+            Self::RelativeMax(value) => context.available_size.max() * value,
+            Self::RelativeMin(value) => context.available_size.min() * value,
+        }
+    }
+
+    pub fn pre_size_x(&self, context: &BuildContext) -> f32 {
+        match *self {
+            Self::Undefined => 0.0,
+            Self::Zero => 0.0,
+            Self::Px(value) => value * context.scale_factor,
+            Self::Fit => 0.0,
+            Self::Fill(_) => panic!(),
+            Self::Relative(value) | Self::RelativeWidth(value) => context.available_size.x * value,
+            Self::RelativeHeight(value) => context.available_size.y * value,
+            Self::RelativeMax(value) => context.available_size.max() * value,
+            Self::RelativeMin(value) => context.available_size.min() * value,
+        }
+    }
+
+    pub fn pre_size_y(&self, context: &BuildContext) -> f32 {
+        match *self {
+            Self::Undefined => 0.0,
+            Self::Zero => 0.0,
+            Self::Px(value) => value * context.scale_factor,
+            Self::Fit => 0.0,
+            Self::Fill(_) => panic!(),
+            Self::Relative(value) | Self::RelativeHeight(value) => context.available_size.y * value,
+            Self::RelativeWidth(value) => context.available_size.x * value,
+            Self::RelativeMax(value) => context.available_size.max() * value,
+            Self::RelativeMin(value) => context.available_size.min() * value,
+        }
+    }
+
     #[inline]
     pub fn pixelx(&self, context: &BuildContext) -> f32 {
         let parent_size = context.available_size;
-        match self {
+        match *self {
+            Self::Undefined => 0.0,
             Self::Zero => 0.0,
-            Self::Undefined => 100.0,
-            Self::Auto => f32::MAX,
-            Self::Fill => context.remaining_space().x,
-            Self::Px(pixel) => *pixel * context.scale_factor,
+            Self::Px(pixel) => pixel * context.scale_factor,
+            Self::Fit => f32::MAX,
+            Self::Fill(_) => {
+                panic!()
+            }
             Self::Relative(percent) | Self::RelativeWidth(percent) => parent_size.x * percent,
             Self::RelativeHeight(percent) => parent_size.y * percent,
             Self::RelativeMax(percent) => parent_size.max() * percent,
             Self::RelativeMin(percent) => parent_size.min() * percent,
-            Self::Rem(rem) => *rem,
         }
     }
 
     #[inline]
     pub fn pixely(&self, context: &BuildContext) -> f32 {
         let parent_size = context.available_size;
-        match self {
+        match *self {
+            Self::Undefined => 0.0,
             Self::Zero => 0.0,
-            Self::Undefined => 100.0,
-            Self::Auto => f32::MAX,
-            Self::Fill => context.remaining_space().y,
-            Self::Px(pixel) => *pixel * context.scale_factor,
+            Self::Px(pixel) => pixel * context.scale_factor,
+            Self::Fit => f32::MAX,
+            Self::Fill(_) => {
+                panic!()
+            }
             Self::Relative(percent) | Self::RelativeHeight(percent) => parent_size.y * percent,
             Self::RelativeWidth(percent) => parent_size.x * percent,
             Self::RelativeMax(percent) => parent_size.max() * percent,
             Self::RelativeMin(percent) => parent_size.min() * percent,
-            Self::Rem(rem) => *rem,
-        }
-    }
-
-    #[inline]
-    pub fn py(&self, size: Vec2<f32>, scale_factor: f32) -> f32 {
-        match self {
-            Self::Zero => 0.0,
-            Self::Undefined => 100.0,
-            Self::Auto => f32::MAX,
-            Self::Fill => size.y,
-            Self::Px(pixel) => *pixel * scale_factor,
-            Self::Relative(percent) | Self::RelativeHeight(percent) => size.y * percent,
-            Self::RelativeWidth(percent) => size.x * percent,
-            Self::RelativeMax(percent) => size.max() * percent,
-            Self::RelativeMin(percent) => size.min() * percent,
-            Self::Rem(rem) => *rem,
-        }
-    }
-
-    pub fn px(&self, size: Vec2<f32>, scale_factor: f32) -> f32 {
-        match self {
-            Self::Zero => 0.0,
-            Self::Undefined => 100.0,
-            Self::Auto => f32::MAX,
-            Self::Fill => size.x,
-            Self::Px(pixel) => *pixel * scale_factor,
-            Self::Relative(percent) | Self::RelativeWidth(percent) => size.x * percent,
-            Self::RelativeHeight(percent) => size.y * percent,
-            Self::RelativeMax(percent) => size.max() * percent,
-            Self::RelativeMin(percent) => size.min() * percent,
-            Self::Rem(rem) => *rem,
         }
     }
 
@@ -86,8 +127,8 @@ impl UiUnit {
         match self {
             Self::Zero => 0,
             Self::Undefined => 100,
-            Self::Auto => u16::MAX,
-            Self::Fill => size.x as _,
+            Self::Fit => u16::MAX,
+            Self::Fill(_) => size.x as _,
             Self::Px(pixel) => (*pixel * scale_factor) as u16,
             Self::Relative(percent) | Self::RelativeWidth(percent) => {
                 (size.x as f32 * percent) as u16
@@ -95,7 +136,6 @@ impl UiUnit {
             Self::RelativeHeight(percent) => (size.y as f32 * percent) as u16,
             Self::RelativeMax(percent) => (size.max() as f32 * percent) as u16,
             Self::RelativeMin(percent) => (size.min() as f32 * percent) as u16,
-            Self::Rem(rem) => *rem as u16,
         }
     }
 }

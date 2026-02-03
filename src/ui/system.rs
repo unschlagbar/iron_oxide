@@ -127,6 +127,36 @@ impl Ui {
         }
     }
 
+    pub fn insert_child<T: Into<Element>>(
+        &mut self,
+        mut child: UiElement,
+        parent: T,
+        idx: usize,
+    ) -> Option<UiRef> {
+        let mut parent = self.element_to_ref(parent)?;
+
+        child.id = self.get_id();
+        child.z_index = parent.z_index + 10;
+        child.parent = Some(parent);
+
+        let ticking = child.widget.is_ticking();
+        let child = unsafe { parent.as_mut().insert_child(child, self, idx) };
+
+        if let Some(mut child) = child {
+            let child_mut = unsafe { child.as_mut() };
+            child_mut.init(self);
+
+            if ticking {
+                self.set_ticking(child);
+            }
+
+            self.layout_changed();
+            Some(child)
+        } else {
+            None
+        }
+    }
+
     pub fn remove_element<T: Into<Element>>(&mut self, element: T) -> Option<UiElement> {
         let element = self.element_to_ref(element)?;
 
@@ -193,6 +223,12 @@ impl Ui {
         let mut build_context = BuildContext::default(&self.font, self.size, self.scale_factor);
 
         for element in &mut self.elements {
+            element.build_size(&mut build_context);
+        }
+
+        let mut build_context = BuildContext::default(&self.font, self.size, self.scale_factor);
+
+        for element in &mut self.elements {
             element.build(&mut build_context);
         }
     }
@@ -243,7 +279,6 @@ impl Ui {
         self.selection.focused = Some(Select::new(element))
     }
 
-    /// TODO disable hover in touch mode
     pub fn handle_input(&mut self, cursor_pos: Vec2<i16>, event: UiEvent) -> InputResult {
         let ui = unsafe { &mut *ptr::from_mut(self) };
         self.cursor_pos = cursor_pos;

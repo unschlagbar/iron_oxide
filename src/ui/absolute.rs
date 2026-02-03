@@ -14,8 +14,7 @@ use crate::{
 
 pub struct Absolute {
     pub align: Align,
-    pub x: UiUnit,
-    pub y: UiUnit,
+    pub offset: Vec2<f32>,
     pub width: UiUnit,
     pub height: UiUnit,
     pub color: RGBA,
@@ -27,23 +26,15 @@ pub struct Absolute {
 }
 
 impl Widget for Absolute {
-    fn build(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
+    fn build_layout(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
+        let size = context.element_size;
         let space = context.available_size;
+
+        let pos = context.child_start_pos + self.align.get_pos(space, size, self.offset);
+
         let padding = self.padding.size(context);
 
-        let width = self.width.pixelx(context);
-        let height = self.height.pixely(context);
-
-        let mut size = Vec2::new(width, height);
-
-        let pos = context.child_start_pos
-            + self.align.get_pos(
-                space,
-                size,
-                Vec2::new(self.x.pixelx(context), self.y.pixely(context)),
-            );
-
-        let mut child_ctx = BuildContext::new(
+        let mut child_ctx = BuildContext::child(
             context,
             size - padding,
             pos + self.padding.start(context),
@@ -53,21 +44,35 @@ impl Widget for Absolute {
         for child in childs {
             child.build(&mut child_ctx);
         }
+        context.apply_pos(pos);
+    }
 
-        // use autosize if width or height was auto
-        if matches!(self.width, UiUnit::Auto) {
+    fn build_size(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
+        let padding = self.padding.size(context);
+
+        let mut size = Vec2::new(self.width.size_x(context), self.height.size_y(context));
+
+        let mut child_ctx = context.child(size - padding, Vec2::zero(), FlexDirection::default());
+
+        for child in &mut *childs {
+            child.predict_size(&mut child_ctx);
+        }
+
+        // Size must be defined in order to work
+        for child in childs {
+            child.build_size(&mut child_ctx);
+        }
+
+        if matches!(self.width, UiUnit::Fit) {
             size.x = child_ctx.final_size().x + padding.x;
         }
 
-        if matches!(self.height, UiUnit::Auto) {
+        if matches!(self.height, UiUnit::Fit) {
             size.y = child_ctx.final_size().y + padding.y;
         }
 
-        context.apply_data(pos, size);
-    }
-
-    fn build_size(&mut self) -> (UiUnit, UiUnit) {
-        (self.width, self.height)
+        context.place_child(size);
+        context.apply_size(size);
     }
 
     fn instance(
@@ -93,8 +98,8 @@ impl Widget for Absolute {
         if self.shadow.color != RGBA::ZERO {
             let to_add = ShadowInstance {
                 color: self.shadow.color,
-                x: element.pos.x + self.shadow.offset.0,
-                y: element.pos.y + self.shadow.offset.0,
+                x: element.pos.x + self.shadow.offset.x,
+                y: element.pos.y + self.shadow.offset.y,
                 width: element.size.x,
                 height: element.size.y,
                 blur: self.shadow.blur,
@@ -112,15 +117,14 @@ impl Default for Absolute {
     fn default() -> Self {
         Self {
             align: Align::default(),
-            x: UiUnit::Px(10.0),
-            y: UiUnit::Px(10.0),
+            offset: Vec2::default(),
             width: UiUnit::Px(100.0),
             height: UiUnit::Px(100.0),
             color: RGBA::DARKGREY,
             border_color: RGBA::GREEN,
             border: [0; 4],
             corner: [UiUnit::Zero; 4],
-            shadow: Shadow::new(0, RGBA::ZERO),
+            shadow: Shadow::default(),
             padding: UiRect::default(),
         }
     }

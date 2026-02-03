@@ -7,6 +7,9 @@ pub struct BuildContext {
     /// The scale that should be applied to pixels
     pub scale_factor: f32,
 
+    /// Number of childs that want to fill parent
+    pub fill_sum: f32,
+
     /// Size of current element
     pub element_size: Vec2<f32>,
     /// Final position of current element
@@ -25,6 +28,11 @@ pub struct BuildContext {
     /// For measuring the cross side (max child size)
     pub used_cross: f32,
 
+    /// For measuring in the current flex-direction
+    pub predicted_main: f32,
+    /// For measuring the cross side (max child size)
+    pub predicted_cross: f32,
+
     /// flex axis
     pub flex_direction: FlexDirection,
 
@@ -36,6 +44,8 @@ impl BuildContext {
         Self {
             scale_factor,
 
+            fill_sum: 0.0,
+
             element_size: Vec2::zero(),
             element_pos: Vec2::zero(),
             z_index: 0,
@@ -46,14 +56,19 @@ impl BuildContext {
             used_main: 0.0,
             used_cross: 0.0,
 
+            predicted_main: 0.0,
+            predicted_cross: 0.0,
+
             flex_direction: FlexDirection::Vertical,
-            font: font as _,
+            font,
         }
     }
 
-    pub fn new(&self, available: Vec2<f32>, start: Vec2<f32>, dir: FlexDirection) -> Self {
+    pub fn child(&self, available: Vec2<f32>, start: Vec2<f32>, dir: FlexDirection) -> Self {
         Self {
             scale_factor: self.scale_factor,
+
+            fill_sum: 0.0,
 
             element_size: Vec2::zero(),
             element_pos: Vec2::zero(),
@@ -64,6 +79,9 @@ impl BuildContext {
 
             used_main: 0.0,
             used_cross: 0.0,
+
+            predicted_main: 0.0,
+            predicted_cross: 0.0,
 
             flex_direction: dir,
             font: self.font,
@@ -78,8 +96,20 @@ impl BuildContext {
     /// Gets the remaining space
     pub fn remaining_space(&self) -> Vec2<f32> {
         match self.flex_direction {
-            FlexDirection::Horizontal => self.available_size - Vec2::new(self.used_main, 0.0),
-            FlexDirection::Vertical => self.available_size - Vec2::new(0.0, self.used_main),
+            FlexDirection::Horizontal => {
+                self.available_size - Vec2::new(self.used_main, self.used_cross)
+            }
+            FlexDirection::Vertical => {
+                self.available_size - Vec2::new(self.used_cross, self.used_main)
+            }
+        }
+    }
+
+    /// Gets the remaining space
+    pub fn predicted_remaining_space(&self) -> Vec2<f32> {
+        match self.flex_direction {
+            FlexDirection::Horizontal => self.available_size - Vec2::new(self.predicted_main, 0.0),
+            FlexDirection::Vertical => self.available_size - Vec2::new(0.0, self.predicted_main),
         }
     }
 
@@ -105,6 +135,20 @@ impl BuildContext {
             FlexDirection::Vertical => {
                 self.used_main += child_size.y;
                 self.used_cross = self.used_cross.max(child_size.x);
+            }
+        }
+    }
+
+    /// Places an element in the flow layout (similar to CSS block-level flex positioning)
+    pub fn predict_child(&mut self, child_size: Vec2<f32>) {
+        match self.flex_direction {
+            FlexDirection::Horizontal => {
+                self.predicted_main += child_size.x;
+                self.predicted_cross = self.predicted_cross.max(child_size.y);
+            }
+            FlexDirection::Vertical => {
+                self.predicted_main += child_size.y;
+                self.predicted_cross = self.predicted_cross.max(child_size.x);
             }
         }
     }
@@ -157,6 +201,36 @@ impl BuildContext {
         match self.flex_direction {
             FlexDirection::Horizontal => Vec2::new(self.used_main, self.used_cross),
             FlexDirection::Vertical => Vec2::new(self.used_cross, self.used_main),
+        }
+    }
+
+    pub fn fill_x(&mut self, weight: f32) {
+        if matches!(self.flex_direction, FlexDirection::Horizontal) {
+            self.fill_sum += weight
+        }
+    }
+
+    pub fn fill_y(&mut self, weight: f32) {
+        if matches!(self.flex_direction, FlexDirection::Vertical) {
+            self.fill_sum += weight
+        }
+    }
+
+    pub fn fill_size_y(&self, weight: f32) -> f32 {
+        match self.flex_direction {
+            FlexDirection::Horizontal => self.available_size.y,
+            FlexDirection::Vertical => {
+                self.predicted_remaining_space().y * (weight / self.fill_sum)
+            }
+        }
+    }
+
+    pub fn fill_size_x(&self, weight: f32) -> f32 {
+        match self.flex_direction {
+            FlexDirection::Horizontal => {
+                self.predicted_remaining_space().x * (weight / self.fill_sum)
+            }
+            FlexDirection::Vertical => self.available_size.x,
         }
     }
 }
