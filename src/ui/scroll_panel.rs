@@ -7,7 +7,10 @@ use super::{BuildContext, UiElement};
 use crate::{
     graphics::Ressources,
     primitives::Vec2,
-    ui::{FlexDirection, Ui, UiEvent, UiRect, UiRef, UiUnit, system::InputResult, widget::Widget},
+    ui::{
+        FlexDirection, Ui, UiEvent, UiRect, UiRef, UiUnit, system::InputResult, units::FlexAlign,
+        widget::Widget,
+    },
 };
 
 #[derive(Default)]
@@ -34,7 +37,7 @@ impl Widget for ScrollPanel {
             self.child_hash = child_hash;
         }
 
-        let pos = context.pos_child();
+        let pos = context.pos_child(FlexAlign::default(), Vec2::zero());
 
         let available_size = space - padding;
         let child_start_pos = pos + self.padding.start(context);

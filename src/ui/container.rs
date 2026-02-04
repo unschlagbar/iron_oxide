@@ -7,6 +7,7 @@ use crate::{
     ui::{
         FlexDirection, Shadow, UiRef,
         materials::{MatType, ShadowInstance, UiInstance},
+        units::FlexAlign,
         widget::Widget,
     },
 };
@@ -19,6 +20,7 @@ pub struct Container {
     pub color: RGBA,
     pub border_color: RGBA,
     pub flex_direction: FlexDirection,
+    pub flex_align: FlexAlign,
     pub border: [u8; 4],
     pub corner: [UiUnit; 4],
     pub shadow: Shadow,
@@ -31,7 +33,7 @@ impl Widget for Container {
 
         let size = context.element_size;
 
-        let pos = context.pos_child() + self.margin.start(context);
+        let pos = context.pos_child(self.flex_align, size) + self.margin.start(context);
         let child_start = pos + self.padding.start(context);
 
         let mut child_ctx = context.child(size - padding, child_start, self.flex_direction);
@@ -139,6 +141,7 @@ impl Default for Container {
             color: RGBA::DARKGREY,
             border_color: RGBA::GREEN,
             flex_direction: FlexDirection::default(),
+            flex_align: FlexAlign::default(),
             border: [0; 4],
             corner: [UiUnit::Zero; 4],
             shadow: Shadow::default(),

@@ -43,6 +43,7 @@ pub use system::InputResult;
 pub use system::Ui;
 pub use ui_ref::UiRef;
 pub use units::Align;
+pub use units::FlexAlign;
 pub use units::UiUnit;
 pub use widget::ElementBuilder;
 

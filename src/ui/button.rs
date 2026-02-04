@@ -9,6 +9,7 @@ use crate::{
         ButtonContext, FlexDirection, QueuedEvent, Shadow, Ui, UiEvent, UiRef,
         materials::{MatType, ShadowInstance, UiInstance},
         system::InputResult,
+        units::FlexAlign,
         widget::Widget,
     },
 };
@@ -39,7 +40,8 @@ impl Widget for Button {
 
         let size = context.element_size;
 
-        let pos = context.pos_child() + self.margin.start(context);
+        let pos =
+            context.pos_child(FlexAlign::default(), Vec2::zero()) + self.margin.start(context);
         let child_start = pos + self.padding.start(context);
 
         let mut child_ctx = context.child(size - padding, child_start, self.flex_direction);

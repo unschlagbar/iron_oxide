@@ -187,3 +187,22 @@ impl Align {
         matches!(self, Self::Center | Self::Right | Self::Left)
     }
 }
+
+#[derive(Debug, Clone, Copy, Default)]
+pub enum FlexAlign {
+    #[default]
+    Start,
+    Center,
+    End,
+}
+
+impl FlexAlign {
+    #[inline]
+    pub fn get_pos(&self, space: f32, size: f32) -> f32 {
+        match self {
+            Self::Start => 0.0,
+            Self::Center => (space - size) * 0.5,
+            Self::End => space - size,
+        }
+    }
+}

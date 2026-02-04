@@ -8,6 +8,7 @@ use crate::{
         materials::{FontInstance, MatType, UiInstance},
         text_input::InputCursor,
         text_layout::{LayoutText, TextLayout},
+        units::FlexAlign,
         widget::Widget,
     },
 };
@@ -57,7 +58,7 @@ impl Widget for Text {
         self.font_instances.clear();
 
         let align = self.align;
-        let mut offset = context.pos_child();
+        let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
         let align_size = context.size();
         let font_size = self.layout.font_size * context.scale_factor;
 

@@ -16,6 +16,7 @@ use crate::{
         callback::TextExitContext,
         materials::{FontInstance, MatType, UiInstance},
         text_layout::{LayoutText, TextLayout},
+        units::FlexAlign,
         widget::Widget,
     },
 };
@@ -166,7 +167,7 @@ impl Widget for TextInput {
         self.font_instances.clear();
 
         let align = self.align;
-        let mut offset = context.pos_child();
+        let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
         let align_size = context.size();
         let font_size = self.layout.font_size * context.scale_factor;
 
@@ -198,12 +199,15 @@ impl Widget for TextInput {
     }
 
     fn build_size(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
-        context.place_child(self.build_layout.size);
-        context.apply_size(self.build_layout.size);
+        let size = Vec2::new(context.fill_size_x(1.0), self.build_layout.size.y);
+        context.place_child(size);
+        context.apply_size(size);
     }
 
     fn predict_size(&mut self, context: &mut BuildContext) {
         self.dirty = false;
+
+        context.fill_x(1.0);
 
         let text = if self.text.is_empty() {
             "\u{200B}"
@@ -212,7 +216,7 @@ impl Widget for TextInput {
         };
 
         self.build_layout = self.layout.build(text, context);
-        context.predict_child(self.build_layout.size);
+        context.predict_child(Vec2::new(0.0, self.build_layout.size.y));
     }
 
     fn instance(

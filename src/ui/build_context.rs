@@ -1,4 +1,7 @@
-use crate::{primitives::Vec2, ui::FlexDirection};
+use crate::{
+    primitives::Vec2,
+    ui::{FlexDirection, units::FlexAlign},
+};
 
 use super::Font;
 
@@ -154,15 +157,15 @@ impl BuildContext {
     }
 
     /// Places an element in the flow layout (similar to CSS block-level flex positioning)
-    pub fn pos_child(&self) -> Vec2<f32> {
+    pub fn pos_child(&self, flex_align: FlexAlign, size: Vec2<f32>) -> Vec2<f32> {
         match self.flex_direction {
             FlexDirection::Horizontal => {
                 let x = self.child_start_pos.x + self.used_main;
-                let y = self.child_start_pos.y;
+                let y = self.child_start_pos.y + flex_align.get_pos(self.used_cross, size.y);
                 Vec2::new(x, y)
             }
             FlexDirection::Vertical => {
-                let x = self.child_start_pos.x;
+                let x = self.child_start_pos.x + flex_align.get_pos(self.used_cross, size.x);
                 let y = self.child_start_pos.y + self.used_main;
                 Vec2::new(x, y)
             }
