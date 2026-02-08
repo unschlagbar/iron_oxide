@@ -30,25 +30,33 @@ impl Font {
     }
 
     pub fn get_uv(&self, char: char) -> (u16, u16, u16) {
-        let mut char = char as u32;
-        if char < 32 {
-            char = 64;
-        }
-
-        let i = char as usize - 32;
-
+        let char = Self::char_index(char);
+        let i = char as usize;
         *self.data.get(i).unwrap_or(&(0, 0, 0))
     }
 
     pub fn get_width(&self, char: char) -> u16 {
-        let mut char = char as u32;
-        if char < 32 {
-            char = 64;
+        self.get_uv(char).2
+    }
+
+    pub fn char_index(char: char) -> u32 {
+        let mut index = char as u32;
+        if index < 32 {
+            index = 64;
         }
+        match char {
+            'ü' => 8 * 16 + 1,
+            'ä' => 8 * 16 + 4,
+            'ö' => 9 * 16 + 4,
 
-        let i = char as usize - 32;
+            'Ü' => 9 * 16 + 10,
+            'Ä' => 8 * 16 + 14,
+            'Ö' => 9 * 16 + 9,
 
-        self.data.get(i).unwrap_or(&(0, 0, 0)).2
+            'ß' => 11,
+
+            _ => index,
+        }
     }
 }
 

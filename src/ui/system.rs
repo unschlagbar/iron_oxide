@@ -61,7 +61,7 @@ impl Ui {
             event: QueuedEventHandler::new(),
             tick_queue: Vec::new(),
 
-            font: Font::parse_from_bytes(include_bytes!("../../font/std.fef")),
+            font: Font::parse_from_bytes(include_bytes!("../../font/std2.fef")),
         }
     }
 
