@@ -300,7 +300,7 @@ impl Widget for TextInput {
     }
 
     fn is_ticking(&self) -> bool {
-        self.cursor.is_some()
+        self.cursor.is_some() && self.selection.is_none()
     }
 
     fn tick(&mut self, _: UiRef, ui: &mut Ui) {
