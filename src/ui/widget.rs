@@ -6,7 +6,7 @@ use winit::event::KeyEvent;
 use crate::{
     graphics::Ressources,
     primitives::Vec2,
-    ui::{BuildContext, InputResult, Ui, UiElement, UiEvent, UiRef},
+    ui::{BuildContext, InputResult, Ui, UiElement, UiEvent, UiRef, element::ElementFlags},
 };
 
 #[allow(unused)]
@@ -47,8 +47,7 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
         UiElement {
             id: u32::MAX,
             name,
-            visible: true,
-            transparent: false,
+            flags: ElementFlags::default(),
             size: Vec2::default(),
             pos: Vec2::default(),
             parent: None,
@@ -62,8 +61,7 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
         UiElement {
             id: u32::MAX,
             name,
-            visible: true,
-            transparent: true,
+            flags: ElementFlags::Transparent | ElementFlags::Visible,
             size: Vec2::default(),
             pos: Vec2::default(),
             parent: None,

@@ -11,16 +11,18 @@ pub struct Matrix4 {
 
 impl Matrix4 {
     pub const fn ortho(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) -> Self {
-        let x = Vec4::new(2.0 / (right - left), 0.0, 0.0, 0.0);
+        let right_left = right - left;
+        let top_bottom = top - bottom;
+        let far_near = far - near;
 
-        let y = Vec4::new(0.0, 2.0 / (top - bottom), 0.0, 0.0);
-
-        let z = Vec4::new(0.0, 0.0, -2.0 / (far - near), 0.0);
+        let x = Vec4::new(2.0 / right_left, 0.0, 0.0, 0.0);
+        let y = Vec4::new(0.0, 2.0 / top_bottom, 0.0, 0.0);
+        let z = Vec4::new(0.0, 0.0, -2.0 / far_near, 0.0);
 
         let w = Vec4::new(
-            -(right + left) / (right - left),
-            -(top + bottom) / (top - bottom),
-            -(far + near) / (far - near),
+            -(right + left) / right_left,
+            -(top + bottom) / top_bottom,
+            -(far + near) / far_near,
             1.0,
         );
 

@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{ops::Range, time::Instant};
 
 use ash::vk::Rect2D;
 use winit::{
@@ -15,6 +15,7 @@ use crate::{
         UiEvent, UiRef,
         callback::TextExitContext,
         materials::{FontInstance, MatType, UiInstance},
+        system::KeyModifiers,
         text_layout::{LayoutText, TextLayout},
         units::FlexAlign,
         widget::Widget,
@@ -30,6 +31,8 @@ pub struct TextInput {
     pub selectable: bool,
     pub focus_on_click: bool,
     pub cursor: Option<InputCursor>,
+    pub selection: Option<Selection>,
+
     pub on_input: Option<fn(&mut TextInputContext)>,
     pub on_blur: Option<fn(TextExitContext)>,
 
@@ -48,6 +51,7 @@ impl TextInput {
             selectable: text.selectable,
             focus_on_click: false,
             cursor: text.cursor,
+            selection: None,
             on_input: Some(default_on_input),
             on_blur: None,
             dirty: false,
@@ -124,6 +128,15 @@ impl TextInput {
         });
     }
 
+    pub fn try_select(&mut self, _ui: &mut Ui) {
+        let cursor = self.cursor.as_ref().unwrap();
+
+        if self.selection.is_none() {
+            self.selection = Some(Selection::start(cursor.index))
+        }
+        //let start_pos = self.font_instances[cursor.index].pos;
+    }
+
     pub fn point_cursor(&mut self, ui: &mut Ui) {
         let cursor_pos: Vec2<f32> = ui.cursor_pos.into_f32();
         let margin = self.layout.font_size / 8.0;
@@ -166,21 +179,22 @@ impl Widget for TextInput {
     fn build_layout(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
         self.font_instances.clear();
 
-        let align = self.align;
         let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
         let align_size = context.size();
         let font_size = self.layout.font_size * context.scale_factor;
 
         context.place_child(context.element_size);
 
-        if align.vertical_centered() {
-            offset.y +=
-                (align_size.y - font_size * self.build_layout.lines.len() as f32).max(0.0) * 0.5;
+        let lines = self.build_layout.lines.len() as f32;
+        if self.align.vertical_centered() {
+            offset.y += (align_size.y - font_size * lines).max(0.0) * 0.5;
         }
+
+        context.apply_pos(offset);
 
         for line in &self.build_layout.lines {
             let mut offset = offset;
-            if align.horizontal_centered() {
+            if self.align.horizontal_centered() {
                 offset.x += (align_size.x - line.width) * 0.5;
             }
 
@@ -195,7 +209,6 @@ impl Widget for TextInput {
                 });
             }
         }
-        context.apply_pos(offset);
     }
 
     fn build_size(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
@@ -230,7 +243,32 @@ impl Widget for TextInput {
             ressources.add(MatType::Font, inst, clip);
         }
 
-        if let Some(cursor) = &self.cursor
+        if let Some(selection) = &self.selection {
+            let start = selection.range.start;
+            let end = selection.range.end;
+
+            if start != end {
+                let start_pos = self.font_instances[start].pos;
+                let end_pos = if end == self.font_instances.len() {
+                    self.font_instances[end - 1].pos + Vec2::new(self.font_instances[start].size.x, 0.0)
+                } else {
+                    self.font_instances[end].pos
+                };
+
+                let to_add = UiInstance {
+                    color: RGBA::rgba(0, 255, 0, 150),
+                    border_color: RGBA::ZERO,
+                    border: [0; 4],
+                    x: start_pos.x as i16,
+                    y: start_pos.y as i16,
+                    width: (end_pos.x - start_pos.x) as i16,
+                    height: self.layout.font_size as i16,
+                    corner: 0,
+                    z_index: element.z_index + 1,
+                };
+                ressources.add(MatType::Basic, &to_add, clip);
+            }
+        } else if let Some(cursor) = &self.cursor
             && cursor.is_on
         {
             let pos = if cursor.index == 0 {
@@ -280,24 +318,37 @@ impl Widget for TextInput {
     }
 
     fn interaction(&mut self, element: UiRef, ui: &mut Ui, event: UiEvent) -> InputResult {
-        if event == UiEvent::End && self.cursor.is_some() {
-            Self::unfocus(ui, element, ExitReason::Submit);
-            return InputResult::None;
-        }
-
-        if event == UiEvent::Press {
-            if self.cursor.is_some() {
-                ui.selection.set_capture(element);
-            } else if self.focus_on_click {
-                Self::focus(ui, element);
-                self.set_cursor();
-                ui.color_changed();
+        match event {
+            UiEvent::End if self.cursor.is_some() => {
+                Self::unfocus(ui, element, ExitReason::Submit);
+                return InputResult::None;
             }
-            self.point_cursor(ui);
-        }
+            UiEvent::Press => {
+                if self.cursor.is_some() {
+                    ui.selection.set_capture(element);
+                } else if self.focus_on_click {
+                    Self::focus(ui, element);
+                    self.set_cursor();
+                    ui.color_changed();
+                }
+                self.point_cursor(ui);
+                if self.selection.is_some() && !ui.modifiers.contains(KeyModifiers::Shift) {
+                    self.selection = None;
+                }
+            }
+            UiEvent::Move if ui.selection.is_captured(element) => {
+                if self.selection.is_none() {
+                    self.selection = Some(Selection::start(self.cursor.as_ref().unwrap().index));
+                    self.selection.as_mut().unwrap().update(0);
+                    ui.color_changed();
+                }
+                //Handle Drag
+                println!("drag")
+            }
+            _ => (),
+        };
 
         ui.cursor_icon = CursorIcon::Text;
-
         InputResult::New
     }
 
@@ -393,6 +444,8 @@ impl Default for TextInput {
             selectable: true,
             focus_on_click: true,
             cursor: None,
+            selection: None,
+
             on_input: Some(default_on_input),
             on_blur: None,
 
@@ -423,6 +476,29 @@ fn default_on_input(ctx: &mut TextInputContext) {
         ctx.submit = ExitReason::Submit;
     } else if ctx.event.logical_key == Key::Named(NamedKey::Escape) {
         ctx.submit = ExitReason::Escape
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct Selection {
+    pub range: Range<usize>,
+    pub anchor: usize,
+}
+
+impl Selection {
+    pub fn start(index: usize) -> Self {
+        Self {
+            range: index..index,
+            anchor: index,
+        }
+    }
+
+    pub fn update(&mut self, index: usize) {
+        if index < self.anchor {
+            self.range = index..self.anchor;
+        } else {
+            self.range = self.anchor..index;
+        }
     }
 }
 

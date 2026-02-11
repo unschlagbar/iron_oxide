@@ -16,8 +16,7 @@ use crate::{
 pub struct UiElement {
     pub(crate) id: u32,
     pub name: &'static str,
-    pub visible: bool,
-    pub transparent: bool,
+    pub flags: ElementFlags,
     pub size: Vec2<i16>,
     pub pos: Vec2<i16>,
     pub z_index: i16,
@@ -76,23 +75,17 @@ impl UiElement {
         context.element_size = Vec2::new(self.size.x as f32, self.size.y as f32);
 
         let childs = self.childs_mut();
-
         self.widget.build_layout(childs, context);
 
         self.pos = Vec2::new(context.element_pos.x as i16, context.element_pos.y as i16);
-        self.size = Vec2::new(context.element_size.x as i16, context.element_size.y as i16);
     }
 
     pub fn build_size(&mut self, context: &mut BuildContext) {
         context.z_index = self.z_index;
-        context.element_pos = Vec2::new(self.pos.x as f32, self.pos.y as f32);
-        context.element_size = Vec2::new(self.size.x as f32, self.size.y as f32);
 
         let childs = self.childs_mut();
-
         self.widget.build_size(childs, context);
 
-        self.pos = Vec2::new(context.element_pos.x as i16, context.element_pos.y as i16);
         self.size = Vec2::new(context.element_size.x as i16, context.element_size.y as i16);
     }
 
@@ -108,7 +101,7 @@ impl UiElement {
     ) {
         let mut inner_clip = clip;
 
-        if self.visible {
+        if self.flags.contains(ElementFlags::Visible) {
             let element = UiRef::new(self);
             inner_clip = self
                 .widget
@@ -156,7 +149,7 @@ impl UiElement {
     }
 
     pub fn update_hover(&mut self, ui: &mut Ui, _event: UiEvent) -> InputResult {
-        if !self.visible {
+        if !self.flags.contains(ElementFlags::Visible) {
             return InputResult::None;
         }
 
@@ -167,7 +160,7 @@ impl UiElement {
                 }
             }
 
-            if self.transparent {
+            if self.flags.contains(ElementFlags::Transparent) {
                 InputResult::None
             } else {
                 ui.selection.set_hover(UiRef::new(self));
@@ -239,11 +232,7 @@ impl UiElement {
             }
         }
 
-        if let Some(child) = childs.get_mut(idx) {
-            Some(UiRef::new(child))
-        } else {
-            None
-        }
+        childs.get_mut(idx).map(UiRef::new)
     }
 
     /// Removes all pointers that point to the element to prevent invalid dereferencing
@@ -316,10 +305,24 @@ impl Debug for UiElement {
         f.debug_struct("UiElement")
             .field("id", &self.id)
             .field("name", &self.name)
-            .field("visible", &self.visible)
+            .field("flags", &self.flags)
             .field("size", &self.size)
             .field("pos", &self.pos)
             //.field("parent", &self.parent)
             .finish()
+    }
+}
+
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct ElementFlags: u8 {
+        const Visible = 0b00000001;
+        const Transparent = 0b00000010;
+    }
+}
+
+impl Default for ElementFlags {
+    fn default() -> Self {
+        Self::Visible
     }
 }

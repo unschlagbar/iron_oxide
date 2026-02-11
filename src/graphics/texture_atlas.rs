@@ -15,6 +15,8 @@ use crate::{
     primitives::Vec2,
 };
 
+pub type ConstPngs<'a> = Vec<(u32, Decoder<Cursor<&'a [u8]>>, String)>;
+
 #[derive(Debug)]
 pub struct TextureAtlas {
     pub size: Vec2<u16>,
@@ -59,10 +61,7 @@ impl TextureAtlas {
         pngs
     }
 
-    pub fn get_pngs_const<'a>(
-        &mut self,
-        data: &[(&str, &'a [u8])],
-    ) -> Vec<(u32, Decoder<Cursor<&'a [u8]>>, String)> {
+    pub fn get_pngs_const<'a>(&mut self, data: &[(&str, &'a [u8])]) -> ConstPngs<'a> {
         let mut pngs = Vec::with_capacity(data.len());
         self.images.reserve_exact(data.len());
 

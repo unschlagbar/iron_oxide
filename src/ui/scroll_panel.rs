@@ -23,23 +23,8 @@ pub struct ScrollPanel {
 
 impl Widget for ScrollPanel {
     fn build_layout(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
-        let space = context.element_size;
-        let padding = self.padding.size(context);
-
-        let child_hash: u32 = if let Some(child) = childs.first() {
-            child.id
-        } else {
-            0
-        };
-
-        if child_hash != self.child_hash {
-            self.scroll_offset.y = 0.0;
-            self.child_hash = child_hash;
-        }
-
+        let available_size = context.element_size - self.padding.size(context);
         let pos = context.pos_child(FlexAlign::default(), Vec2::zero());
-
-        let available_size = space - padding;
         let child_start_pos = pos + self.padding.start(context);
 
         let mut child_context = BuildContext::child(
@@ -51,11 +36,6 @@ impl Widget for ScrollPanel {
 
         for child in childs {
             child.build(&mut child_context);
-        }
-
-        // if we resize the element we dont want the scroll offset to be larger than it should be
-        if space.y < self.size.y {
-            self.scroll_offset.y = self.scroll_offset.y.max(space.y - self.size.y);
         }
 
         context.apply_pos(pos);
@@ -75,20 +55,27 @@ impl Widget for ScrollPanel {
             child.predict_size(&mut child_ctx);
         }
 
-        // Size must be defined in order to work
-        for child in childs {
+        for child in &mut *childs {
             child.build_size(&mut child_ctx);
         }
 
         self.size = child_ctx.final_size() + padding;
+
+        let child_hash = childs.first().map(|c| c.id).unwrap_or_default();
+
+        if child_hash != self.child_hash {
+            self.scroll_offset.y = 0.0;
+            self.child_hash = child_hash;
+        }
+        let min = (size.y - self.size.y).min(0.0);
+        self.scroll_offset.y = self.scroll_offset.y.clamp(min, 0.0);
+
         context.apply_size(size);
     }
 
     fn predict_size(&mut self, context: &mut BuildContext) {
         context.fill_x(1.0);
         context.fill_y(1.0);
-
-        context.predict_child(Vec2::zero());
     }
 
     fn interaction(&mut self, element: UiRef, ui: &mut Ui, event: UiEvent) -> InputResult {
@@ -98,9 +85,9 @@ impl Widget for ScrollPanel {
                 MouseScrollDelta::PixelDelta(pos) => pos.y as f32,
             };
             let old_offset = self.scroll_offset.y;
-            let min = (element.size.y as f32 - self.size.y).min(0.0);
-
             self.scroll_offset.y += delta;
+
+            let min = (element.size.y as f32 - self.size.y).min(0.0);
             self.scroll_offset.y = self.scroll_offset.y.clamp(min, 0.0);
 
             if old_offset != self.scroll_offset.y {
@@ -112,7 +99,6 @@ impl Widget for ScrollPanel {
 
                 let cursor_pos = ui.cursor_pos;
 
-                // Todo! make this faster by using an extra fn
                 ui.handle_input(cursor_pos, UiEvent::Move);
                 InputResult::New
             } else {

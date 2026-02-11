@@ -40,6 +40,16 @@ impl Selection {
         self.captured = Some(Select::new(element));
     }
 
+    pub fn is_captured(&mut self, element: UiRef) -> bool {
+        if let Some(capture) = self.captured
+            && capture.id == element.id
+        {
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn check_removed(&mut self, id: u32) -> bool {
         let was_hover;
 

@@ -28,7 +28,7 @@ pub struct Button {
     pub shadow: Shadow,
     pub state: ButtonState,
     pub callback: Option<fn(ButtonContext)>,
-    /// if true the ui requests the pointer cursor on hover
+    /// Requests the pointer cursor on hover
     pub cursor: CursorIcon,
     pub message: u16,
 }

@@ -12,7 +12,7 @@ pub struct Date {
 
 impl Date {
     fn is_leap(year: u16) -> bool {
-        year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
+        year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400))
     }
 
     fn days_in_month(year: u16, month: u32) -> u32 {
@@ -72,7 +72,7 @@ impl Date {
         }
 
         Date {
-            year: year as u16,
+            year,
             month: month as u8,
             day: (days + 1) as u8,
             hour,

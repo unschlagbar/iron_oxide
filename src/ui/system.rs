@@ -1,4 +1,5 @@
 use ash::vk;
+use bitflags::bitflags;
 use std::{
     ops::Range,
     ptr,
@@ -22,6 +23,9 @@ pub struct Ui {
     pub scale_factor: f32,
     pub cursor_pos: Vec2<i16>,
 
+    /// Set of common modifiers for input events
+    pub modifiers: KeyModifiers,
+
     /// Target Cursor.
     /// Should only be used from hovered Elements
     pub cursor_icon: CursorIcon,
@@ -33,35 +37,40 @@ pub struct Ui {
     pub(crate) dirty: DirtyFlags,
     pub new_absolute: bool,
 
-    pub(crate) elements: Vec<UiElement>,
     // Check all this before removing a Node!
     // If not checked this will result in undefined behavior!
     pub(crate) selection: Selection,
-    pub event: QueuedEventHandler,
+    pub events: QueuedEventHandler,
     pub tick_queue: Vec<TickEvent>,
 
     pub(crate) id_gen: AtomicU32,
+    pub(crate) elements: Vec<UiElement>,
 }
 
 impl Ui {
-    pub fn create(visible: bool) -> Ui {
-        Ui {
-            scale_factor: 1.0,
-            visible,
-            elements: Vec::new(),
-            dirty: DirtyFlags::Layout,
+    pub fn create(visible: bool) -> Self {
+        Self {
             size: Vec2::zero(),
-            id_gen: AtomicU32::new(1),
+            scale_factor: 1.0,
             cursor_pos: Vec2::default(),
-            cursor_icon: CursorIcon::Default,
-            current_cursor_icon: CursorIcon::Default,
-            new_absolute: false,
 
-            selection: Selection::default(),
-            event: QueuedEventHandler::new(),
-            tick_queue: Vec::new(),
+            modifiers: KeyModifiers::default(),
 
             font: Font::parse_from_bytes(include_bytes!("../../font/std2.fef")),
+            visible,
+            dirty: DirtyFlags::Layout,
+            new_absolute: false,
+
+            cursor_icon: CursorIcon::Default,
+            current_cursor_icon: CursorIcon::Default,
+
+            selection: Selection::default(),
+            events: QueuedEventHandler::new(),
+            tick_queue: Vec::new(),
+
+            // 0 is reserved for invalid UiRef
+            id_gen: AtomicU32::new(1),
+            elements: Vec::new(),
         }
     }
 
@@ -391,11 +400,11 @@ impl Ui {
     }
 
     pub fn set_event(&mut self, event: QueuedEvent) {
-        self.event.set(event);
+        self.events.set(event);
     }
 
     pub fn get_event(&mut self) -> Option<QueuedEvent> {
-        self.event.get()
+        self.events.get()
     }
 
     pub fn color_changed(&mut self) {
@@ -514,5 +523,15 @@ impl From<u32> for Element {
 impl From<UiRef> for Element {
     fn from(value: UiRef) -> Self {
         Self::Ref(value)
+    }
+}
+
+bitflags! {
+    /// Represents a set of flags.
+    #[derive(Debug, Clone, Copy, Default)]
+    pub struct KeyModifiers: u8 {
+        const Shift = 0b00000001;
+        const Strg = 0b00000010;
+        const Alt = 0b00000100;
     }
 }
