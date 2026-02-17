@@ -93,23 +93,16 @@ impl UiElement {
         self.widget.predict_size(context);
     }
 
-    pub fn get_instances(
-        &mut self,
-        ressources: &mut Ressources,
-        scale_factor: f32,
-        clip: Option<Rect2D>,
-    ) {
-        let mut inner_clip = clip;
+    pub fn get_draw_data(&mut self, ressources: &mut Ressources, info: DrawInfo) {
+        let mut inner_info = info.inner(self.z_index);
 
         if self.flags.contains(ElementFlags::Visible) {
             let element = UiRef::new(self);
-            inner_clip = self
-                .widget
-                .instance(element, ressources, scale_factor, clip);
+            self.widget.draw_data(element, ressources, &mut inner_info);
         }
 
         for child in &mut self.childs {
-            child.get_instances(ressources, scale_factor, inner_clip);
+            child.get_draw_data(ressources, inner_info);
         }
     }
 
@@ -308,7 +301,6 @@ impl Debug for UiElement {
             .field("flags", &self.flags)
             .field("size", &self.size)
             .field("pos", &self.pos)
-            //.field("parent", &self.parent)
             .finish()
     }
 }
@@ -324,5 +316,33 @@ bitflags::bitflags! {
 impl Default for ElementFlags {
     fn default() -> Self {
         Self::Visible
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct DrawInfo {
+    pub clip: Option<Rect2D>,
+    pub scale_factor: f32,
+    pub z_index: i16,
+    pub z_start: i16,
+    pub z_end: i16,
+}
+
+impl DrawInfo {
+    pub fn inner(&self, z_index: i16) -> Self {
+        Self {
+            clip: self.clip,
+            scale_factor: self.scale_factor,
+            z_index,
+            z_start: self.z_start,
+            z_end: self.z_end,
+        }
+    }
+
+    pub fn clip(&mut self, offset: Vec2<f32>, extend: Vec2<f32>) {
+        self.clip = Some(Rect2D {
+            offset: offset.into(),
+            extent: extend.into(),
+        });
     }
 }

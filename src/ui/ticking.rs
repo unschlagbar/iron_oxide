@@ -1,11 +1,9 @@
 use std::time::Instant;
 
-use ash::vk::Rect2D;
-
 use super::{BuildContext, UiElement};
 use crate::{
     graphics::Ressources,
-    ui::{ButtonContext, Ui, UiEvent, UiRef, system::InputResult, widget::Widget},
+    ui::{ButtonContext, DrawInfo, Ui, UiEvent, UiRef, system::InputResult, widget::Widget},
 };
 
 pub struct Ticking<T: Widget> {
@@ -32,14 +30,8 @@ impl<T: Widget> Widget for Ticking<T> {
         self.inner.predict_size(context);
     }
 
-    fn instance(
-        &mut self,
-        element: UiRef,
-        ressources: &mut Ressources,
-        scale_factor: f32,
-        clip: Option<Rect2D>,
-    ) -> Option<Rect2D> {
-        self.inner.instance(element, ressources, scale_factor, clip)
+    fn draw_data(&mut self, element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
+        self.inner.draw_data(element, ressources, info)
     }
 
     fn tick(&mut self, element: UiRef, ui: &mut Ui) {

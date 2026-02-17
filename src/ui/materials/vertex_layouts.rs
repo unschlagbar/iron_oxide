@@ -12,12 +12,9 @@ pub struct UiInstance {
     pub color: RGBA,
     pub border_color: RGBA,
     pub border: [u8; 4],
-    pub x: i16,
-    pub y: i16,
-    pub width: i16,
-    pub height: i16,
+    pub pos: Vec2<i16>,
+    pub size: Vec2<i16>,
     pub corner: u16,
-    pub z_index: i16,
 }
 
 impl VertexDescription for UiInstance {
@@ -51,37 +48,31 @@ impl VertexDescription for UiInstance {
             binding: 0,
             location: 3,
             format: Format::R16_SINT,
-            offset: offset_of!(Self, x) as u32,
+            offset: offset_of!(Self, pos.x) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 4,
             format: Format::R16_SINT,
-            offset: offset_of!(Self, y) as u32,
+            offset: offset_of!(Self, pos.y) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 5,
             format: Format::R16_SINT,
-            offset: offset_of!(Self, width) as u32,
+            offset: offset_of!(Self, size.x) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 6,
             format: Format::R16_SINT,
-            offset: offset_of!(Self, height) as u32,
+            offset: offset_of!(Self, size.y) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 7,
             format: Format::R16_UINT,
             offset: offset_of!(Self, corner) as u32,
-        },
-        VertexInputAttributeDescription {
-            binding: 0,
-            location: 8,
-            format: Format::R16_SINT,
-            offset: offset_of!(Self, z_index) as u32,
         },
     ];
 }
@@ -94,7 +85,6 @@ pub struct AtlasInstance {
     pub color: RGBA,
     pub uv_start: Vec2<u16>,
     pub uv_size: Vec2<u16>,
-    pub z_index: i16,
 }
 
 impl VertexDescription for AtlasInstance {
@@ -136,12 +126,6 @@ impl VertexDescription for AtlasInstance {
             format: Format::R32_UINT,
             offset: offset_of!(Self, uv_size) as u32,
         },
-        VertexInputAttributeDescription {
-            binding: 0,
-            location: 5,
-            format: Format::R16_SINT,
-            offset: offset_of!(Self, z_index) as u32,
-        },
     ];
 }
 
@@ -153,7 +137,6 @@ pub struct FontInstance {
     pub color: RGBA,
     pub uv_start: (u16, u16),
     pub uv_size: (u16, u16),
-    pub z_index: i16,
 }
 
 impl Default for FontInstance {
@@ -164,7 +147,6 @@ impl Default for FontInstance {
             size: Vec2::zero(),
             uv_start: (0, 0),
             uv_size: (0, 0),
-            z_index: 0,
         }
     }
 }
@@ -208,25 +190,16 @@ impl VertexDescription for FontInstance {
             format: Format::R32_UINT,
             offset: offset_of!(FontInstance, uv_size) as u32,
         },
-        VertexInputAttributeDescription {
-            binding: 0,
-            location: 5,
-            format: Format::R16_SINT,
-            offset: offset_of!(FontInstance, z_index) as u32,
-        },
     ];
 }
 
 #[repr(align(4))]
 #[derive(Debug, Clone, Copy)]
 pub struct ShadowInstance {
-    pub x: i16,
-    pub y: i16,
-    pub width: i16,
-    pub height: i16,
+    pub pos: Vec2<i16>,
+    pub size: Vec2<i16>,
     pub blur: u16,
     pub corner: u16,
-    pub z_index: i16,
     pub color: RGBA,
 }
 
@@ -249,25 +222,25 @@ impl VertexDescription for ShadowInstance {
             binding: 0,
             location: 1,
             format: Format::R16_SINT,
-            offset: offset_of!(Self, x) as u32,
+            offset: offset_of!(Self, pos.x) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 2,
             format: Format::R16_SINT,
-            offset: offset_of!(Self, y) as u32,
+            offset: offset_of!(Self, pos.y) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 3,
             format: Format::R16_SINT,
-            offset: offset_of!(Self, width) as u32,
+            offset: offset_of!(Self, size.x) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 4,
             format: Format::R16_SINT,
-            offset: offset_of!(Self, height) as u32,
+            offset: offset_of!(Self, size.y) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
@@ -280,12 +253,6 @@ impl VertexDescription for ShadowInstance {
             location: 6,
             format: Format::R16_UINT,
             offset: offset_of!(Self, corner) as u32,
-        },
-        VertexInputAttributeDescription {
-            binding: 0,
-            location: 7,
-            format: Format::R16_SINT,
-            offset: offset_of!(Self, z_index) as u32,
         },
     ];
 }

@@ -31,6 +31,7 @@ pub use callback::ButtonContext;
 pub use callback::CallbackResult;
 pub use callback::TextExitContext;
 pub use callback::TextInputContext;
+pub use element::DrawInfo;
 pub use element::UiElement;
 pub use events::QueuedEvent;
 pub use events::UiEvent;

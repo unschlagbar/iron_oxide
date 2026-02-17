@@ -6,7 +6,7 @@ pub use vertex_layouts::FontInstance;
 pub use vertex_layouts::ShadowInstance;
 pub use vertex_layouts::UiInstance;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MatType {
     Basic,
     Font,

@@ -1,6 +1,5 @@
 use core::f32;
 
-use ash::vk::Rect2D;
 use winit::event::MouseScrollDelta;
 
 use super::{BuildContext, UiElement};
@@ -8,8 +7,8 @@ use crate::{
     graphics::Ressources,
     primitives::Vec2,
     ui::{
-        FlexDirection, Ui, UiEvent, UiRect, UiRef, UiUnit, system::InputResult, units::FlexAlign,
-        widget::Widget,
+        DrawInfo, FlexDirection, Ui, UiEvent, UiRect, UiRef, UiUnit, system::InputResult,
+        units::FlexAlign, widget::Widget,
     },
 };
 
@@ -109,16 +108,7 @@ impl Widget for ScrollPanel {
         }
     }
 
-    fn instance(
-        &mut self,
-        element: UiRef,
-        _: &mut Ressources,
-        _: f32,
-        _: Option<Rect2D>,
-    ) -> Option<Rect2D> {
-        Some(Rect2D {
-            offset: element.pos.into(),
-            extent: element.size.into(),
-        })
+    fn draw_data(&mut self, element: UiRef, _: &mut Ressources, info: &mut DrawInfo) {
+        info.clip(element.pos.into_f32(), element.size.into_f32());
     }
 }

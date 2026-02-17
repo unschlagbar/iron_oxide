@@ -1,12 +1,14 @@
 use std::any::Any;
 
-use ash::vk::Rect2D;
 use winit::event::KeyEvent;
 
 use crate::{
     graphics::Ressources,
     primitives::Vec2,
-    ui::{BuildContext, InputResult, Ui, UiElement, UiEvent, UiRef, element::ElementFlags},
+    ui::{
+        BuildContext, InputResult, Ui, UiElement, UiEvent, UiRef,
+        element::{DrawInfo, ElementFlags},
+    },
 };
 
 #[allow(unused)]
@@ -17,15 +19,7 @@ pub trait Widget: Any + 'static {
 
     fn predict_size(&mut self, context: &mut BuildContext) {}
 
-    fn instance(
-        &mut self,
-        element: UiRef,
-        ressources: &mut Ressources,
-        scale_factor: f32,
-        clip: Option<Rect2D>,
-    ) -> Option<Rect2D> {
-        clip
-    }
+    fn draw_data(&mut self, element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {}
 
     fn interaction(&mut self, element: UiRef, ui: &mut Ui, event: UiEvent) -> InputResult {
         InputResult::None

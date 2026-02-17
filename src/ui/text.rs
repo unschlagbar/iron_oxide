@@ -1,10 +1,8 @@
-use ash::vk::Rect2D;
-
 use crate::{
     graphics::{Ressources, formats::RGBA},
     primitives::Vec2,
     ui::{
-        Align, BuildContext, TextInput, UiElement, UiRef,
+        Align, BuildContext, DrawInfo, TextInput, UiElement, UiRef,
         materials::{FontInstance, MatType, UiInstance},
         text_input::InputCursor,
         text_layout::{LayoutText, TextLayout},
@@ -81,8 +79,7 @@ impl Widget for Text {
                     pos: offset + c.pos,
                     size: c.size,
                     uv_start: c.uv_start,
-                    uv_size: c.uv_size,
-                    z_index: context.z_index,
+                    uv_size: c.uv_size
                 });
             }
         }
@@ -107,16 +104,8 @@ impl Widget for Text {
         context.predict_child(self.build_layout.size);
     }
 
-    fn instance(
-        &mut self,
-        element: UiRef,
-        ressources: &mut Ressources,
-        _: f32,
-        clip: Option<Rect2D>,
-    ) -> Option<Rect2D> {
-        for inst in &self.font_instances {
-            ressources.add(MatType::Font, inst, clip);
-        }
+    fn draw_data(&mut self, _element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
+        ressources.add_slice(MatType::Font, &self.font_instances, info);
 
         if let Some(cursor) = &self.cursor
             && cursor.is_on
@@ -126,7 +115,7 @@ impl Widget for Text {
             } else if let Some(char) = self.font_instances.get(cursor.index - 1) {
                 char.pos + Vec2::new(char.size.x, 0.0)
             } else {
-                return clip;
+                return;
             };
 
             let scale = self.layout.font_size * 1.2 - self.layout.font_size;
@@ -134,17 +123,15 @@ impl Widget for Text {
                 color: self.color,
                 border_color: RGBA::ZERO,
                 border: [0; 4],
-                x: pos.x as _,
-                y: (pos.y - scale * 0.5) as _,
-                width: 2,
-                height: (self.layout.font_size + scale) as _,
-                corner: 0,
-                z_index: element.z_index,
+                pos: Vec2::new(pos.x as i16, (pos.y - scale * 0.5) as i16),
+                size: Vec2::new(
+                    2 * info.scale_factor as i16,
+                    (self.layout.font_size * info.scale_factor + scale) as i16,
+                ),
+                corner: 0
             };
-            ressources.add(MatType::Basic, &to_add, clip);
+            ressources.add(MatType::Basic, to_add, info);
         }
-
-        clip
     }
 
     fn is_ticking(&self) -> bool {

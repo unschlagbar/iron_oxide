@@ -140,7 +140,7 @@ impl Pipeline {
         };
 
         let depth_stencil = vk::PipelineDepthStencilStateCreateInfo {
-            depth_test_enable: vk::TRUE,
+            depth_test_enable: !alpha as u32,
             depth_write_enable: !alpha as u32,
             depth_compare_op: vk::CompareOp::GREATER,
             depth_bounds_test_enable: vk::FALSE,

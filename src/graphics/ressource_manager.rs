@@ -1,4 +1,7 @@
-use std::{any::TypeId, slice};
+use std::slice;
+
+#[cfg(debug_assertions)]
+use std::any::TypeId;
 
 use ash::vk::{
     BorderColor, Buffer, BufferUsageFlags, CommandBuffer, CompareOp, DescriptorBufferInfo,
@@ -11,7 +14,7 @@ use ash::vk::{
 use crate::{
     graphics::{DrawBatch, Material, MemManager, TextureAtlas, VertexDescription, VkBase},
     primitives::{Matrix4, Vec2},
-    ui::materials::MatType,
+    ui::{DrawInfo, materials::MatType},
 };
 
 pub const MAX_IMGS: u32 = 2;
@@ -20,7 +23,7 @@ pub const MAX_IMGS: u32 = 2;
 pub struct Ressources {
     pub mem_manager: MemManager,
     pub materials: Vec<Material>,
-    pub draw_batches: Vec<Vec<DrawBatch>>,
+    pub draw_batches: Vec<DrawBatch>,
 
     pub desc_pool: DescriptorPool,
     pub ubo_set: DescriptorSet,
@@ -197,33 +200,52 @@ impl Ressources {
 
     pub fn add_mat(&mut self, material: Material) {
         self.materials.push(material);
-        self.draw_batches.push(Vec::new());
     }
 
-    pub fn add<T: VertexDescription>(
+    pub fn add<T: VertexDescription>(&mut self, mat_type: MatType, to_add: T, info: &DrawInfo) {
+        self.add_slice(mat_type, &[to_add], info);
+    }
+
+    pub fn add_slice<T: VertexDescription>(
         &mut self,
         mat_type: MatType,
-        to_add: &T,
-        clip: Option<Rect2D>,
+        slice: &[T],
+        info: &DrawInfo,
     ) {
-        let material = &self.materials[mat_type as usize];
-        debug_assert_eq!(material.instance_type, TypeId::of::<T>());
+        #[cfg(debug_assertions)]
+        assert_eq!(
+            self.materials[mat_type as usize].instance_type,
+            TypeId::of::<T>()
+        );
 
-        let mat_batch = &mut self.draw_batches[mat_type as usize];
-        let to_add = to_add as *const T as *const u8;
-        let other = unsafe { slice::from_raw_parts(to_add, size_of::<T>()) };
+        for batch in &mut self.draw_batches {
+            if batch.mat_type != mat_type {
+                batch.done = true;
+            }
+        }
 
-        if let Some(group) = mat_batch.iter_mut().find(|x| x.clip == clip) {
-            group.data.extend_from_slice(other);
+        let to_add = slice.as_ptr() as *const u8;
+        let other = unsafe { slice::from_raw_parts(to_add, size_of::<T>() * slice.len()) };
+
+        if let Some(batch) = self.draw_batches.iter_mut().find(|b| {
+            b.mat_type == mat_type && b.clip == info.clip && (b.z_end >= info.z_index || !b.done)
+        }) {
+            batch.z_end = batch.z_end.max(info.z_index);
+            batch.data.extend_from_slice(other);
         } else {
             let mut data = Vec::new();
             data.extend_from_slice(other);
 
-            mat_batch.push(DrawBatch {
-                clip,
+            self.draw_batches.push(DrawBatch {
+                clip: info.clip,
+                mat_type,
                 data,
                 size: 0,
                 offset: 0,
+                z_index: 0,
+                z_end: info.z_index,
+
+                done: false,
             });
         }
     }
@@ -233,14 +255,9 @@ impl Ressources {
             return;
         }
 
-        for (i, mat) in self.materials.iter().enumerate() {
-            let mut last_had_clip = false;
-
-            let batches = &self.draw_batches[i];
-
-            if batches.is_empty() {
-                continue;
-            }
+        let mut last_had_clip = false;
+        for batch in &self.draw_batches {
+            let mat = &self.materials[batch.mat_type as usize];
 
             unsafe {
                 if mat.desc_set != DescriptorSet::null() {
@@ -256,16 +273,14 @@ impl Ressources {
                 device.cmd_bind_pipeline(cmd, PipelineBindPoint::GRAPHICS, mat.pipeline.this);
                 device.cmd_bind_vertex_buffers(cmd, 0, &[mat.buffer], &[0]);
 
-                for batch in batches {
-                    if let Some(clip) = batch.clip {
-                        device.cmd_set_scissor(cmd, 0, &[clip]);
-                        last_had_clip = true;
-                    } else if last_had_clip {
-                        device.cmd_set_scissor(cmd, 0, &[clip]);
-                        last_had_clip = false;
-                    }
-                    device.cmd_draw(cmd, 4, batch.size, 0, batch.offset);
+                if let Some(clip) = batch.clip {
+                    device.cmd_set_scissor(cmd, 0, &[clip]);
+                    last_had_clip = true;
+                } else if last_had_clip {
+                    device.cmd_set_scissor(cmd, 0, &[clip]);
+                    last_had_clip = false;
                 }
+                device.cmd_draw(cmd, 4, batch.size, 0, batch.offset);
 
                 if last_had_clip {
                     device.cmd_set_scissor(cmd, 0, &[clip]);
@@ -275,35 +290,42 @@ impl Ressources {
     }
 
     pub fn clear_batches(&mut self) {
-        for batch in &mut self.draw_batches {
-            batch.clear();
-        }
+        self.draw_batches.clear();
     }
 
     pub fn upload(&mut self, base: &VkBase, start: usize) {
         self.mem_manager.destroy_buffers(base, start);
 
         for (i, mat) in self.materials.iter_mut().enumerate() {
-            if self.draw_batches[i].is_empty() {
-                continue;
-            }
-
             let stride = mat.stride as u32;
             let mut capacity = 0;
 
-            for batch in &mut self.draw_batches[i] {
+            for batch in &mut self
+                .draw_batches
+                .iter_mut()
+                .filter(|x| x.mat_type as usize == i)
+            {
                 batch.offset = capacity / stride;
                 batch.size = batch.data.len() as u32 / stride;
 
                 capacity += batch.data.len() as u32;
             }
 
+            if capacity == 0 {
+                continue;
+            }
+
             let mut buf = Vec::with_capacity(capacity as usize);
 
-            for batch in &mut self.draw_batches[i] {
+            for batch in &mut self
+                .draw_batches
+                .iter_mut()
+                .filter(|x| x.mat_type as usize == i)
+            {
                 buf.extend_from_slice(&batch.data);
             }
 
+            // Todo: Put all batches of the same material in the same buffer, instead of creating a new one for each batch
             let (buffer, _) = self.mem_manager.create_buffer(
                 base,
                 0,

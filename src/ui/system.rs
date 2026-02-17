@@ -12,7 +12,7 @@ use crate::{
     graphics::{Ressources, VkBase},
     primitives::Vec2,
     ui::{
-        Absolute, QueuedEvent, Ticking, UiRef,
+        Absolute, DrawInfo, QueuedEvent, Ticking, UiRef,
         events::{QueuedEventHandler, TickEvent},
         selection::{Select, Selection},
     },
@@ -249,8 +249,16 @@ impl Ui {
             return;
         }
 
+        let info = DrawInfo {
+            clip: None,
+            scale_factor: self.scale_factor,
+            z_index: 0,
+            z_start: 0,
+            z_end: i16::MAX,
+        };
+
         for raw_e in &mut self.elements {
-            raw_e.get_instances(ressources, self.scale_factor, None);
+            raw_e.get_draw_data(ressources, info);
         }
     }
 

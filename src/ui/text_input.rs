@@ -1,6 +1,5 @@
 use std::{ops::Range, time::Instant};
 
-use ash::vk::Rect2D;
 use winit::{
     event::{ElementState, KeyEvent},
     keyboard::{Key, NamedKey},
@@ -11,8 +10,8 @@ use crate::{
     graphics::{Ressources, formats::RGBA},
     primitives::Vec2,
     ui::{
-        Align, BuildContext, InputResult, QueuedEvent, Text, TextInputContext, Ui, UiElement,
-        UiEvent, UiRef,
+        Align, BuildContext, DrawInfo, InputResult, QueuedEvent, Text, TextInputContext, Ui,
+        UiElement, UiEvent, UiRef,
         callback::TextExitContext,
         materials::{FontInstance, MatType, UiInstance},
         system::KeyModifiers,
@@ -204,8 +203,7 @@ impl Widget for TextInput {
                     pos: offset + c.pos,
                     size: c.size,
                     uv_start: c.uv_start,
-                    uv_size: c.uv_size,
-                    z_index: context.z_index,
+                    uv_size: c.uv_size
                 });
             }
         }
@@ -232,16 +230,8 @@ impl Widget for TextInput {
         context.predict_child(Vec2::new(0.0, self.build_layout.size.y));
     }
 
-    fn instance(
-        &mut self,
-        element: UiRef,
-        ressources: &mut Ressources,
-        scale_factor: f32,
-        clip: Option<Rect2D>,
-    ) -> Option<Rect2D> {
-        for inst in &self.font_instances {
-            ressources.add(MatType::Font, inst, clip);
-        }
+    fn draw_data(&mut self, _element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
+        ressources.add_slice(MatType::Font, &self.font_instances, info);
 
         if let Some(selection) = &self.selection {
             let start = selection.range.start;
@@ -250,7 +240,8 @@ impl Widget for TextInput {
             if start != end {
                 let start_pos = self.font_instances[start].pos;
                 let end_pos = if end == self.font_instances.len() {
-                    self.font_instances[end - 1].pos + Vec2::new(self.font_instances[start].size.x, 0.0)
+                    self.font_instances[end - 1].pos
+                        + Vec2::new(self.font_instances[start].size.x, 0.0)
                 } else {
                     self.font_instances[end].pos
                 };
@@ -259,14 +250,14 @@ impl Widget for TextInput {
                     color: RGBA::rgba(0, 255, 0, 150),
                     border_color: RGBA::ZERO,
                     border: [0; 4],
-                    x: start_pos.x as i16,
-                    y: start_pos.y as i16,
-                    width: (end_pos.x - start_pos.x) as i16,
-                    height: self.layout.font_size as i16,
-                    corner: 0,
-                    z_index: element.z_index + 1,
+                    pos: Vec2::new(start_pos.x as i16, start_pos.y as i16),
+                    size: Vec2::new(
+                        (end_pos.x - start_pos.x) as i16,
+                        self.layout.font_size as i16,
+                    ),
+                    corner: 0
                 };
-                ressources.add(MatType::Basic, &to_add, clip);
+                ressources.add(MatType::Basic, to_add, info);
             }
         } else if let Some(cursor) = &self.cursor
             && cursor.is_on
@@ -276,7 +267,7 @@ impl Widget for TextInput {
             } else if let Some(char) = self.font_instances.get(cursor.index - 1) {
                 char.pos + Vec2::new(char.size.x, 0.0)
             } else {
-                return clip;
+                return;
             };
 
             let font_size = self.layout.font_size;
@@ -286,17 +277,15 @@ impl Widget for TextInput {
                 color: self.color,
                 border_color: RGBA::ZERO,
                 border: [0; 4],
-                x: pos.x as i16,
-                y: (pos.y - scale * 0.5) as i16,
-                width: 2 * scale_factor as i16,
-                height: (font_size * scale_factor + scale) as i16,
-                corner: 0,
-                z_index: element.z_index,
+                pos: Vec2::new(pos.x as i16, (pos.y - scale * 0.5) as i16),
+                size: Vec2::new(
+                    2 * info.scale_factor as i16,
+                    (font_size * info.scale_factor + scale) as i16,
+                ),
+                corner: 0
             };
-            ressources.add(MatType::Basic, &to_add, clip);
+            ressources.add(MatType::Basic, to_add, info);
         }
-
-        clip
     }
 
     fn is_ticking(&self) -> bool {

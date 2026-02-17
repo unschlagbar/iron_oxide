@@ -1,4 +1,3 @@
-use ash::vk::Rect2D;
 use winit::window::CursorIcon;
 
 use super::{BuildContext, UiElement, UiRect, UiUnit};
@@ -6,7 +5,7 @@ use crate::{
     graphics::{Ressources, formats::RGBA},
     primitives::Vec2,
     ui::{
-        ButtonContext, FlexDirection, QueuedEvent, Shadow, Ui, UiEvent, UiRef,
+        ButtonContext, DrawInfo, FlexDirection, QueuedEvent, Shadow, Ui, UiEvent, UiRef,
         materials::{MatType, ShadowInstance, UiInstance},
         system::InputResult,
         units::FlexAlign,
@@ -103,40 +102,29 @@ impl Widget for Button {
         context.predict_child(size + margin);
     }
 
-    fn instance(
-        &mut self,
-        element: UiRef,
-        ressources: &mut Ressources,
-        scale_factor: f32,
-        clip: Option<Rect2D>,
-    ) -> Option<Rect2D> {
-        let to_add = UiInstance {
-            color: self.color,
-            border_color: self.border_color,
-            border: self.border,
-            x: element.pos.x,
-            y: element.pos.y,
-            width: element.size.x,
-            height: element.size.y,
-            corner: self.corner[0].px_i16(element.size, scale_factor),
-            z_index: element.z_index,
-        };
-        ressources.add(MatType::Basic, &to_add, clip);
+    fn draw_data(&mut self, element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
+        let corner = self.corner[0].px_i16(element.size, info.scale_factor);
 
         if self.shadow.color != RGBA::ZERO {
             let to_add = ShadowInstance {
                 color: self.shadow.color,
-                x: element.pos.x + self.shadow.offset.x,
-                y: element.pos.y + self.shadow.offset.y,
-                width: element.size.x,
-                height: element.size.y,
+                pos: element.pos + self.shadow.offset,
+                size: element.size,
                 blur: self.shadow.blur,
-                corner: to_add.corner,
-                z_index: element.z_index - 1,
+                corner
             };
-            ressources.add(MatType::Shadow, &to_add, clip);
+            ressources.add(MatType::Shadow, to_add, info);
         }
-        clip
+
+        let to_add = UiInstance {
+            color: self.color,
+            border_color: self.border_color,
+            border: self.border,
+            pos: element.pos,
+            size: element.size,
+            corner
+        };
+        ressources.add(MatType::Basic, to_add, info);
     }
 
     fn interaction(&mut self, element: UiRef, ui: &mut Ui, event: UiEvent) -> InputResult {
