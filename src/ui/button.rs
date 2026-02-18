@@ -111,7 +111,7 @@ impl Widget for Button {
                 pos: element.pos + self.shadow.offset,
                 size: element.size,
                 blur: self.shadow.blur,
-                corner
+                corner,
             };
             ressources.add(MatType::Shadow, to_add, info);
         }
@@ -122,7 +122,7 @@ impl Widget for Button {
             border: self.border,
             pos: element.pos,
             size: element.size,
-            corner
+            corner,
         };
         ressources.add(MatType::Basic, to_add, info);
     }

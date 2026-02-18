@@ -33,7 +33,7 @@ impl Widget for Image {
             pos: Vec2::new(element.pos.x as f32, element.pos.y as f32),
             size: Vec2::new(element.size.x as f32, element.size.y as f32),
             uv_start: atlas_entry.uv_start,
-            uv_size: atlas_entry.uv_size
+            uv_size: atlas_entry.uv_size,
         };
         ressources.add(MatType::Atlas, to_add, info);
     }

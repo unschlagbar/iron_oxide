@@ -96,9 +96,7 @@ impl Widget for ScrollPanel {
                     element.offset_element(Vec2::new(0.0, self.scroll_offset.y - old_offset));
                 }
 
-                let cursor_pos = ui.cursor_pos;
-
-                ui.handle_input(cursor_pos, UiEvent::Move);
+                ui.handle_input(ui.cursor_pos, UiEvent::Move);
                 InputResult::New
             } else {
                 InputResult::None
@@ -109,6 +107,8 @@ impl Widget for ScrollPanel {
     }
 
     fn draw_data(&mut self, element: UiRef, _: &mut Ressources, info: &mut DrawInfo) {
-        info.clip(element.pos.into_f32(), element.size.into_f32());
+        if element.size.y < self.size.y as i16 {
+            info.clip(element.pos.into_f32(), element.size.into_f32());
+        }
     }
 }

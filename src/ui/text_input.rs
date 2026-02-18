@@ -203,7 +203,7 @@ impl Widget for TextInput {
                     pos: offset + c.pos,
                     size: c.size,
                     uv_start: c.uv_start,
-                    uv_size: c.uv_size
+                    uv_size: c.uv_size,
                 });
             }
         }
@@ -255,7 +255,7 @@ impl Widget for TextInput {
                         (end_pos.x - start_pos.x) as i16,
                         self.layout.font_size as i16,
                     ),
-                    corner: 0
+                    corner: 0,
                 };
                 ressources.add(MatType::Basic, to_add, info);
             }
@@ -282,7 +282,7 @@ impl Widget for TextInput {
                     2 * info.scale_factor as i16,
                     (font_size * info.scale_factor + scale) as i16,
                 ),
-                corner: 0
+                corner: 0,
             };
             ressources.add(MatType::Basic, to_add, info);
         }
