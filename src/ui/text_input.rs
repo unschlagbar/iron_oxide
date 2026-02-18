@@ -89,8 +89,11 @@ impl TextInput {
             && cursor.is_on
         {
             ui.color_changed();
+        } else if this.selection.is_some() {
+            ui.color_changed();
         }
         this.cursor = None;
+        this.selection = None;
 
         if let Some(on_blur) = this.on_blur {
             let cxt = TextExitContext::new(ui, element, reason);
@@ -103,6 +106,7 @@ impl TextInput {
         } else {
             UiEvent::UnFocus
         };
+
         ui.set_event(QueuedEvent::new(&element, event, reason as u16));
     }
 
@@ -127,13 +131,14 @@ impl TextInput {
         });
     }
 
-    pub fn try_select(&mut self, _ui: &mut Ui) {
+    pub fn try_select(&mut self, ui: &mut Ui) {
         let cursor = self.cursor.as_ref().unwrap();
 
         if self.selection.is_none() {
-            self.selection = Some(Selection::start(cursor.index))
+            self.selection = Some(Selection::start(cursor.index));
+            self.selection.as_mut().unwrap().update(0);
+            ui.color_changed();
         }
-        //let start_pos = self.font_instances[cursor.index].pos;
     }
 
     pub fn point_cursor(&mut self, ui: &mut Ui) {
@@ -310,6 +315,7 @@ impl Widget for TextInput {
         match event {
             UiEvent::End if self.cursor.is_some() => {
                 Self::unfocus(ui, element, ExitReason::Submit);
+                println!("unfocus submit");
                 return InputResult::None;
             }
             UiEvent::Press => {
@@ -326,11 +332,7 @@ impl Widget for TextInput {
                 }
             }
             UiEvent::Move if ui.selection.is_captured(element) => {
-                if self.selection.is_none() {
-                    self.selection = Some(Selection::start(self.cursor.as_ref().unwrap().index));
-                    self.selection.as_mut().unwrap().update(0);
-                    ui.color_changed();
-                }
+                self.try_select(ui);
                 //Handle Drag
                 println!("drag")
             }

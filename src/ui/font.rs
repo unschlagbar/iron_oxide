@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
@@ -60,8 +60,8 @@ impl Font {
     }
 }
 
-impl Debug for Font {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for Font {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Font").finish()
     }
 }
