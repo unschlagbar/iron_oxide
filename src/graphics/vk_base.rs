@@ -32,7 +32,6 @@ pub struct VkBase {
 impl VkBase {
     pub fn create(
         required_capabilities: u32,
-        verbose: bool,
         api_version: u32,
         app_name: &CStr,
         window: &Window,
@@ -54,13 +53,7 @@ impl VkBase {
         #[cfg(debug_assertions)]
         let create_info = vk::DebugUtilsMessengerCreateInfoEXT {
             message_severity: vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-                | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-                | if verbose {
-                    vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
-                        | vk::DebugUtilsMessageSeverityFlagsEXT::INFO
-                } else {
-                    vk::DebugUtilsMessageSeverityFlagsEXT::empty()
-                },
+                | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
             message_type: vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
                 | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
                 | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
