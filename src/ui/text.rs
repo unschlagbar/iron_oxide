@@ -22,7 +22,7 @@ pub struct Text {
 
     pub dirty: bool,
     pub build_layout: LayoutText,
-    pub font_instances: Vec<FontInstance>,
+    pub draw_data: Vec<FontInstance>,
 }
 
 impl Text {
@@ -36,7 +36,7 @@ impl Text {
             cursor: text_input.cursor,
             dirty: false,
             build_layout: LayoutText::default(),
-            font_instances: text_input.font_instances,
+            draw_data: text_input.draw_data,
         }
     }
 
@@ -53,7 +53,7 @@ impl Text {
 
 impl Widget for Text {
     fn build_layout(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
-        self.font_instances.clear();
+        self.draw_data.clear();
 
         let align = self.align;
         let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
@@ -74,7 +74,7 @@ impl Widget for Text {
             }
 
             for c in &line.content {
-                self.font_instances.push(FontInstance {
+                self.draw_data.push(FontInstance {
                     color: self.color,
                     pos: offset + c.pos,
                     size: c.size,
@@ -105,14 +105,14 @@ impl Widget for Text {
     }
 
     fn draw_data(&mut self, _element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
-        ressources.add_slice(MatType::Font, &self.font_instances, info);
+        ressources.add_slice(MatType::Font, &self.draw_data, info);
 
         if let Some(cursor) = &self.cursor
             && cursor.is_on
         {
             let pos = if cursor.index == 0 {
-                self.font_instances[0].pos
-            } else if let Some(char) = self.font_instances.get(cursor.index - 1) {
+                self.draw_data[0].pos
+            } else if let Some(char) = self.draw_data.get(cursor.index - 1) {
                 char.pos + Vec2::new(char.size.x, 0.0)
             } else {
                 return;
@@ -152,7 +152,7 @@ impl Default for Text {
 
             dirty: true,
             build_layout: LayoutText::default(),
-            font_instances: Vec::new(),
+            draw_data: Vec::new(),
         }
     }
 }

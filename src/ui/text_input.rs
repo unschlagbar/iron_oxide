@@ -1,4 +1,4 @@
-use std::{ops::Range, time::Instant};
+use std::time::Instant;
 
 use winit::{
     event::{ElementState, KeyEvent},
@@ -37,7 +37,7 @@ pub struct TextInput {
 
     pub dirty: bool,
     pub build_layout: LayoutText,
-    pub font_instances: Vec<FontInstance>,
+    pub draw_data: Vec<FontInstance>,
 }
 
 impl TextInput {
@@ -55,7 +55,7 @@ impl TextInput {
             on_blur: None,
             dirty: false,
             build_layout: LayoutText::default(),
-            font_instances: text.font_instances,
+            draw_data: text.draw_data,
         }
     }
     pub fn set_new(&mut self, text: String) {
@@ -74,9 +74,8 @@ impl TextInput {
     }
 
     pub fn set_cursor(&mut self) {
-        // Todo! Move this code to interaction!
         self.cursor = Some(InputCursor {
-            index: self.font_instances.len(),
+            index: self.draw_data.len(),
             start_time: Instant::now(),
             is_on: true,
         });
@@ -132,13 +131,79 @@ impl TextInput {
     }
 
     pub fn try_select(&mut self, ui: &mut Ui) {
-        let cursor = self.cursor.as_ref().unwrap();
-
-        if self.selection.is_none() {
-            self.selection = Some(Selection::start(cursor.index));
-            self.selection.as_mut().unwrap().update(0);
-            ui.color_changed();
+        if self.text.is_empty() {
+            return;
         }
+
+        let cursor = self.cursor.as_ref().unwrap();
+        let mut selection = if let Some(selection) = &self.selection {
+            *selection
+        } else {
+            Selection::start(cursor.index)
+        };
+
+        let start = cursor.index;
+        let start_pos;
+        let line_height;
+
+        if start == self.draw_data.len() {
+            let inst = &self.draw_data[start - 1];
+            start_pos = inst.pos + Vec2::new(inst.size.x, 0.0);
+            line_height = inst.size.y;
+        } else {
+            let inst = &self.draw_data[start];
+            start_pos = inst.pos;
+            line_height = inst.size.y;
+        }
+
+        let to_check;
+        let mut i_offset = 0;
+        let cursor_pos = ui.cursor_pos.into_f32();
+
+        if start_pos.y <= cursor_pos.y && start_pos.y + line_height >= cursor_pos.y {
+            if start_pos.x < cursor_pos.x {
+                to_check = &self.draw_data[start..];
+                i_offset = start;
+            } else {
+                to_check = &self.draw_data[..start];
+            }
+        } else if start_pos.y < cursor_pos.y {
+            to_check = &self.draw_data[start..];
+            i_offset = start;
+        } else {
+            to_check = &self.draw_data[..start];
+        }
+        let mut most_end_char = 0;
+
+        for char in to_check {
+            let y_in = cursor_pos.y >= char.pos.y && cursor_pos.y <= char.pos.y + char.size.y;
+            let x_in = cursor_pos.x >= char.pos.x && cursor_pos.x <= char.pos.x + char.size.x;
+
+            if y_in && x_in {
+                // If cursor is on the right half of the glyph, treat it as selecting the next
+                // character (i_offset + 1). This makes selection feel natural when the cursor
+                // is over more than half of a character's width.
+                if cursor_pos.x >= char.pos.x + char.size.x * 0.5 {
+                    most_end_char = i_offset + 1;
+                } else {
+                    most_end_char = i_offset;
+                }
+                break;
+            } else if y_in {
+            }
+
+            i_offset += 1;
+        }
+
+        selection.update(most_end_char);
+
+        if let Some(select) = &mut self.selection {
+            select.range = selection.range
+        } else if selection.anchor != selection.range {
+            self.selection = Some(selection);
+        }
+
+        ui.color_changed();
     }
 
     pub fn point_cursor(&mut self, ui: &mut Ui) {
@@ -155,7 +220,7 @@ impl TextInput {
         if self.text.is_empty() {
             new_i = 0;
         } else {
-            for (i, glyph) in self.font_instances.iter().enumerate() {
+            for (i, glyph) in self.draw_data.iter().enumerate() {
                 if cursor_pos >= glyph.pos - margin && cursor_pos <= glyph.pos + glyph.size + margin
                 {
                     if glyph.pos.x + glyph.size.x * 0.5 <= cursor_pos.x {
@@ -169,7 +234,7 @@ impl TextInput {
         }
 
         if new_i == isize::MAX {
-            new_i = self.font_instances.len() as isize;
+            new_i = self.draw_data.len() as isize;
         }
 
         if new_i != cursor_i {
@@ -181,7 +246,7 @@ impl TextInput {
 
 impl Widget for TextInput {
     fn build_layout(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
-        self.font_instances.clear();
+        self.draw_data.clear();
 
         let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
         let align_size = context.size();
@@ -203,7 +268,7 @@ impl Widget for TextInput {
             }
 
             for c in &line.content {
-                self.font_instances.push(FontInstance {
+                self.draw_data.push(FontInstance {
                     color: self.color,
                     pos: offset + c.pos,
                     size: c.size,
@@ -236,19 +301,17 @@ impl Widget for TextInput {
     }
 
     fn draw_data(&mut self, _element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
-        ressources.add_slice(MatType::Font, &self.font_instances, info);
+        ressources.add_slice(MatType::Font, &self.draw_data, info);
 
         if let Some(selection) = &self.selection {
-            let start = selection.range.start;
-            let end = selection.range.end;
+            let (start, end) = selection.range();
 
             if start != end {
-                let start_pos = self.font_instances[start].pos;
-                let end_pos = if end == self.font_instances.len() {
-                    self.font_instances[end - 1].pos
-                        + Vec2::new(self.font_instances[start].size.x, 0.0)
+                let start_pos = self.draw_data[start].pos;
+                let end_pos = if end == self.draw_data.len() {
+                    self.draw_data[end - 1].pos + Vec2::new(self.draw_data[start].size.x, 0.0)
                 } else {
-                    self.font_instances[end].pos
+                    self.draw_data[end].pos
                 };
 
                 let to_add = UiInstance {
@@ -268,8 +331,8 @@ impl Widget for TextInput {
             && cursor.is_on
         {
             let pos = if cursor.index == 0 {
-                self.font_instances[0].pos
-            } else if let Some(char) = self.font_instances.get(cursor.index - 1) {
+                self.draw_data[0].pos
+            } else if let Some(char) = self.draw_data.get(cursor.index - 1) {
                 char.pos + Vec2::new(char.size.x, 0.0)
             } else {
                 return;
@@ -319,9 +382,8 @@ impl Widget for TextInput {
                 return InputResult::None;
             }
             UiEvent::Press => {
-                if self.cursor.is_some() {
-                    ui.selection.set_capture(element);
-                } else if self.focus_on_click {
+                ui.selection.set_capture(element);
+                if self.focus_on_click && self.cursor.is_none() {
                     Self::focus(ui, element);
                     self.set_cursor();
                     ui.color_changed();
@@ -333,8 +395,6 @@ impl Widget for TextInput {
             }
             UiEvent::Move if ui.selection.is_captured(element) => {
                 self.try_select(ui);
-                //Handle Drag
-                println!("drag")
             }
             _ => (),
         };
@@ -442,7 +502,7 @@ impl Default for TextInput {
 
             dirty: true,
             build_layout: LayoutText::default(),
-            font_instances: Vec::new(),
+            draw_data: Vec::new(),
         }
     }
 }
@@ -470,25 +530,29 @@ fn default_on_input(ctx: &mut TextInputContext) {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct Selection {
-    pub range: Range<usize>,
+    pub range: usize,
     pub anchor: usize,
 }
 
 impl Selection {
     pub fn start(index: usize) -> Self {
         Self {
-            range: index..index,
+            range: index,
             anchor: index,
         }
     }
 
     pub fn update(&mut self, index: usize) {
-        if index < self.anchor {
-            self.range = index..self.anchor;
+        self.range = index;
+    }
+
+    pub fn range(&self) -> (usize, usize) {
+        if self.anchor <= self.range {
+            (self.anchor, self.range)
         } else {
-            self.range = self.anchor..index;
+            (self.range, self.anchor)
         }
     }
 }

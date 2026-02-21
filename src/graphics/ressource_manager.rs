@@ -225,7 +225,7 @@ impl Ressources {
         }
 
         let to_add = slice.as_ptr() as *const u8;
-        let other = unsafe { slice::from_raw_parts(to_add, size_of::<T>() * slice.len()) };
+        let other = unsafe { slice::from_raw_parts(to_add, size_of_val(slice)) };
 
         if let Some(batch) = self.draw_batches.iter_mut().find(|b| {
             b.mat_type == mat_type && b.clip == info.clip && (b.z_end >= info.z_index || !b.done)
