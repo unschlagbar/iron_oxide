@@ -263,7 +263,14 @@ impl Ui {
     }
 
     /// UiRef
+    #[track_caller]
     pub fn get_element(&mut self, id: u32) -> Option<UiRef> {
+        debug_assert_ne!(id, 0, "0 is reserved for invalid UiRef");
+        debug_assert_ne!(
+            id,
+            u32::MAX,
+            "The element has not initialized yet, so it has id of u32::MAX"
+        );
         for element in &mut self.elements {
             if element.id == id {
                 return Some(UiRef::new(element));
