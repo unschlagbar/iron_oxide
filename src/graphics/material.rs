@@ -34,7 +34,6 @@ impl Material {
         window_size: PhysicalSize<u32>,
         render_pass: vk::RenderPass,
         descriptor_set_layouts: &[vk::DescriptorSetLayout],
-        alpha: bool,
         shaders: (&[u8], &[u8]),
     ) -> Self {
         debug_assert!(align_of::<T>() >= 4);
@@ -46,7 +45,7 @@ impl Material {
                 render_pass,
                 descriptor_set_layouts,
                 shaders,
-                alpha,
+                true,
             ),
             #[cfg(debug_assertions)]
             instance_type: TypeId::of::<T>(),

@@ -3,7 +3,7 @@ use crate::{
     primitives::Vec2,
     ui::{
         Align, BuildContext, DrawInfo, TextInput, UiElement, UiRef,
-        materials::{FontInstance, MatType, UiInstance},
+        materials::{AtlasInstance, MatType, UiInstance},
         text_input::InputCursor,
         text_layout::{LayoutText, TextLayout},
         units::FlexAlign,
@@ -22,7 +22,7 @@ pub struct Text {
 
     pub dirty: bool,
     pub build_layout: LayoutText,
-    pub draw_data: Vec<FontInstance>,
+    pub draw_data: Vec<AtlasInstance>,
 }
 
 impl Text {
@@ -74,12 +74,12 @@ impl Widget for Text {
             }
 
             for c in &line.content {
-                self.draw_data.push(FontInstance {
+                self.draw_data.push(AtlasInstance {
                     color: self.color,
                     pos: offset + c.pos,
                     size: c.size,
-                    uv_start: c.uv_start,
-                    uv_size: c.uv_size,
+                    uv_start: c.uv_start.into(),
+                    uv_size: c.uv_size.into(),
                 });
             }
         }
@@ -105,7 +105,7 @@ impl Widget for Text {
     }
 
     fn draw_data(&mut self, _element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
-        ressources.add_slice(MatType::Font, &self.draw_data, info);
+        ressources.add_slice(MatType::Bitmap, &self.draw_data, info);
 
         if let Some(cursor) = &self.cursor
             && cursor.is_on

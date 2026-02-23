@@ -1,7 +1,13 @@
+use std::rc::Rc;
+
 use crate::ui::Font;
 
 pub struct AssetManager {
-    _fonts: Vec<Font>,
+    _fonts: Rc<[Font]>,
 }
 
-impl AssetManager {}
+impl AssetManager {
+    pub fn with_fonts(_fonts: Rc<[Font]>) -> Self {
+        Self { _fonts }
+    }
+}

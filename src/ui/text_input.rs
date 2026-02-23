@@ -13,7 +13,7 @@ use crate::{
         Align, BuildContext, DrawInfo, InputResult, QueuedEvent, Text, TextInputContext, Ui,
         UiElement, UiEvent, UiRef,
         callback::TextExitContext,
-        materials::{FontInstance, MatType, UiInstance},
+        materials::{AtlasInstance, MatType, UiInstance},
         system::KeyModifiers,
         text_layout::{LayoutText, TextLayout},
         units::FlexAlign,
@@ -37,7 +37,7 @@ pub struct TextInput {
 
     pub dirty: bool,
     pub build_layout: LayoutText,
-    pub draw_data: Vec<FontInstance>,
+    pub draw_data: Vec<AtlasInstance>,
 }
 
 impl TextInput {
@@ -268,12 +268,12 @@ impl Widget for TextInput {
             }
 
             for c in &line.content {
-                self.draw_data.push(FontInstance {
+                self.draw_data.push(AtlasInstance {
                     color: self.color,
                     pos: offset + c.pos,
                     size: c.size,
-                    uv_start: c.uv_start,
-                    uv_size: c.uv_size,
+                    uv_start: c.uv_start.into(),
+                    uv_size: c.uv_size.into(),
                 });
             }
         }
@@ -301,7 +301,7 @@ impl Widget for TextInput {
     }
 
     fn draw_data(&mut self, _element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
-        ressources.add_slice(MatType::Font, &self.draw_data, info);
+        ressources.add_slice(MatType::Bitmap, &self.draw_data, info);
 
         if let Some(selection) = &self.selection {
             let (start, end) = selection.range();

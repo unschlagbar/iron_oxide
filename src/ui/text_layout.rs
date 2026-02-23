@@ -1,4 +1,9 @@
-use crate::{primitives::Vec2, ui::BuildContext};
+use std::rc::Rc;
+
+use crate::{
+    primitives::Vec2,
+    ui::{BuildContext, Font},
+};
 
 pub enum TextDirtyFlags {
     None,
@@ -74,6 +79,7 @@ pub enum OverflowWrap {
 }
 
 pub struct TextLayout {
+    pub font: Option<Rc<Font>>,
     pub font_size: f32,
     pub line_spacing: f32,
     pub overflow: TextOverflow,
@@ -85,7 +91,11 @@ impl TextLayout {
     pub fn build(&self, text: &str, context: &mut BuildContext) -> LayoutText {
         let container_size = context.available_size;
 
-        let font = context.font();
+        let font = if let Some(font) = &self.font {
+            font
+        } else {
+            context.font()
+        };
         let uv_height = font.height;
         let font_size = self.font_size * context.scale_factor;
         let mut layout = LayoutText::new(uv_height, font_size);
@@ -230,6 +240,7 @@ impl TextLayout {
 impl Default for TextLayout {
     fn default() -> Self {
         Self {
+            font: None,
             font_size: 16.0,
             line_spacing: 1.0,
             overflow: TextOverflow::default(),
