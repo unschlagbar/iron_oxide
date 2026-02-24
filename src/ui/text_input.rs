@@ -301,7 +301,16 @@ impl Widget for TextInput {
     }
 
     fn draw_data(&mut self, _element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
-        ressources.add_slice(MatType::Bitmap, &self.draw_data, info);
+        let mat = if let Some(font) = &self.layout.font {
+            if font.bitmap {
+                MatType::Bitmap
+            } else {
+                MatType::MSDF
+            }
+        } else {
+            MatType::Bitmap
+        };
+        ressources.add_slice(mat, &self.draw_data, info);
 
         if let Some(selection) = &self.selection {
             let (start, end) = selection.range();
