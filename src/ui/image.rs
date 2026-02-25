@@ -22,8 +22,8 @@ impl Widget for Image {
     }
 
     fn build_size(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
-        context.place_child(context.available_size);
-        context.apply_size(context.available_size);
+        context.place_child(context.available_space);
+        context.apply_size(context.available_space);
     }
 
     fn draw_data(&mut self, element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {

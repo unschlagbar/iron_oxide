@@ -21,7 +21,7 @@ pub struct BuildContext {
     pub z_index: i16,
 
     /// Available layout space given by parent (content box)
-    pub available_size: Vec2<f32>,
+    pub available_space: Vec2<f32>,
 
     /// Absolute start position for children
     pub child_start_pos: Vec2<f32>,
@@ -53,7 +53,7 @@ impl BuildContext {
             element_pos: Vec2::zero(),
             z_index: 0,
 
-            available_size: parent_size,
+            available_space: parent_size,
             child_start_pos: Vec2::zero(),
 
             used_main: 0.0,
@@ -77,7 +77,7 @@ impl BuildContext {
             element_pos: Vec2::zero(),
             z_index: 0,
 
-            available_size: available,
+            available_space: available,
             child_start_pos: start,
 
             used_main: 0.0,
@@ -100,10 +100,10 @@ impl BuildContext {
     pub fn remaining_space(&self) -> Vec2<f32> {
         match self.flex_direction {
             FlexDirection::Horizontal => {
-                self.available_size - Vec2::new(self.used_main, self.used_cross)
+                self.available_space - Vec2::new(self.used_main, self.used_cross)
             }
             FlexDirection::Vertical => {
-                self.available_size - Vec2::new(self.used_cross, self.used_main)
+                self.available_space - Vec2::new(self.used_cross, self.used_main)
             }
         }
     }
@@ -111,8 +111,8 @@ impl BuildContext {
     /// Gets the remaining space
     pub fn predicted_remaining_space(&self) -> Vec2<f32> {
         match self.flex_direction {
-            FlexDirection::Horizontal => self.available_size - Vec2::new(self.predicted_main, 0.0),
-            FlexDirection::Vertical => self.available_size - Vec2::new(0.0, self.predicted_main),
+            FlexDirection::Horizontal => self.available_space - Vec2::new(self.predicted_main, 0.0),
+            FlexDirection::Vertical => self.available_space - Vec2::new(0.0, self.predicted_main),
         }
     }
 
@@ -124,7 +124,7 @@ impl BuildContext {
                 FlexDirection::Vertical => Vec2::new(self.used_cross, self.used_main),
             }
         } else {
-            self.available_size
+            self.available_space
         }
     }
 
@@ -175,19 +175,19 @@ impl BuildContext {
     /// Gets the hard limited space
     pub fn hard_size(&self, size: Vec2<f32>) -> Vec2<f32> {
         Vec2::new(
-            if self.available_size.x == f32::MAX
+            if self.available_space.x == f32::MAX
                 && matches!(self.flex_direction, FlexDirection::Vertical)
             {
                 self.used_cross.max(size.x)
             } else {
-                self.available_size.x
+                self.available_space.x
             },
-            if self.available_size.y == f32::MAX
+            if self.available_space.y == f32::MAX
                 && matches!(self.flex_direction, FlexDirection::Horizontal)
             {
                 self.used_cross.max(size.y)
             } else {
-                self.available_size.y
+                self.available_space.y
             },
         )
     }
@@ -221,7 +221,7 @@ impl BuildContext {
 
     pub fn fill_size_y(&self, weight: f32) -> f32 {
         match self.flex_direction {
-            FlexDirection::Horizontal => self.available_size.y,
+            FlexDirection::Horizontal => self.available_space.y,
             FlexDirection::Vertical => {
                 self.predicted_remaining_space().y * (weight / self.fill_sum)
             }
@@ -233,7 +233,7 @@ impl BuildContext {
             FlexDirection::Horizontal => {
                 self.predicted_remaining_space().x * (weight / self.fill_sum)
             }
-            FlexDirection::Vertical => self.available_size.x,
+            FlexDirection::Vertical => self.available_space.x,
         }
     }
 }

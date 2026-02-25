@@ -36,8 +36,8 @@ pub struct Ressources {
 impl Ressources {
     pub fn new(base: &VkBase) -> Self {
         let mut mem_manager = MemManager::new(base);
-        mem_manager.allocate_memory(base, mem_manager.host_visible, 1_500_000, 0);
-        mem_manager.allocate_memory(base, mem_manager.device_local, 1_500_000, 1);
+        mem_manager.allocate_memory(base, mem_manager.host_visible, 2_000_000, 0);
+        mem_manager.allocate_memory(base, mem_manager.device_local, 2_000_000, 1);
 
         mem_manager.map_memory(base, 0, 0, u64::MAX);
 

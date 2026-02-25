@@ -290,6 +290,32 @@ impl Vec2<i16> {
     }
 }
 
+impl Vec2<u16> {
+    pub const MAX: Self = Self {
+        x: u16::MAX,
+        y: u16::MAX,
+    };
+    pub const MIN: Self = Self {
+        x: u16::MIN,
+        y: u16::MIN,
+    };
+    pub const fn one() -> Self {
+        Self { x: 1, y: 1 }
+    }
+    pub const fn min(&self) -> u16 {
+        if self.x < self.y { self.x } else { self.y }
+    }
+    pub const fn max(&self) -> u16 {
+        if self.x > self.y { self.x } else { self.y }
+    }
+    pub fn into_f32(self) -> Vec2<f32> {
+        Vec2 {
+            x: self.x as f32,
+            y: self.y as f32,
+        }
+    }
+}
+
 #[cfg(feature = "vulkan")]
 impl From<Vec2<i16>> for Offset2D {
     fn from(size: Vec2<i16>) -> Self {

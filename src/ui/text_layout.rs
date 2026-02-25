@@ -85,28 +85,31 @@ pub struct TextLayout {
     pub overflow: TextOverflow,
     pub overflow_wrap: OverflowWrap,
     pub white_space: WhiteSpace,
+
+    pub lines: Vec<TextLine>,
+    pub glyphs: Vec<Glyph>,
 }
 
 impl TextLayout {
-    pub fn build(&self, text: &str, context: &mut BuildContext) -> LayoutText {
-        let container_size = context.available_size;
+    pub fn build(&mut self, text: &str, ctx: &mut BuildContext) -> LayoutText {
+        let container_size = ctx.available_space;
 
-        let font = if let Some(font) = &self.font {
-            font
-        } else {
-            context.font()
-        };
-        let uv_height = font.height;
-        let font_size = self.font_size * context.scale_factor;
-        let mut layout = LayoutText::new(uv_height, font_size);
+        self.lines.clear();
+        self.glyphs.clear();
+        self.glyphs.reserve(text.len());
 
-        let mut current_width = 0.0;
+        let font = self.font.as_ref().map_or(ctx.font(), |v| v);
+        let base_size = font.height;
+        let font_size = self.font_size * ctx.scale_factor;
+        let mut layout = LayoutText::new(base_size, font_size);
+
+        let mut cursor = 0.0;
         let mut last_whitespace = true;
         let mut last_splitable = false;
         let mut split_point = i32::MAX;
 
-        let line_height = font_size + font_size / 8.0 * self.line_spacing;
-        let uv_scale = font_size / uv_height as f32;
+        let line_height = font.line_height as f32 * self.line_spacing * ctx.scale_factor;
+        let scale = font_size / base_size as f32;
 
         for mut c in text.chars() {
             let whitespace = c.is_whitespace();
@@ -117,9 +120,9 @@ impl TextLayout {
                     layout.lines.push(TextLine::default());
 
                     layout.size.y += line_height;
-                    layout.size.x = layout.size.x.max(current_width);
+                    layout.size.x = layout.size.x.max(cursor);
 
-                    current_width = 0.0;
+                    cursor = 0.0;
                     split_point = i32::MAX;
                     continue;
                 } else {
@@ -139,8 +142,9 @@ impl TextLayout {
             }
 
             // Handle normal text flow
-            let char_width = font.get_width(c) as f32 * uv_scale;
-            let next_width = current_width + char_width;
+            let glyph = font.get_glyph(c);
+            let advance = glyph.advance * scale;
+            let next_width = cursor + advance;
 
             let would_overflow = next_width > container_size.x;
 
@@ -176,9 +180,9 @@ impl TextLayout {
                         });
 
                         layout.size.y += line_height;
-                        layout.size.x = layout.size.x.max(current_width);
+                        layout.size.x = layout.size.x.max(cursor);
 
-                        current_width = new_width;
+                        cursor = new_width;
                         split_point = i32::MAX;
 
                     // Try split in words
@@ -186,9 +190,9 @@ impl TextLayout {
                         layout.lines.push(TextLine::default());
 
                         layout.size.y += line_height;
-                        layout.size.x = layout.size.x.max(current_width);
+                        layout.size.x = layout.size.x.max(cursor);
 
-                        current_width = 0.0;
+                        cursor = 0.0;
                         split_point = i32::MAX;
 
                     // Hanlde overflow
@@ -213,25 +217,32 @@ impl TextLayout {
             if !overflowed {
                 let y = layout.size.y - font_size;
                 let line = layout.last();
-                let pos = Vec2::new(line.width, y);
-                let uv = font.get_uv(c);
+                let pos = Vec2::new(line.width, y) + glyph.offset.into_f32() * scale;
 
                 line.content.push(Glyph {
                     char: c,
                     pos,
-                    size: Vec2::new(char_width, font_size),
-                    uv_start: (uv.0, uv.1),
-                    uv_size: (uv.2, uv_height),
+                    size: glyph.size.into_f32() * scale,
+                    uv_start: glyph.pos,
+                    uv_size: glyph.size,
+                });
+
+                self.glyphs.push(Glyph {
+                    char: c,
+                    pos,
+                    size: glyph.size.into_f32() * scale,
+                    uv_start: glyph.pos,
+                    uv_size: glyph.size,
                 });
             }
 
-            layout.last().width += char_width;
-            current_width += char_width;
+            layout.last().width += advance;
+            cursor += advance;
             last_whitespace = whitespace;
             last_splitable = last_whitespace || c == '-'
         }
 
-        layout.size.x = layout.size.x.max(current_width);
+        layout.size.x = layout.size.x.max(cursor);
 
         layout
     }
@@ -246,6 +257,8 @@ impl Default for TextLayout {
             overflow: TextOverflow::default(),
             overflow_wrap: OverflowWrap::default(),
             white_space: WhiteSpace::default(),
+            lines: Vec::default(),
+            glyphs: Vec::default(),
         }
     }
 }
@@ -284,6 +297,6 @@ pub struct Glyph {
     pub char: char,
     pub pos: Vec2<f32>,
     pub size: Vec2<f32>,
-    pub uv_start: (u16, u16),
-    pub uv_size: (u16, u16),
+    pub uv_start: Vec2<u16>,
+    pub uv_size: Vec2<u16>,
 }

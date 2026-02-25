@@ -36,12 +36,12 @@ impl UiUnit {
             Self::Undefined => 0.0,
             Self::Zero => 0.0,
             Self::Px(value) => value * context.scale_factor,
-            Self::Fit => context.available_size.x,
+            Self::Fit => context.available_space.x,
             Self::Fill(weight) => context.fill_size_x(weight),
-            Self::Relative(value) | Self::RelativeWidth(value) => context.available_size.x * value,
-            Self::RelativeHeight(value) => context.available_size.y * value,
-            Self::RelativeMax(value) => context.available_size.max() * value,
-            Self::RelativeMin(value) => context.available_size.min() * value,
+            Self::Relative(value) | Self::RelativeWidth(value) => context.available_space.x * value,
+            Self::RelativeHeight(value) => context.available_space.y * value,
+            Self::RelativeMax(value) => context.available_space.max() * value,
+            Self::RelativeMin(value) => context.available_space.min() * value,
         }
     }
 
@@ -50,12 +50,12 @@ impl UiUnit {
             Self::Undefined => 0.0,
             Self::Zero => 0.0,
             Self::Px(value) => value * context.scale_factor,
-            Self::Fit => context.available_size.y,
+            Self::Fit => context.available_space.y,
             Self::Fill(weight) => context.fill_size_y(weight),
-            Self::Relative(value) | Self::RelativeHeight(value) => context.available_size.y * value,
-            Self::RelativeWidth(value) => context.available_size.x * value,
-            Self::RelativeMax(value) => context.available_size.max() * value,
-            Self::RelativeMin(value) => context.available_size.min() * value,
+            Self::Relative(value) | Self::RelativeHeight(value) => context.available_space.y * value,
+            Self::RelativeWidth(value) => context.available_space.x * value,
+            Self::RelativeMax(value) => context.available_space.max() * value,
+            Self::RelativeMin(value) => context.available_space.min() * value,
         }
     }
 
@@ -66,10 +66,10 @@ impl UiUnit {
             Self::Px(value) => value * context.scale_factor,
             Self::Fit => 0.0,
             Self::Fill(_) => panic!(),
-            Self::Relative(value) | Self::RelativeWidth(value) => context.available_size.x * value,
-            Self::RelativeHeight(value) => context.available_size.y * value,
-            Self::RelativeMax(value) => context.available_size.max() * value,
-            Self::RelativeMin(value) => context.available_size.min() * value,
+            Self::Relative(value) | Self::RelativeWidth(value) => context.available_space.x * value,
+            Self::RelativeHeight(value) => context.available_space.y * value,
+            Self::RelativeMax(value) => context.available_space.max() * value,
+            Self::RelativeMin(value) => context.available_space.min() * value,
         }
     }
 
@@ -80,16 +80,16 @@ impl UiUnit {
             Self::Px(value) => value * context.scale_factor,
             Self::Fit => 0.0,
             Self::Fill(_) => panic!(),
-            Self::Relative(value) | Self::RelativeHeight(value) => context.available_size.y * value,
-            Self::RelativeWidth(value) => context.available_size.x * value,
-            Self::RelativeMax(value) => context.available_size.max() * value,
-            Self::RelativeMin(value) => context.available_size.min() * value,
+            Self::Relative(value) | Self::RelativeHeight(value) => context.available_space.y * value,
+            Self::RelativeWidth(value) => context.available_space.x * value,
+            Self::RelativeMax(value) => context.available_space.max() * value,
+            Self::RelativeMin(value) => context.available_space.min() * value,
         }
     }
 
     #[inline]
     pub fn pixelx(&self, context: &BuildContext) -> f32 {
-        let parent_size = context.available_size;
+        let parent_size = context.available_space;
         match *self {
             Self::Undefined => 0.0,
             Self::Zero => 0.0,
@@ -107,7 +107,7 @@ impl UiUnit {
 
     #[inline]
     pub fn pixely(&self, context: &BuildContext) -> f32 {
-        let parent_size = context.available_size;
+        let parent_size = context.available_space;
         match *self {
             Self::Undefined => 0.0,
             Self::Zero => 0.0,

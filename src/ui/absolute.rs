@@ -27,7 +27,7 @@ pub struct Absolute {
 impl Widget for Absolute {
     fn build_layout(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
         let size = context.element_size;
-        let space = context.available_size;
+        let space = context.available_space;
 
         let pos = context.child_start_pos + self.align.get_pos(space, size, self.offset);
         let padding = self.padding.size(context);
