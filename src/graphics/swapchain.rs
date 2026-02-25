@@ -99,14 +99,16 @@ impl Swapchain {
         base: &VkBase,
         image_extent: Extent2D,
         render_pass: RenderPass,
-        attachment: ImageView,
+        attachments: &mut [ImageView],
     ) {
+        debug_assert_eq!(attachments[0], ImageView::null());
+
         if self.framebuffers.len() != self.image_views.len() {
             self.framebuffers = vec![Framebuffer::null(); self.image_views.len()];
         }
 
         for (frame_buffer, &image_view) in self.framebuffers.iter_mut().zip(&self.image_views) {
-            let attachments = [image_view, attachment];
+            attachments[0] = image_view;
             let main_create_info = vk::FramebufferCreateInfo {
                 render_pass,
                 attachment_count: attachments.len() as u32,
@@ -140,7 +142,12 @@ impl Swapchain {
         }
     }
 
-    pub fn recreate(&mut self, base: &VkBase, render_pass: RenderPass, attachment: ImageView) {
+    pub fn recreate(
+        &mut self,
+        base: &VkBase,
+        render_pass: RenderPass,
+        attachments: &mut [ImageView],
+    ) {
         let image_extent = self.capabilities.current_extent;
 
         let min_image_count = if self.capabilities.min_image_count > 0 {
@@ -179,7 +186,7 @@ impl Swapchain {
         }
 
         self.create_image_views(base);
-        self.create_framebuffer(base, image_extent, render_pass, attachment);
+        self.create_framebuffer(base, image_extent, render_pass, attachments);
     }
 
     fn create_image_views(&mut self, base: &VkBase) {

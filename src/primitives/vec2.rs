@@ -318,3 +318,11 @@ impl From<PhysicalPosition<i32>> for Vec2<i16> {
         }
     }
 }
+impl<T> From<(T, T)> for Vec2<T> {
+    fn from(size: (T, T)) -> Self {
+        Self {
+            x: size.0,
+            y: size.1,
+        }
+    }
+}

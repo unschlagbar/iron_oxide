@@ -17,7 +17,7 @@ use crate::{
     ui::{DrawInfo, materials::MatType},
 };
 
-pub const MAX_IMGS: u32 = 2;
+pub const MAX_IMGS: u32 = 3;
 
 #[derive(Debug)]
 pub struct Ressources {
@@ -36,8 +36,8 @@ pub struct Ressources {
 impl Ressources {
     pub fn new(base: &VkBase) -> Self {
         let mut mem_manager = MemManager::new(base);
-        mem_manager.allocate_memory(base, mem_manager.host_visible, 1_000_000, 0);
-        mem_manager.allocate_memory(base, mem_manager.device_local, 1_000_000, 1);
+        mem_manager.allocate_memory(base, mem_manager.host_visible, 1_500_000, 0);
+        mem_manager.allocate_memory(base, mem_manager.device_local, 1_500_000, 1);
 
         mem_manager.map_memory(base, 0, 0, u64::MAX);
 
@@ -129,6 +129,7 @@ impl Ressources {
         layout_mats: &[usize],
         uniform_buffer: Buffer,
         image_view: ImageView,
+        msdf_view: ImageView,
         atlas_view: ImageView,
     ) {
         let allocate_info = DescriptorSetAllocateInfo {
@@ -159,6 +160,12 @@ impl Ressources {
             image_layout: ImageLayout::SHADER_READ_ONLY_OPTIMAL,
         };
 
+        let msdf_info = DescriptorImageInfo {
+            sampler: self.sampler,
+            image_view: msdf_view,
+            image_layout: ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+        };
+
         let atlas_image_info = DescriptorImageInfo {
             sampler: self.sampler_smooth,
             image_view: atlas_view,
@@ -186,6 +193,15 @@ impl Ressources {
             },
             WriteDescriptorSet {
                 dst_set: sets[2],
+                dst_binding: 0,
+                dst_array_element: 0,
+                descriptor_type: DescriptorType::COMBINED_IMAGE_SAMPLER,
+                descriptor_count: 1,
+                p_image_info: &msdf_info,
+                ..Default::default()
+            },
+            WriteDescriptorSet {
+                dst_set: sets[3],
                 dst_binding: 0,
                 dst_array_element: 0,
                 descriptor_type: DescriptorType::COMBINED_IMAGE_SAMPLER,

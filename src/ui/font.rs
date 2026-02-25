@@ -6,26 +6,29 @@ use std::path::PathBuf;
 pub struct Font {
     data: Box<[(u16, u16, u16); 256]>,
     pub height: u16,
+    pub bitmap: bool,
 }
 
 impl Font {
-    pub fn parse(path: PathBuf) -> Self {
+    pub fn parse(path: PathBuf, bitmap: bool) -> Self {
         let mut buf = [0; 1536];
         File::open(path).unwrap().read_exact(&mut buf).unwrap();
         let buf: [(u16, u16, u16); 256] = unsafe { *buf.as_ptr().cast() };
         Self {
             data: buf.into(),
             height: 8,
+            bitmap,
         }
     }
 
-    pub fn parse_from_bytes(data: &[u8]) -> Self {
+    pub fn parse_from_bytes(data: &[u8], bitmap: bool) -> Self {
         let mut buf = [0; 1536];
         buf[..data.len()].copy_from_slice(data);
         let buf: [(u16, u16, u16); 256] = unsafe { *buf.as_ptr().cast() };
         Self {
             data: buf.into(),
             height: 8,
+            bitmap,
         }
     }
 

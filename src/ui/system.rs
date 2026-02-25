@@ -3,6 +3,7 @@ use bitflags::bitflags;
 use std::{
     ops::Range,
     ptr,
+    rc::Rc,
     sync::atomic::{AtomicU32, Ordering},
 };
 use winit::window::CursorIcon;
@@ -32,7 +33,7 @@ pub struct Ui {
     /// current Cursor.
     pub current_cursor_icon: CursorIcon,
 
-    pub font: Font,
+    pub font: Rc<Font>,
     pub visible: bool,
     pub(crate) dirty: DirtyFlags,
     pub new_absolute: bool,
@@ -48,7 +49,7 @@ pub struct Ui {
 }
 
 impl Ui {
-    pub fn create(visible: bool) -> Self {
+    pub fn create(visible: bool, font: Rc<Font>) -> Self {
         Self {
             size: Vec2::zero(),
             scale_factor: 1.0,
@@ -56,7 +57,7 @@ impl Ui {
 
             modifiers: KeyModifiers::default(),
 
-            font: Font::parse_from_bytes(include_bytes!("../../font/std2.fef")),
+            font,
             visible,
             dirty: DirtyFlags::Layout,
             new_absolute: false,
@@ -229,13 +230,13 @@ impl Ui {
     }
 
     pub(crate) fn build(&mut self) {
-        let mut build_context = BuildContext::default(&self.font, self.size, self.scale_factor);
+        let mut build_context = BuildContext::default(&*self.font, self.size, self.scale_factor);
 
         for element in &mut self.elements {
             element.build_size(&mut build_context);
         }
 
-        let mut build_context = BuildContext::default(&self.font, self.size, self.scale_factor);
+        let mut build_context = BuildContext::default(&*self.font, self.size, self.scale_factor);
 
         for element in &mut self.elements {
             element.build(&mut build_context);
