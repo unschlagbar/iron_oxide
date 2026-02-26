@@ -184,7 +184,11 @@ impl TextLayout {
 
                     // Try split in words
                     } else if matches!(self.overflow_wrap, OverflowWrap::BreakWord) {
-                        self.lines.push(TextLine::default());
+                        self.lines.push(TextLine {
+                            start: self.glyphs.len(),
+                            end: self.glyphs.len(),
+                            width: 0.0,
+                        });
 
                         width = width.max(cursor.x);
 
