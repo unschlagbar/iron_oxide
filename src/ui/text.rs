@@ -61,8 +61,7 @@ impl Widget for Text {
         ctx.place_child(ctx.element_size);
 
         if align.vertical_centered() {
-            offset.y +=
-                (align_size.y - font_size * self.layout.lines.len() as f32).max(0.0) * 0.5;
+            offset.y += (align_size.y - font_size * self.layout.lines.len() as f32).max(0.0) * 0.5;
         }
 
         for line in &self.layout.lines {

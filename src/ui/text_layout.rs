@@ -119,7 +119,11 @@ impl TextLayout {
             if char == '\n' {
                 if self.white_space.newlines() {
                     //layout.lines.push(TextLine::default());
-                    self.lines.push(TextLine { start: self.glyphs.len(), end: self.glyphs.len(), width: 0.0 });
+                    self.lines.push(TextLine {
+                        start: self.glyphs.len(),
+                        end: self.glyphs.len(),
+                        width: 0.0,
+                    });
 
                     width = width.max(cursor.x);
 
@@ -156,7 +160,6 @@ impl TextLayout {
                             end: current_line.end,
                             width: 0.0,
                         };
-
 
                         // remove leading spaces in split line (CSS behavior)
                         if self.white_space.collapses_spaces()
@@ -220,12 +223,12 @@ impl TextLayout {
             }
 
             let line = self.lines.last_mut().unwrap();
-            
+
             if !overflowed {
                 let pos = Vec2::new(line.width, cursor.y) + glyph.offset * scale;
 
                 let size = glyph.size.into_f32() * scale;
-                
+
                 self.glyphs.push(Glyph {
                     char,
                     pos: Vec2::new(pos.x.round(), pos.y),
