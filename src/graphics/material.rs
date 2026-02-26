@@ -45,7 +45,6 @@ impl Material {
                 render_pass,
                 descriptor_set_layouts,
                 shaders,
-                true,
             ),
             #[cfg(debug_assertions)]
             instance_type: TypeId::of::<T>(),

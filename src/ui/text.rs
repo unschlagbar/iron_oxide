@@ -5,7 +5,7 @@ use crate::{
         Align, BuildContext, DrawInfo, TextInput, UiElement, UiRef,
         materials::{AtlasInstance, MatType, UiInstance},
         text_input::InputCursor,
-        text_layout::{LayoutText, TextLayout},
+        text_layout::TextLayout,
         units::FlexAlign,
         widget::Widget,
     },
@@ -21,7 +21,6 @@ pub struct Text {
     pub cursor: Option<InputCursor>,
 
     pub dirty: bool,
-    pub build_layout: LayoutText,
     pub draw_data: Vec<AtlasInstance>,
 }
 
@@ -35,7 +34,6 @@ impl Text {
             selectable: text_input.selectable,
             cursor: text_input.cursor,
             dirty: false,
-            build_layout: LayoutText::default(),
             draw_data: text_input.draw_data,
         }
     }
@@ -52,46 +50,46 @@ impl Text {
 }
 
 impl Widget for Text {
-    fn build_layout(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
+    fn build_layout(&mut self, _: &mut [UiElement], ctx: &mut BuildContext) {
         self.draw_data.clear();
 
         let align = self.align;
-        let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
-        let align_size = context.size();
-        let font_size = self.layout.font_size * context.scale_factor;
+        let mut offset = ctx.pos_child(FlexAlign::default(), Vec2::zero());
+        let align_size = ctx.size();
+        let font_size = self.layout.font_size * ctx.scale_factor;
 
-        context.place_child(context.element_size);
+        ctx.place_child(ctx.element_size);
 
         if align.vertical_centered() {
             offset.y +=
-                (align_size.y - font_size * self.build_layout.lines.len() as f32).max(0.0) * 0.5;
+                (align_size.y - font_size * self.layout.lines.len() as f32).max(0.0) * 0.5;
         }
 
-        for line in &self.build_layout.lines {
+        for line in &self.layout.lines {
             let mut offset = offset;
             if align.horizontal_centered() {
                 offset.x += (align_size.x - line.width) * 0.5;
             }
 
-            for c in &line.content {
+            for c in &self.layout.glyphs[line.start..line.end] {
                 self.draw_data.push(AtlasInstance {
                     color: self.color,
                     pos: offset + c.pos,
                     size: c.size,
-                    uv_start: c.uv_start.into(),
-                    uv_size: c.uv_size.into(),
+                    uv_start: c.uv_start,
+                    uv_size: c.uv_size,
                 });
             }
         }
-        context.apply_pos(offset);
+        ctx.apply_pos(offset);
     }
 
-    fn build_size(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
-        context.place_child(self.build_layout.size);
-        context.apply_size(self.build_layout.size);
+    fn build_size(&mut self, _: &mut [UiElement], ctx: &mut BuildContext) {
+        ctx.place_child(self.layout.size);
+        ctx.apply_size(self.layout.size);
     }
 
-    fn predict_size(&mut self, context: &mut BuildContext) {
+    fn predict_size(&mut self, ctx: &mut BuildContext) {
         self.dirty = false;
 
         let text = if self.text.is_empty() {
@@ -100,8 +98,8 @@ impl Widget for Text {
             &self.text
         };
 
-        self.build_layout = self.layout.build(text, context);
-        context.predict_child(self.build_layout.size);
+        self.layout.build(text, ctx);
+        ctx.predict_child(self.layout.size);
     }
 
     fn draw_data(&mut self, _element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
@@ -160,7 +158,6 @@ impl Default for Text {
             cursor: None,
 
             dirty: true,
-            build_layout: LayoutText::default(),
             draw_data: Vec::new(),
         }
     }

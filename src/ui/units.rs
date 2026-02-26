@@ -52,7 +52,9 @@ impl UiUnit {
             Self::Px(value) => value * context.scale_factor,
             Self::Fit => context.available_space.y,
             Self::Fill(weight) => context.fill_size_y(weight),
-            Self::Relative(value) | Self::RelativeHeight(value) => context.available_space.y * value,
+            Self::Relative(value) | Self::RelativeHeight(value) => {
+                context.available_space.y * value
+            }
             Self::RelativeWidth(value) => context.available_space.x * value,
             Self::RelativeMax(value) => context.available_space.max() * value,
             Self::RelativeMin(value) => context.available_space.min() * value,
@@ -80,7 +82,9 @@ impl UiUnit {
             Self::Px(value) => value * context.scale_factor,
             Self::Fit => 0.0,
             Self::Fill(_) => panic!(),
-            Self::Relative(value) | Self::RelativeHeight(value) => context.available_space.y * value,
+            Self::Relative(value) | Self::RelativeHeight(value) => {
+                context.available_space.y * value
+            }
             Self::RelativeWidth(value) => context.available_space.x * value,
             Self::RelativeMax(value) => context.available_space.max() * value,
             Self::RelativeMin(value) => context.available_space.min() * value,

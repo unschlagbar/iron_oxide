@@ -230,13 +230,13 @@ impl Ui {
     }
 
     pub(crate) fn build(&mut self) {
-        let mut build_context = BuildContext::default(&self.font, self.size, self.scale_factor);
+        let mut build_context = BuildContext::default(self.font.clone(), self.size, self.scale_factor);
 
         for element in &mut self.elements {
             element.build_size(&mut build_context);
         }
 
-        let mut build_context = BuildContext::default(&self.font, self.size, self.scale_factor);
+        let mut build_context = BuildContext::default(self.font.clone(), self.size, self.scale_factor);
 
         for element in &mut self.elements {
             element.build(&mut build_context);

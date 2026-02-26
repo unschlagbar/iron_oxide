@@ -220,6 +220,15 @@ impl Vec2<f32> {
     pub fn len(&self) -> f32 {
         (self.x.powi(2) + self.y.powi(2)).sqrt()
     }
+    pub fn floor(&self) -> Vec2<f32> {
+        Vec2::new(self.x.floor(), self.y.floor())
+    }
+    pub fn round(&self) -> Vec2<f32> {
+        Vec2::new(self.x.round(), self.y.round())
+    }
+    pub fn ceil(&self) -> Vec2<f32> {
+        Vec2::new(self.x.ceil(), self.y.ceil())
+    }
 }
 
 #[cfg(feature = "vulkan")]

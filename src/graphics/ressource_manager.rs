@@ -161,7 +161,7 @@ impl Ressources {
         };
 
         let msdf_info = DescriptorImageInfo {
-            sampler: self.sampler,
+            sampler: self.sampler_smooth,
             image_view: msdf_view,
             image_layout: ImageLayout::SHADER_READ_ONLY_OPTIMAL,
         };

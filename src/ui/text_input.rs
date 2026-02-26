@@ -15,7 +15,7 @@ use crate::{
         callback::TextExitContext,
         materials::{AtlasInstance, MatType, UiInstance},
         system::KeyModifiers,
-        text_layout::{LayoutText, TextLayout},
+        text_layout::TextLayout,
         units::FlexAlign,
         widget::Widget,
     },
@@ -36,7 +36,6 @@ pub struct TextInput {
     pub on_blur: Option<fn(TextExitContext)>,
 
     pub dirty: bool,
-    pub build_layout: LayoutText,
     pub draw_data: Vec<AtlasInstance>,
 }
 
@@ -54,7 +53,6 @@ impl TextInput {
             on_input: Some(default_on_input),
             on_blur: None,
             dirty: false,
-            build_layout: LayoutText::default(),
             draw_data: text.draw_data,
         }
     }
@@ -254,20 +252,20 @@ impl Widget for TextInput {
 
         context.place_child(context.element_size);
 
-        let lines = self.build_layout.lines.len() as f32;
+        let lines = self.layout.lines.len() as f32;
         if self.align.vertical_centered() {
             offset.y += (align_size.y - font_size * lines).max(0.0) * 0.5;
         }
 
         context.apply_pos(offset);
 
-        for line in &self.build_layout.lines {
+        for line in &self.layout.lines {
             let mut offset = offset;
             if self.align.horizontal_centered() {
                 offset.x += (align_size.x - line.width) * 0.5;
             }
 
-            for c in &line.content {
+            for c in &self.layout.glyphs[line.start..line.end] {
                 self.draw_data.push(AtlasInstance {
                     color: self.color,
                     pos: offset + c.pos,
@@ -280,7 +278,7 @@ impl Widget for TextInput {
     }
 
     fn build_size(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
-        let size = Vec2::new(context.fill_size_x(1.0), self.build_layout.size.y);
+        let size = Vec2::new(context.fill_size_x(1.0), self.layout.size.y);
         context.place_child(size);
         context.apply_size(size);
     }
@@ -296,8 +294,8 @@ impl Widget for TextInput {
             &self.text
         };
 
-        self.build_layout = self.layout.build(text, context);
-        context.predict_child(Vec2::new(0.0, self.build_layout.size.y));
+        self.layout.build(text, context);
+        context.predict_child(Vec2::new(0.0, self.layout.size.y));
     }
 
     fn draw_data(&mut self, _element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
@@ -510,7 +508,6 @@ impl Default for TextInput {
             on_blur: None,
 
             dirty: true,
-            build_layout: LayoutText::default(),
             draw_data: Vec::new(),
         }
     }

@@ -17,7 +17,6 @@ impl Pipeline {
         render_pass: vk::RenderPass,
         descriptor_set_layouts: &[vk::DescriptorSetLayout],
         shaders: (&[u8], &[u8]),
-        alpha: bool,
     ) -> Self {
         let layout_info = vk::PipelineLayoutCreateInfo {
             set_layout_count: descriptor_set_layouts.len() as _,
@@ -140,9 +139,8 @@ impl Pipeline {
         };
 
         let depth_stencil = vk::PipelineDepthStencilStateCreateInfo {
-            depth_test_enable: !alpha as u32,
-            depth_write_enable: !alpha as u32,
-            depth_compare_op: vk::CompareOp::GREATER,
+            depth_test_enable: vk::FALSE,
+            depth_write_enable: vk::FALSE,
             depth_bounds_test_enable: vk::FALSE,
             stencil_test_enable: vk::FALSE,
             min_depth_bounds: 0.0,

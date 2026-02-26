@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{
     primitives::Vec2,
     ui::{FlexDirection, units::FlexAlign},
@@ -39,11 +41,11 @@ pub struct BuildContext {
     /// flex axis
     pub flex_direction: FlexDirection,
 
-    font: *const Font,
+    pub font: Rc<Font>,
 }
 
 impl BuildContext {
-    pub fn default(font: &Font, parent_size: Vec2<f32>, scale_factor: f32) -> Self {
+    pub fn default(font: Rc<Font>, parent_size: Vec2<f32>, scale_factor: f32) -> Self {
         Self {
             scale_factor,
 
@@ -87,13 +89,8 @@ impl BuildContext {
             predicted_cross: 0.0,
 
             flex_direction: dir,
-            font: self.font,
+            font: self.font.clone(),
         }
-    }
-
-    #[inline]
-    pub fn font(&self) -> &Font {
-        unsafe { &*self.font }
     }
 
     /// Gets the remaining space

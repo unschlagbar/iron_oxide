@@ -5,9 +5,9 @@ use crate::primitives::Vec2;
 pub struct Font {
     data: Box<[RawGlyph; 256]>,
     /// Base size of the font
-    pub height: u16,
+    pub height: f32,
     /// Distance between two lines
-    pub line_height: u16,
+    pub line_height: f32,
     /// Base line height relative to the top of the line
     pub base: u16,
     /// Whether the font is a bitmap font
@@ -29,7 +29,7 @@ impl Font {
 
             glyphs[i] = RawGlyph {
                 size: Vec2::new(w, 8),
-                offset: Vec2::new(0, 0),
+                offset: Vec2::new(0.0, 0.0),
                 pos: Vec2::new(u, v),
                 advance: w as f32,
             };
@@ -37,8 +37,8 @@ impl Font {
 
         Self {
             data: Box::new(glyphs),
-            height: 8,
-            line_height: 8,
+            height: 8.0,
+            line_height: 8.0,
             base: 8,
             //distance_range: 0,
             bitmap: true,
@@ -46,53 +46,53 @@ impl Font {
     }
 
     pub fn parse_msdf_from_bytes(data: &[u8]) -> Self {
-    let text = std::str::from_utf8(data).unwrap();
+        let text = std::str::from_utf8(data).unwrap();
 
-    let line_height = extract_number(text, "\"lineHeight\"");
-    let base = extract_number(text, "\"base\"");
-    //let distance_range = extract_number(text, "\"distanceRange\"");
+        let line_height = extract_number(text, "\"lineHeight\"") as f32;
+        let base = extract_number(text, "\"base\"");
+        //let distance_range = extract_number(text, "\"distanceRange\"");
 
-    let mut glyphs = [RawGlyph::default(); 256];
+        let mut glyphs = [RawGlyph::default(); 256];
 
-    let chars_start = text.find("\"chars\"").unwrap();
-    let chars_section = &text[chars_start..];
+        let chars_start = text.find("\"chars\"").unwrap();
+        let chars_section = &text[chars_start..];
 
-    let mut rest = chars_section;
+        let mut rest = chars_section;
 
-    while let Some(pos) = rest.find("\"id\"") {
-        rest = &rest[pos..];
+        while let Some(pos) = rest.find("\"id\"") {
+            rest = &rest[pos..];
 
-        let id = extract_number(rest, "\"id\"");
+            let id = extract_number(rest, "\"id\"");
 
-        let width = extract_number(rest, "\"width\"");
-        let height = extract_number(rest, "\"height\"");
-        let xoffset = extract_number(rest, "\"xoffset\"") as i16;
-        let yoffset = extract_number(rest, "\"yoffset\"") as i16;
-        let advance = extract_number(rest, "\"xadvance\"") as f32;
-        let x = extract_number(rest, "\"x\"");
-        let y = extract_number(rest, "\"y\"");
+            let width = extract_number(rest, "\"width\"");
+            let height = extract_number(rest, "\"height\"");
+            let xoffset = extract_number(rest, "\"xoffset\"") as f32;
+            let yoffset = extract_number(rest, "\"yoffset\"") as f32;
+            let advance = extract_number(rest, "\"xadvance\"") as f32;
+            let x = extract_number(rest, "\"x\"");
+            let y = extract_number(rest, "\"y\"");
 
-        if id < 256 {
-            glyphs[id as usize] = RawGlyph {
-                size: Vec2::new(width, height),
-                offset: Vec2::new(xoffset, yoffset),
-                pos: Vec2::new(x, y),
-                advance,
-            };
+            if id < 256 {
+                glyphs[id as usize] = RawGlyph {
+                    size: Vec2::new(width, height),
+                    offset: Vec2::new(xoffset, yoffset),
+                    pos: Vec2::new(x, y),
+                    advance,
+                };
+            }
+
+            rest = &rest[5..];
         }
 
-        rest = &rest[5..];
+        Self {
+            data: Box::new(glyphs),
+            height: line_height,
+            line_height,
+            base,
+            //distance_range,
+            bitmap: false,
+        }
     }
-
-    Self {
-        data: Box::new(glyphs),
-        height: line_height,
-        line_height,
-        base,
-        //distance_range,
-        bitmap: false,
-    }
-}
 
     pub fn get_glyph(&self, char: char) -> RawGlyph {
         let char = Self::char_index(char);
@@ -132,7 +132,7 @@ pub struct RawGlyph {
     /// Size of the glyph
     pub size: Vec2<u16>,
     /// Offset of the glyph from the baseline for placing
-    pub offset: Vec2<i16>,
+    pub offset: Vec2<f32>,
     /// UV coordinates in the font atlas
     pub pos: Vec2<u16>,
     /// Horizontal advance after placing this glyph
