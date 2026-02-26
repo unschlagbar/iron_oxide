@@ -10,14 +10,7 @@ use crate::{
     graphics::{Ressources, formats::RGBA},
     primitives::Vec2,
     ui::{
-        Align, BuildContext, DrawInfo, InputResult, QueuedEvent, Text, TextInputContext, Ui,
-        UiElement, UiEvent, UiRef,
-        callback::TextExitContext,
-        materials::{AtlasInstance, MatType, UiInstance},
-        system::KeyModifiers,
-        text_layout::TextLayout,
-        units::FlexAlign,
-        widget::Widget,
+        Align, BuildContext, DrawInfo, InputResult, QueuedEvent, Text, TextInputContext, Ui, UiElement, UiEvent, UiRef, callback::TextExitContext, materials::{AtlasInstance, MatType, UiInstance}, system::KeyModifiers, text_layout::TextLayout, units::FlexAlign, widget::Widget
     },
 };
 
@@ -248,13 +241,16 @@ impl Widget for TextInput {
 
         let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
         let align_size = context.size();
-        let font_size = self.layout.font_size * context.scale_factor;
+
+        let font = self.layout.font.as_ref().unwrap_or(&context.font);
+        let scale = self.layout.font_size * context.scale_factor / font.size;
+        let line_height = font.line_height * scale;
 
         context.place_child(context.element_size);
 
         let lines = self.layout.lines.len() as f32;
         if self.align.vertical_centered() {
-            offset.y += (align_size.y - font_size * lines).max(0.0) * 0.5;
+            offset.y += (align_size.y - line_height * lines).max(0.0) * 0.5;
         }
 
         context.apply_pos(offset);

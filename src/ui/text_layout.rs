@@ -101,10 +101,10 @@ impl TextLayout {
         self.lines.push(TextLine::default());
 
         let font = self.font.as_ref().unwrap_or(&ctx.font);
-        let base_size = font.line_height;
-        let font_size = self.font_size * ctx.scale_factor;
-        let scale = font_size / base_size;
-        let line_height = (font.line_height * self.line_spacing * scale).round();
+        let scale = self.font_size * ctx.scale_factor / font.size;
+        let line_height = (font.line_height * self.line_spacing * scale).floor();
+
+        dbg!(line_height, scale);
 
         let mut width: f32 = 0.0;
 
@@ -229,7 +229,7 @@ impl TextLayout {
                 self.glyphs.push(Glyph {
                     char,
                     pos: Vec2::new(pos.x.round(), pos.y),
-                    size: Vec2::new(size.x, size.y.round()),
+                    size: Vec2::new(size.x.ceil(), size.y.ceil()),
                     uv_start: glyph.pos,
                     uv_size: glyph.size,
                 });

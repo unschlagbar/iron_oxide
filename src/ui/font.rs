@@ -5,11 +5,11 @@ use crate::primitives::Vec2;
 pub struct Font {
     data: Box<[RawGlyph; 256]>,
     /// Base size of the font
-    pub height: f32,
+    pub size: f32,
     /// Distance between two lines
     pub line_height: f32,
-    /// Base line height relative to the top of the line
-    pub base: u16,
+    /// Baseline hieght of the font
+    pub base: f32,
     /// Whether the font is a bitmap font
     pub bitmap: bool,
 }
@@ -37,9 +37,9 @@ impl Font {
 
         Self {
             data: Box::new(glyphs),
-            height: 8.0,
+            size: 8.0,
             line_height: 8.0,
-            base: 8,
+            base: 8.0,
             //distance_range: 0,
             bitmap: true,
         }
@@ -48,8 +48,9 @@ impl Font {
     pub fn parse_msdf_from_bytes(data: &[u8]) -> Self {
         let text = std::str::from_utf8(data).unwrap();
 
+        let size = extract_number(text, "\"size\"") as f32;
         let line_height = extract_number(text, "\"lineHeight\"") as f32;
-        let base = extract_number(text, "\"base\"");
+        let base = extract_number(text, "\"base\"") as f32;
         //let distance_range = extract_number(text, "\"distanceRange\"");
 
         let mut glyphs = [RawGlyph::default(); 256];
@@ -86,10 +87,9 @@ impl Font {
 
         Self {
             data: Box::new(glyphs),
-            height: line_height,
+            size: size,
             line_height,
             base,
-            //distance_range,
             bitmap: false,
         }
     }
