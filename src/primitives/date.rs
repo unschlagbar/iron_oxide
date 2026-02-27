@@ -16,8 +16,9 @@ impl Date {
     }
 
     fn days_in_month(year: u16, month: u32) -> u32 {
+        debug_assert!(month >= 1 && month <= 12);
         match month {
-            1 => 31,
+            4 | 6 | 9 | 11 => 30,
             2 => {
                 if Self::is_leap(year) {
                     29
@@ -25,17 +26,7 @@ impl Date {
                     28
                 }
             }
-            3 => 31,
-            4 => 30,
-            5 => 31,
-            6 => 30,
-            7 => 31,
-            8 => 31,
-            9 => 30,
-            10 => 31,
-            11 => 30,
-            12 => 31,
-            _ => 0,
+            _ => 31,
         }
     }
 
