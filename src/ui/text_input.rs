@@ -249,15 +249,10 @@ impl Widget for TextInput {
         let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
         let align_size = context.size();
 
-        let font = self.layout.font.as_ref().unwrap_or(&context.font);
-        let scale = self.layout.font_size * context.scale_factor / font.size;
-        let line_height = font.line_height * scale;
-
         context.place_child(context.element_size);
 
-        let lines = self.layout.lines.len() as f32;
         if self.align.vertical_centered() {
-            offset.y += (align_size.y - line_height * lines).max(0.0) * 0.5;
+            offset.y += (align_size.y - self.layout.size.y) * 0.5;
         }
 
         context.apply_pos(offset);
@@ -273,8 +268,8 @@ impl Widget for TextInput {
                     color: self.color,
                     pos: offset + c.pos,
                     size: c.size,
-                    uv_start: c.uv_start.into(),
-                    uv_size: c.uv_size.into(),
+                    uv_start: c.uv_start,
+                    uv_size: c.uv_size,
                 });
             }
         }
@@ -309,7 +304,7 @@ impl Widget for TextInput {
                 MatType::MSDF
             }
         } else {
-            MatType::Bitmap
+            MatType::MSDF
         };
         ressources.add_slice(mat, &self.draw_data, info);
 

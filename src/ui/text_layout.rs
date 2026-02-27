@@ -102,13 +102,12 @@ impl TextLayout {
 
         let font = self.font.as_ref().unwrap_or(&ctx.font);
         let scale = self.font_size * ctx.scale_factor / font.size;
-        let line_height = (font.line_height * self.line_spacing * scale).floor();
-
-        dbg!(line_height, scale);
+        let line_height = font.line_height * self.line_spacing * scale;
 
         let mut width: f32 = 0.0;
 
-        let mut cursor = Vec2::zero();
+        let mut cursor = Vec2::new(0.0, font.size * scale - font.base * scale);
+        dbg!(cursor.y, line_height);
         let mut last_whitespace = true;
         let mut split_point = usize::MAX;
 
@@ -225,14 +224,16 @@ impl TextLayout {
             let line = self.lines.last_mut().unwrap();
 
             if !overflowed {
-                let pos = Vec2::new(line.width, cursor.y) + glyph.offset * scale;
-
                 let size = glyph.size.into_f32() * scale;
+                let pos = Vec2::new(
+                    line.width + glyph.offset.x * scale,
+                    cursor.y + glyph.offset.y * scale,
+                );
 
                 self.glyphs.push(Glyph {
                     char,
-                    pos: Vec2::new(pos.x.round(), pos.y),
-                    size: Vec2::new(size.x.ceil(), size.y.ceil()),
+                    pos: Vec2::new(pos.x, pos.y),
+                    size: Vec2::new(size.x, size.y),
                     uv_start: glyph.pos,
                     uv_size: glyph.size,
                 });
@@ -241,12 +242,12 @@ impl TextLayout {
             }
 
             line.width += advance;
-            cursor.x += advance;
+            cursor.x = next_width;
             last_whitespace = whitespace;
         }
 
         width = width.max(cursor.x);
-        self.size = Vec2::new(width, cursor.y + line_height);
+        self.size = Vec2::new(width, self.lines.len() as f32 * line_height);
     }
 }
 

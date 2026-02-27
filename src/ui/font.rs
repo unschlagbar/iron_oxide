@@ -46,12 +46,11 @@ impl Font {
     }
 
     pub fn parse_msdf_from_bytes(data: &[u8]) -> Self {
-        let text = std::str::from_utf8(data).unwrap();
+        let text = str::from_utf8(data).unwrap();
 
         let size = extract_number(text, "\"size\"") as f32;
         let line_height = extract_number(text, "\"lineHeight\"") as f32;
         let base = extract_number(text, "\"base\"") as f32;
-        //let distance_range = extract_number(text, "\"distanceRange\"");
 
         let mut glyphs = [RawGlyph::default(); 256];
 
@@ -70,8 +69,8 @@ impl Font {
             let xoffset = extract_number(rest, "\"xoffset\"") as f32;
             let yoffset = extract_number(rest, "\"yoffset\"") as f32;
             let advance = extract_number(rest, "\"xadvance\"") as f32;
-            let x = extract_number(rest, "\"x\"");
-            let y = extract_number(rest, "\"y\"");
+            let x = extract_number(rest, ",\"x\"");
+            let y = extract_number(rest, ",\"y\"");
 
             if id < 256 {
                 glyphs[id as usize] = RawGlyph {

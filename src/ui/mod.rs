@@ -8,7 +8,8 @@ mod style;
 mod system;
 mod ui_ref;
 mod units;
-mod widget;
+
+pub mod widget;
 mod winit_input;
 
 pub mod materials;

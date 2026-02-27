@@ -50,23 +50,28 @@ impl Text {
 }
 
 impl Widget for Text {
-    fn build_layout(&mut self, _: &mut [UiElement], ctx: &mut BuildContext) {
+    fn build_layout(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
         self.draw_data.clear();
 
-        let align = self.align;
-        let mut offset = ctx.pos_child(FlexAlign::default(), Vec2::zero());
-        let align_size = ctx.size();
-        let font_size = self.layout.font_size * ctx.scale_factor;
+        let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
+        let align_size = context.size();
 
-        ctx.place_child(ctx.element_size);
+        let font = self.layout.font.as_ref().unwrap_or(&context.font);
+        let scale = self.layout.font_size * context.scale_factor / font.size;
+        let line_height = font.line_height * scale;
 
-        if align.vertical_centered() {
-            offset.y += (align_size.y - font_size * self.layout.lines.len() as f32).max(0.0) * 0.5;
+        context.place_child(context.element_size);
+
+        let lines = self.layout.lines.len() as f32;
+        if self.align.vertical_centered() {
+            offset.y += (align_size.y - line_height * lines).max(0.0) * 0.5;
         }
+
+        context.apply_pos(offset);
 
         for line in &self.layout.lines {
             let mut offset = offset;
-            if align.horizontal_centered() {
+            if self.align.horizontal_centered() {
                 offset.x += (align_size.x - line.width) * 0.5;
             }
 
@@ -80,7 +85,6 @@ impl Widget for Text {
                 });
             }
         }
-        ctx.apply_pos(offset);
     }
 
     fn build_size(&mut self, _: &mut [UiElement], ctx: &mut BuildContext) {
@@ -109,7 +113,7 @@ impl Widget for Text {
                 MatType::MSDF
             }
         } else {
-            MatType::Bitmap
+            MatType::MSDF
         };
         ressources.add_slice(mat, &self.draw_data, info);
 
