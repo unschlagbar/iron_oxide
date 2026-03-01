@@ -110,9 +110,13 @@ impl UiElement {
         self.pos += Vec2::new(offset.x as i16, offset.y as i16);
 
         if let Some(text) = self.downcast_mut::<Text>() {
-            text.offset += offset;
+            for glyph in &mut text.layout.glyphs {
+                glyph.pos += offset;
+            }
         } else if let Some(text) = self.downcast_mut::<TextInput>() {
-            text.offset += offset;
+            for glyph in &mut text.layout.glyphs {
+                glyph.pos += offset;
+            }
         }
 
         for child in &mut self.childs {

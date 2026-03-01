@@ -35,7 +35,6 @@ pub struct TextInput {
     pub on_input: Option<fn(&mut TextInputContext)>,
     pub on_blur: Option<fn(TextExitContext)>,
 
-    pub offset: Vec2<f32>,
     pub dirty: bool,
 }
 
@@ -52,7 +51,6 @@ impl TextInput {
             selection: None,
             on_input: Some(default_on_input),
             on_blur: None,
-            offset: text.offset,
             dirty: false,
         }
     }
@@ -311,7 +309,7 @@ impl Widget for TextInput {
 
             let to_add = MSDFInstance {
                 color: self.color,
-                pos: glyph.pos + self.offset,
+                pos: glyph.pos,
                 size: glyph.size,
                 uv_start: glyph.uv_start,
                 uv_end: glyph.uv_end,
@@ -523,7 +521,6 @@ impl Default for TextInput {
             on_input: Some(default_on_input),
             on_blur: None,
 
-            offset: Vec2::zero(),
             dirty: true,
         }
     }

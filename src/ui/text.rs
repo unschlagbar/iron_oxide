@@ -22,7 +22,6 @@ pub struct Text {
     pub selectable: bool,
     pub cursor: Option<InputCursor>,
 
-    pub offset: Vec2<f32>,
     pub dirty: bool,
 }
 
@@ -35,7 +34,6 @@ impl Text {
             align: text_input.align,
             selectable: text_input.selectable,
             cursor: text_input.cursor,
-            offset: text_input.offset,
             dirty: false,
         }
     }
@@ -119,7 +117,7 @@ impl Widget for Text {
 
             let to_add = MSDFInstance {
                 color: self.color,
-                pos: glyph.pos + self.offset,
+                pos: glyph.pos,
                 size: glyph.size,
                 uv_start: glyph.uv_start,
                 uv_end: glyph.uv_end,
@@ -176,7 +174,6 @@ impl Default for Text {
             selectable: true,
             cursor: None,
 
-            offset: Vec2::zero(),
             dirty: true,
         }
     }
