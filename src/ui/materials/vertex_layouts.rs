@@ -131,6 +131,58 @@ impl VertexDescription for AtlasInstance {
 
 #[repr(align(4))]
 #[derive(Debug, Clone, Copy)]
+pub struct MSDFInstance {
+    pub pos: Vec2<f32>,
+    pub size: Vec2<f32>,
+    pub color: RGBA,
+    pub uv_start: Vec2<f32>,
+    pub uv_end: Vec2<f32>,
+}
+
+impl VertexDescription for MSDFInstance {
+    const GET_BINDING_DESCRIPTION: &[VertexInputBindingDescription] =
+        &[VertexInputBindingDescription {
+            binding: 0,
+            stride: size_of::<Self>() as _,
+            input_rate: vk::VertexInputRate::INSTANCE,
+        }];
+
+    const GET_ATTRIBUTE_DESCRIPTIONS: &[VertexInputAttributeDescription] = &[
+        VertexInputAttributeDescription {
+            binding: 0,
+            location: 0,
+            format: Format::R8G8B8A8_UNORM,
+            offset: offset_of!(Self, color) as u32,
+        },
+        VertexInputAttributeDescription {
+            binding: 0,
+            location: 1,
+            format: Format::R32G32_SFLOAT,
+            offset: offset_of!(Self, pos) as u32,
+        },
+        VertexInputAttributeDescription {
+            binding: 0,
+            location: 2,
+            format: Format::R32G32_SFLOAT,
+            offset: offset_of!(Self, size) as u32,
+        },
+        VertexInputAttributeDescription {
+            binding: 0,
+            location: 3,
+            format: Format::R32G32_SFLOAT,
+            offset: offset_of!(Self, uv_start) as u32,
+        },
+        VertexInputAttributeDescription {
+            binding: 0,
+            location: 4,
+            format: Format::R32G32_SFLOAT,
+            offset: offset_of!(Self, uv_end) as u32,
+        },
+    ];
+}
+
+#[repr(align(4))]
+#[derive(Debug, Clone, Copy)]
 pub struct ShadowInstance {
     pub pos: Vec2<i16>,
     pub size: Vec2<i16>,

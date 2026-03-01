@@ -1,3 +1,5 @@
+use std::u8;
+
 #[derive(Debug, Clone, Copy)]
 pub struct RGB {
     pub r: u8,
@@ -82,10 +84,10 @@ impl RGBA {
         a: 255,
     };
     pub const WHITE: RGBA = RGBA {
-        r: 255,
-        g: 255,
-        b: 255,
-        a: 255,
+        r: u8::MAX,
+        g: u8::MAX,
+        b: u8::MAX,
+        a: u8::MAX,
     };
     pub const GREEN: RGBA = RGBA {
         r: 0,

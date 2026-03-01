@@ -110,13 +110,9 @@ impl UiElement {
         self.pos += Vec2::new(offset.x as i16, offset.y as i16);
 
         if let Some(text) = self.downcast_mut::<Text>() {
-            for i in &mut text.draw_data {
-                i.pos += offset;
-            }
+            text.offset += offset;
         } else if let Some(text) = self.downcast_mut::<TextInput>() {
-            for i in &mut text.draw_data {
-                i.pos += offset;
-            }
+            text.offset += offset;
         }
 
         for child in &mut self.childs {

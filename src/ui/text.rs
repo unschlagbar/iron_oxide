@@ -1,9 +1,11 @@
+use std::slice;
+
 use crate::{
     graphics::{Ressources, formats::RGBA},
     primitives::Vec2,
     ui::{
         Align, BuildContext, DrawInfo, TextInput, UiElement, UiRef,
-        materials::{AtlasInstance, MatType, UiInstance},
+        materials::{MSDFInstance, MatType},
         text_input::InputCursor,
         text_layout::TextLayout,
         units::FlexAlign,
@@ -20,8 +22,8 @@ pub struct Text {
     pub selectable: bool,
     pub cursor: Option<InputCursor>,
 
+    pub offset: Vec2<f32>,
     pub dirty: bool,
-    pub draw_data: Vec<AtlasInstance>,
 }
 
 impl Text {
@@ -33,8 +35,8 @@ impl Text {
             align: text_input.align,
             selectable: text_input.selectable,
             cursor: text_input.cursor,
+            offset: text_input.offset,
             dirty: false,
-            draw_data: text_input.draw_data,
         }
     }
 
@@ -51,23 +53,21 @@ impl Text {
 
 impl Widget for Text {
     fn build_layout(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
-        self.draw_data.clear();
-
         let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
         let align_size = context.size();
 
         let font = self.layout.font.as_ref().unwrap_or(&context.font);
-        let scale = self.layout.font_size * context.scale_factor / font.size;
-        let line_height = font.line_height * scale;
+        let line_height = font.line_height * self.layout.font_size;
 
         context.place_child(context.element_size);
 
         let lines = self.layout.lines.len() as f32;
         if self.align.vertical_centered() {
-            offset.y += (align_size.y - line_height * lines).max(0.0) * 0.5;
+            offset.y += (align_size.y - line_height * lines) * 0.5;
         }
 
         context.apply_pos(offset);
+        offset.y = offset.y.floor();
 
         for line in &self.layout.lines {
             let mut offset = offset;
@@ -75,14 +75,8 @@ impl Widget for Text {
                 offset.x += (align_size.x - line.width) * 0.5;
             }
 
-            for c in &self.layout.glyphs[line.start..line.end] {
-                self.draw_data.push(AtlasInstance {
-                    color: self.color,
-                    pos: offset + c.pos,
-                    size: c.size,
-                    uv_start: c.uv_start,
-                    uv_size: c.uv_size,
-                });
+            for c in &mut self.layout.glyphs[line.start..line.end] {
+                c.pos = c.pos + offset;
             }
         }
     }
@@ -115,32 +109,54 @@ impl Widget for Text {
         } else {
             MatType::MSDF
         };
-        ressources.add_slice(mat, &self.draw_data, info);
+        let batch = ressources.batch_data::<MSDFInstance>(mat, info);
+        batch.reserve(self.layout.glyphs.len());
+
+        for glyph in &self.layout.glyphs {
+            if glyph.size.x == 0.0 {
+                continue;
+            }
+
+            let to_add = MSDFInstance {
+                color: self.color,
+                pos: glyph.pos + self.offset,
+                size: glyph.size,
+                uv_start: glyph.uv_start,
+                uv_end: glyph.uv_end,
+            };
+            let slice = unsafe {
+                slice::from_raw_parts(
+                    &to_add as *const MSDFInstance as *const u8,
+                    size_of_val(&to_add),
+                )
+            };
+            batch.extend_from_slice(slice);
+        }
 
         if let Some(cursor) = &self.cursor
             && cursor.is_on
         {
-            let pos = if cursor.index == 0 {
-                self.draw_data[0].pos
-            } else if let Some(char) = self.draw_data.get(cursor.index - 1) {
-                char.pos + Vec2::new(char.size.x, 0.0)
-            } else {
-                return;
-            };
+            //   let pos = if cursor.index == 0 {
+            //       self.draw_data[0].pos
+            //  } else if let Some(char) = self.draw_data.get(cursor.index - 1) {
+            //       char.pos + Vec2::new(char.size.x, 0.0)
+            //   } else {
+            //       return;
+            //   };
 
-            let scale = self.layout.font_size * 1.2 - self.layout.font_size;
-            let to_add = UiInstance {
-                color: self.color,
-                border_color: RGBA::ZERO,
-                border: [0; 4],
-                pos: Vec2::new(pos.x as i16, (pos.y - scale * 0.5) as i16),
-                size: Vec2::new(
-                    2 * info.scale_factor as i16,
-                    (self.layout.font_size * info.scale_factor + scale) as i16,
-                ),
-                corner: 0,
-            };
-            ressources.add(MatType::Basic, to_add, info);
+            //  let scale = self.layout.font_size * 1.2 - self.layout.font_size;
+            //  let to_add = UiInstance {
+            //      color: self.color,
+            //      border_color: RGBA::ZERO,
+            //      border: [0; 4],
+            //       pos: Vec2::new(pos.x as i16, (pos.y - scale * 0.5) as i16),
+            //      size: Vec2::new(
+            //          2 * info.scale_factor as i16,
+            //          (self.layout.font_size * info.scale_factor + scale) as i16,
+            //      ),
+            //      corner: 0,
+            //  };
+            //    ressources.add(MatType::Basic, to_add, info);
         }
     }
 
@@ -153,15 +169,15 @@ impl Default for Text {
     fn default() -> Self {
         Self {
             text: "Text".to_string(),
-            color: RGBA::grey(220),
+            color: RGBA::WHITE,
             layout: TextLayout::default(),
             align: Align::default(),
 
             selectable: true,
             cursor: None,
 
+            offset: Vec2::zero(),
             dirty: true,
-            draw_data: Vec::new(),
         }
     }
 }

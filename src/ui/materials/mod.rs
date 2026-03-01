@@ -1,6 +1,7 @@
 mod vertex_layouts;
 
 pub use vertex_layouts::AtlasInstance;
+pub use vertex_layouts::MSDFInstance;
 pub use vertex_layouts::ShadowInstance;
 pub use vertex_layouts::UiInstance;
 

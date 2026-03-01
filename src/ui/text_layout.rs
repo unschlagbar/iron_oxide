@@ -101,13 +101,12 @@ impl TextLayout {
         self.lines.push(TextLine::default());
 
         let font = self.font.as_ref().unwrap_or(&ctx.font);
-        let scale = self.font_size * ctx.scale_factor / font.size;
-        let line_height = font.line_height * self.line_spacing * scale;
+        let font_size = self.font_size * ctx.scale_factor;
+        let line_height = font.line_height * self.line_spacing * font_size;
 
         let mut width: f32 = 0.0;
 
-        let mut cursor = Vec2::new(0.0, font.size * scale - font.base * scale);
-        dbg!(cursor.y, line_height);
+        let mut cursor = Vec2::new(0.0, -font.ascender * font_size);
         let mut last_whitespace = true;
         let mut split_point = usize::MAX;
 
@@ -142,7 +141,7 @@ impl TextLayout {
 
             // Handle normal text flow
             let glyph = font.get_glyph(char);
-            let advance = glyph.advance * scale;
+            let advance = glyph.advance * font_size;
             let next_width = cursor.x + advance;
 
             let would_overflow = next_width > container_size.x;
@@ -224,18 +223,21 @@ impl TextLayout {
             let line = self.lines.last_mut().unwrap();
 
             if !overflowed {
-                let size = glyph.size.into_f32() * scale;
-                let pos = Vec2::new(
-                    line.width + glyph.offset.x * scale,
-                    cursor.y + glyph.offset.y * scale,
-                );
+                let right = glyph.right * font_size;
+                let left = glyph.left * font_size;
+                // this just happend to be the exact number to add to make both '_' and '-' the right size with my testet font_size
+                let top = (glyph.top * font_size + 0.4).floor();
+                let bottom = (glyph.bottom * font_size).floor();
+
+                let size = Vec2::new(right - left, bottom - top);
+                let pos = Vec2::new(left + cursor.x, top + 0.5 + cursor.y.floor());
 
                 self.glyphs.push(Glyph {
                     char,
-                    pos: Vec2::new(pos.x, pos.y),
-                    size: Vec2::new(size.x, size.y),
-                    uv_start: glyph.pos,
-                    uv_size: glyph.size,
+                    pos,
+                    size,
+                    uv_start: glyph.atlas_start,
+                    uv_end: glyph.atlas_end,
                 });
 
                 line.end = self.glyphs.len();
@@ -280,6 +282,6 @@ pub struct Glyph {
     pub char: char,
     pub pos: Vec2<f32>,
     pub size: Vec2<f32>,
-    pub uv_start: Vec2<u16>,
-    pub uv_size: Vec2<u16>,
+    pub uv_start: Vec2<f32>,
+    pub uv_end: Vec2<f32>,
 }

@@ -222,6 +222,44 @@ impl Ressources {
         self.add_slice(mat_type, &[to_add], info);
     }
 
+    pub fn batch_data<'a, T: VertexDescription>(
+        &'a mut self,
+        mat_type: MatType,
+        info: &DrawInfo,
+    ) -> &'a mut Vec<u8> {
+        #[cfg(debug_assertions)]
+        assert_eq!(
+            self.materials[mat_type as usize].instance_type,
+            TypeId::of::<T>()
+        );
+
+        for batch in &mut self.draw_batches {
+            if batch.mat_type != mat_type {
+                batch.done = true;
+            }
+        }
+
+        if let Some(idx) = self.draw_batches.iter_mut().position(|b| {
+            b.mat_type == mat_type && b.clip == info.clip && (b.z_end >= info.z_index || !b.done)
+        }) {
+            self.draw_batches[idx].z_end = self.draw_batches[idx].z_end.max(info.z_index);
+            &mut self.draw_batches[idx].data
+        } else {
+            self.draw_batches.push(DrawBatch {
+                clip: info.clip,
+                mat_type,
+                data: Vec::new(),
+                size: 0,
+                offset: 0,
+                z_index: 0,
+                z_end: info.z_index,
+
+                done: false,
+            });
+            &mut self.draw_batches.last_mut().unwrap().data
+        }
+    }
+
     pub fn add_slice<T: VertexDescription>(
         &mut self,
         mat_type: MatType,

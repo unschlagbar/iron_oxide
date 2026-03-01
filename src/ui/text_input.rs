@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{slice, time::Instant};
 
 use winit::{
     event::{ElementState, KeyEvent},
@@ -13,7 +13,7 @@ use crate::{
         Align, BuildContext, DrawInfo, InputResult, QueuedEvent, Text, TextInputContext, Ui,
         UiElement, UiEvent, UiRef,
         callback::TextExitContext,
-        materials::{AtlasInstance, MatType, UiInstance},
+        materials::{MSDFInstance, MatType, UiInstance},
         system::KeyModifiers,
         text_layout::TextLayout,
         units::FlexAlign,
@@ -35,8 +35,8 @@ pub struct TextInput {
     pub on_input: Option<fn(&mut TextInputContext)>,
     pub on_blur: Option<fn(TextExitContext)>,
 
+    pub offset: Vec2<f32>,
     pub dirty: bool,
-    pub draw_data: Vec<AtlasInstance>,
 }
 
 impl TextInput {
@@ -52,8 +52,8 @@ impl TextInput {
             selection: None,
             on_input: Some(default_on_input),
             on_blur: None,
+            offset: text.offset,
             dirty: false,
-            draw_data: text.draw_data,
         }
     }
     pub fn set_new(&mut self, text: String) {
@@ -73,7 +73,7 @@ impl TextInput {
 
     pub fn set_cursor(&mut self) {
         self.cursor = Some(InputCursor {
-            index: self.draw_data.len(),
+            index: self.layout.glyphs.len(),
             start_time: Instant::now(),
             is_on: true,
         });
@@ -144,12 +144,14 @@ impl TextInput {
         let start_pos;
         let line_height;
 
-        if start == self.draw_data.len() {
-            let inst = &self.draw_data[start - 1];
+        let glyphs = &self.layout.glyphs;
+
+        if start == glyphs.len() {
+            let inst = &glyphs[start - 1];
             start_pos = inst.pos + Vec2::new(inst.size.x, 0.0);
             line_height = inst.size.y;
         } else {
-            let inst = &self.draw_data[start];
+            let inst = &glyphs[start];
             start_pos = inst.pos;
             line_height = inst.size.y;
         }
@@ -160,16 +162,16 @@ impl TextInput {
 
         if start_pos.y <= cursor_pos.y && start_pos.y + line_height >= cursor_pos.y {
             if start_pos.x < cursor_pos.x {
-                to_check = &self.draw_data[start..];
+                to_check = &glyphs[start..];
                 i_offset = start;
             } else {
-                to_check = &self.draw_data[..start];
+                to_check = &glyphs[..start];
             }
         } else if start_pos.y < cursor_pos.y {
-            to_check = &self.draw_data[start..];
+            to_check = &glyphs[start..];
             i_offset = start;
         } else {
-            to_check = &self.draw_data[..start];
+            to_check = &glyphs[..start];
         }
         let mut most_end_char = 0;
 
@@ -218,7 +220,7 @@ impl TextInput {
         if self.text.is_empty() {
             new_i = 0;
         } else {
-            for (i, glyph) in self.draw_data.iter().enumerate() {
+            for (i, glyph) in self.layout.glyphs.iter().enumerate() {
                 if cursor_pos >= glyph.pos - margin && cursor_pos <= glyph.pos + glyph.size + margin
                 {
                     if glyph.pos.x + glyph.size.x * 0.5 <= cursor_pos.x {
@@ -232,7 +234,7 @@ impl TextInput {
         }
 
         if new_i == isize::MAX {
-            new_i = self.draw_data.len() as isize;
+            new_i = self.layout.glyphs.len() as isize;
         }
 
         if new_i != cursor_i {
@@ -244,8 +246,6 @@ impl TextInput {
 
 impl Widget for TextInput {
     fn build_layout(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
-        self.draw_data.clear();
-
         let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
         let align_size = context.size();
 
@@ -256,6 +256,7 @@ impl Widget for TextInput {
         }
 
         context.apply_pos(offset);
+        offset.y = offset.y.floor();
 
         for line in &self.layout.lines {
             let mut offset = offset;
@@ -263,14 +264,8 @@ impl Widget for TextInput {
                 offset.x += (align_size.x - line.width) * 0.5;
             }
 
-            for c in &self.layout.glyphs[line.start..line.end] {
-                self.draw_data.push(AtlasInstance {
-                    color: self.color,
-                    pos: offset + c.pos,
-                    size: c.size,
-                    uv_start: c.uv_start,
-                    uv_size: c.uv_size,
-                });
+            for c in &mut self.layout.glyphs[line.start..line.end] {
+                c.pos = c.pos + offset;
             }
         }
     }
@@ -306,17 +301,40 @@ impl Widget for TextInput {
         } else {
             MatType::MSDF
         };
-        ressources.add_slice(mat, &self.draw_data, info);
+        let batch = ressources.batch_data::<MSDFInstance>(mat, info);
+        batch.reserve(self.layout.glyphs.len());
+
+        for glyph in &self.layout.glyphs {
+            if glyph.size.x == 0.0 {
+                continue;
+            }
+
+            let to_add = MSDFInstance {
+                color: self.color,
+                pos: glyph.pos + self.offset,
+                size: glyph.size,
+                uv_start: glyph.uv_start,
+                uv_end: glyph.uv_end,
+            };
+            let slice = unsafe {
+                slice::from_raw_parts(
+                    &to_add as *const MSDFInstance as *const u8,
+                    size_of_val(&to_add),
+                )
+            };
+            batch.extend_from_slice(slice);
+        }
 
         if let Some(selection) = &self.selection {
             let (start, end) = selection.range();
 
             if start != end {
-                let start_pos = self.draw_data[start].pos;
-                let end_pos = if end == self.draw_data.len() {
-                    self.draw_data[end - 1].pos + Vec2::new(self.draw_data[start].size.x, 0.0)
+                let start_pos = self.layout.glyphs[start].pos;
+                let end_pos = if end == self.layout.glyphs.len() {
+                    self.layout.glyphs[end - 1].pos
+                        + Vec2::new(self.layout.glyphs[start].size.x, 0.0)
                 } else {
-                    self.draw_data[end].pos
+                    self.layout.glyphs[end].pos
                 };
 
                 let to_add = UiInstance {
@@ -336,8 +354,8 @@ impl Widget for TextInput {
             && cursor.is_on
         {
             let pos = if cursor.index == 0 {
-                self.draw_data[0].pos
-            } else if let Some(char) = self.draw_data.get(cursor.index - 1) {
+                self.layout.glyphs[0].pos
+            } else if let Some(char) = self.layout.glyphs.get(cursor.index - 1) {
                 char.pos + Vec2::new(char.size.x, 0.0)
             } else {
                 return;
@@ -493,7 +511,7 @@ impl Default for TextInput {
     fn default() -> Self {
         Self {
             text: "Text".to_string(),
-            color: RGBA::grey(220),
+            color: RGBA::WHITE,
             layout: TextLayout::default(),
             align: Align::default(),
 
@@ -505,8 +523,8 @@ impl Default for TextInput {
             on_input: Some(default_on_input),
             on_blur: None,
 
+            offset: Vec2::zero(),
             dirty: true,
-            draw_data: Vec::new(),
         }
     }
 }
