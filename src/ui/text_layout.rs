@@ -229,7 +229,8 @@ impl TextLayout {
                 let top = (glyph.top * font_size + 0.4).floor();
                 let bottom = (glyph.bottom * font_size).floor();
 
-                let size = Vec2::new(right - left, bottom - top);
+                
+                let size = Vec2::new(right - left, (bottom - top).max(2.0));
                 let pos = Vec2::new(left + cursor.x, top + 0.5 + cursor.y.floor());
 
                 self.glyphs.push(Glyph {
