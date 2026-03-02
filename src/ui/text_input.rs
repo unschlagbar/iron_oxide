@@ -290,7 +290,7 @@ impl Widget for TextInput {
     }
 
     fn draw_data(&mut self, element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
-        let font = self.layout.font(&info.font);
+        let font = self.layout.font(info.font);
         let mat = font.material();
         let batch = ressources.batch_data::<MSDFInstance>(mat, info);
         batch.reserve(self.layout.glyphs.len() * size_of::<MSDFInstance>());

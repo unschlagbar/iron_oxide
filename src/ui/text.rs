@@ -99,7 +99,7 @@ impl Widget for Text {
     }
 
     fn draw_data(&mut self, _element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
-        let font = self.layout.font(&info.font);
+        let font = self.layout.font(info.font);
         let mat = font.material();
 
         let batch = ressources.batch_data::<MSDFInstance>(mat, info);
