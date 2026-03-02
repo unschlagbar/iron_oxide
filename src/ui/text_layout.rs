@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{ops::Range, rc::Rc};
 
 use crate::{
     primitives::Vec2,
@@ -100,7 +100,11 @@ impl TextLayout {
         self.lines.clear();
         self.lines.push(TextLine::default());
 
-        let font = self.font.as_ref().unwrap_or(&ctx.font);
+        let font = if let Some(font) = &self.font {
+            font
+        } else {
+            ctx.font
+        };
         let font_size = self.font_size * ctx.scale_factor;
         let line_height = font.line_height * self.line_spacing * font_size;
 
@@ -153,11 +157,7 @@ impl TextLayout {
                         let current_line = self.lines.last_mut().unwrap();
                         current_line.end = split_point;
 
-                        let new_line = TextLine {
-                            start: split_point,
-                            end: current_line.end,
-                            width: 0.0,
-                        };
+                        let range = split_point..self.glyphs.len();
 
                         // remove leading spaces in split line (CSS behavior)
                         if self.white_space.collapses_spaces()
@@ -167,16 +167,27 @@ impl TextLayout {
                             self.glyphs.pop();
                         }
 
-                        let mut new_width = 0.0;
-                        for g in &mut self.glyphs[new_line.start..new_line.end] {
-                            g.pos.x = new_width;
+                        let first_char = &self.glyphs[(split_point - 1).max(0)];
+                        let first_pos = first_char.pos.x;
+                        let first_width = first_pos + first_char.size.x;
+
+                        let last_char = self.glyphs.last().unwrap();
+                        let last_width = last_char.pos.x + last_char.size.x;
+
+                        let new_width = last_width - first_width;
+
+                        for g in &mut self.glyphs[range.clone()] {
+                            g.pos.x -= first_pos;
                             g.pos.y += line_height;
-                            new_width += g.size.x;
                         }
 
-                        current_line.width -= new_width;
+                        current_line.width -= first_width;
 
-                        self.lines.push(new_line);
+                        self.lines.push(TextLine {
+                            start: range.start,
+                            end: range.end,
+                            width: new_width,
+                        });
 
                         width = width.max(cursor.x);
 
@@ -200,19 +211,9 @@ impl TextLayout {
                     // Hanlde overflow
                     } else {
                         overflowed = true;
-                        match self.overflow {
-                            TextOverflow::Allow => (),
-                            TextOverflow::Clip => (),
-                            TextOverflow::Ellipsis => (),
-                        }
                     }
                 } else {
                     overflowed = true;
-                    match self.overflow {
-                        TextOverflow::Allow => (),
-                        TextOverflow::Clip => (),
-                        TextOverflow::Ellipsis => (),
-                    }
                 }
             }
 
@@ -222,16 +223,21 @@ impl TextLayout {
 
             let line = self.lines.last_mut().unwrap();
 
-            if !overflowed {
+            if overflowed {
+                match self.overflow {
+                    TextOverflow::Allow => (),
+                    TextOverflow::Clip => (),
+                    TextOverflow::Ellipsis => (),
+                }
+            } else {
                 let right = glyph.right * font_size;
                 let left = glyph.left * font_size;
                 // this just happend to be the exact number to add to make both '_' and '-' the right size with my testet font_size
                 let top = (glyph.top * font_size + 0.4).floor();
                 let bottom = (glyph.bottom * font_size).floor();
 
-                
                 let size = Vec2::new(right - left, (bottom - top).max(2.0));
-                let pos = Vec2::new(left + cursor.x, top + 0.5 + cursor.y.floor());
+                let pos = Vec2::new(left + cursor.x, top + cursor.y.floor() + 0.5);
 
                 self.glyphs.push(Glyph {
                     char,
@@ -251,6 +257,10 @@ impl TextLayout {
 
         width = width.max(cursor.x);
         self.size = Vec2::new(width, self.lines.len() as f32 * line_height);
+    }
+
+    pub fn font<'a>(&'a self, font: &'a Font) -> &'a Font {
+        self.font.as_ref().map_or(font, |f| f)
     }
 }
 
@@ -276,6 +286,12 @@ pub struct TextLine {
     pub start: usize,
     pub end: usize,
     pub width: f32,
+}
+
+impl TextLine {
+    pub fn range(&self) -> Range<usize> {
+        self.start..self.end
+    }
 }
 
 #[derive(Debug)]

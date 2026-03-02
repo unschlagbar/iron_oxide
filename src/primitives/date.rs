@@ -16,7 +16,7 @@ impl Date {
     }
 
     fn days_in_month(year: u16, month: u32) -> u32 {
-        debug_assert!(month >= 1 && month <= 12);
+        debug_assert!((1..=12).contains(&month));
         match month {
             4 | 6 | 9 | 11 => 30,
             2 => {

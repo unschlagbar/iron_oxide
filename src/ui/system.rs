@@ -66,7 +66,7 @@ impl Ui {
             current_cursor_icon: CursorIcon::Default,
 
             selection: Selection::default(),
-            events: QueuedEventHandler::new(),
+            events: QueuedEventHandler::default(),
             tick_queue: Vec::new(),
 
             // 0 is reserved for invalid UiRef
@@ -230,15 +230,13 @@ impl Ui {
     }
 
     pub(crate) fn build(&mut self) {
-        let mut build_context =
-            BuildContext::default(self.font.clone(), self.size, self.scale_factor);
+        let mut build_context = BuildContext::default(&self.font, self.size, self.scale_factor);
 
         for element in &mut self.elements {
             element.build_size(&mut build_context);
         }
 
-        let mut build_context =
-            BuildContext::default(self.font.clone(), self.size, self.scale_factor);
+        let mut build_context = BuildContext::default(&self.font, self.size, self.scale_factor);
 
         for element in &mut self.elements {
             element.build(&mut build_context);
@@ -258,6 +256,7 @@ impl Ui {
             z_index: 0,
             z_start: 0,
             z_end: i16::MAX,
+            font: &self.font,
         };
 
         for raw_e in &mut self.elements {

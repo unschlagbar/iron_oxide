@@ -47,7 +47,7 @@ impl TextInput {
             align: text.align,
             selectable: text.selectable,
             focus_on_click: false,
-            cursor: text.cursor,
+            cursor: None,
             selection: None,
             on_input: Some(default_on_input),
             on_blur: None,
@@ -262,8 +262,8 @@ impl Widget for TextInput {
                 offset.x += (align_size.x - line.width) * 0.5;
             }
 
-            for c in &mut self.layout.glyphs[line.start..line.end] {
-                c.pos = c.pos + offset;
+            for c in &mut self.layout.glyphs[line.range()] {
+                c.pos += offset;
             }
         }
     }
@@ -289,18 +289,11 @@ impl Widget for TextInput {
         context.predict_child(Vec2::new(0.0, self.layout.size.y));
     }
 
-    fn draw_data(&mut self, _element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
-        let mat = if let Some(font) = &self.layout.font {
-            if font.bitmap {
-                MatType::Bitmap
-            } else {
-                MatType::MSDF
-            }
-        } else {
-            MatType::MSDF
-        };
+    fn draw_data(&mut self, element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
+        let font = self.layout.font(&info.font);
+        let mat = font.material();
         let batch = ressources.batch_data::<MSDFInstance>(mat, info);
-        batch.reserve(self.layout.glyphs.len());
+        batch.reserve(self.layout.glyphs.len() * size_of::<MSDFInstance>());
 
         for glyph in &self.layout.glyphs {
             if glyph.size.x == 0.0 {
@@ -327,22 +320,23 @@ impl Widget for TextInput {
             let (start, end) = selection.range();
 
             if start != end {
-                let start_pos = self.layout.glyphs[start].pos;
+                let start_pos = self.layout.glyphs[start].pos.x;
                 let end_pos = if end == self.layout.glyphs.len() {
-                    self.layout.glyphs[end - 1].pos
-                        + Vec2::new(self.layout.glyphs[start].size.x, 0.0)
+                    let glyph = &self.layout.glyphs[end - 1];
+                    glyph.pos.x + glyph.size.x
                 } else {
-                    self.layout.glyphs[end].pos
-                };
+                    self.layout.glyphs[end].pos.x
+                }.ceil();
+
 
                 let to_add = UiInstance {
                     color: RGBA::rgba(0, 255, 0, 150),
                     border_color: RGBA::ZERO,
                     border: [0; 4],
-                    pos: Vec2::new(start_pos.x as i16, start_pos.y as i16),
+                    pos: Vec2::new(start_pos as i16, element.pos.y),
                     size: Vec2::new(
-                        (end_pos.x - start_pos.x) as i16,
-                        self.layout.font_size as i16,
+                        (end_pos - start_pos) as i16,
+                        (self.layout.font_size * info.scale_factor * font.line_height) as i16,
                     ),
                     corner: 0,
                 };
@@ -351,26 +345,22 @@ impl Widget for TextInput {
         } else if let Some(cursor) = &self.cursor
             && cursor.is_on
         {
-            let pos = if cursor.index == 0 {
-                self.layout.glyphs[0].pos
+            let posx = if cursor.index == 0 {
+                self.layout.glyphs[0].pos.x
             } else if let Some(char) = self.layout.glyphs.get(cursor.index - 1) {
-                char.pos + Vec2::new(char.size.x, 0.0)
+                char.pos.x + char.size.x
             } else {
                 return;
-            };
+            } as i16;
 
-            let font_size = self.layout.font_size;
-            let scale = font_size * 1.2 - font_size;
+            let height = self.layout.font_size * info.scale_factor * font.line_height;
 
             let to_add = UiInstance {
                 color: self.color,
                 border_color: RGBA::ZERO,
                 border: [0; 4],
-                pos: Vec2::new(pos.x as i16, (pos.y - scale * 0.5) as i16),
-                size: Vec2::new(
-                    2 * info.scale_factor as i16,
-                    (font_size * info.scale_factor + scale) as i16,
-                ),
+                pos: Vec2::new(posx, element.pos.y),
+                size: Vec2::new(((height as i16) / 12).max(1), height as i16),
                 corner: 0,
             };
             ressources.add(MatType::Basic, to_add, info);

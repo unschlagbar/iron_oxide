@@ -82,7 +82,7 @@ impl QueuedEvent {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct QueuedEventHandler {
     event1: Option<QueuedEvent>,
     event2: Option<QueuedEvent>,
@@ -90,40 +90,32 @@ pub struct QueuedEventHandler {
 }
 
 impl QueuedEventHandler {
-    pub const fn new() -> Self {
-        Self {
-            event1: None,
-            event2: None,
-            first: 1,
-        }
-    }
-
     pub fn set(&mut self, event: QueuedEvent) {
         let count = self.event1.is_some() as u8 + self.event2.is_some() as u8;
 
         if count == 0 {
             self.event1 = Some(event);
-            self.first = 1;
+            self.first = 0;
         } else if count == 1 {
             if self.event1.is_none() {
                 self.event1 = Some(event);
-                self.first = 2;
+                self.first = 1;
             } else {
                 self.event2 = Some(event);
-                self.first = 1;
+                self.first = 0;
             }
-        } else if self.first == 1 {
-            self.first = 2;
+        } else if self.first == 0 {
+            self.first = 1;
             self.event1 = Some(event);
         } else {
-            self.first = 1;
+            self.first = 0;
             self.event2 = Some(event);
         }
     }
 
     pub fn get(&mut self) -> Option<QueuedEvent> {
-        if self.first == 1 {
-            self.first = 2;
+        if self.first == 0 {
+            self.first = 1;
             self.event1.take().or_else(|| self.event2.take())
         } else {
             self.event2.take().or_else(|| self.event1.take())

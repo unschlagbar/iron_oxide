@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::primitives::Vec2;
+use crate::{primitives::Vec2, ui::materials::MatType};
 
 pub struct Font {
     glyphs: [RawGlyph; 256],
@@ -54,7 +54,6 @@ impl Font {
 
         let glyphs_start = text.find("\"glyphs\"").unwrap();
         let mut rest = &text[glyphs_start..];
-
 
         while let Some(pos) = rest.find("\"unicode\"") {
             // zum Anfang des Objekts gehen
@@ -139,6 +138,14 @@ impl Font {
             'ß' => 11,
 
             _ => index,
+        }
+    }
+
+    pub fn material(&self) -> MatType {
+        if self.bitmap {
+            MatType::Bitmap
+        } else {
+            MatType::MSDF
         }
     }
 }

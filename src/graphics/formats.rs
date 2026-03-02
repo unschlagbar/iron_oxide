@@ -1,5 +1,3 @@
-use std::u8;
-
 #[derive(Debug, Clone, Copy)]
 pub struct RGB {
     pub r: u8,

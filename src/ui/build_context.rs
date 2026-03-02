@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use crate::{
     primitives::Vec2,
     ui::{FlexDirection, units::FlexAlign},
@@ -8,7 +6,7 @@ use crate::{
 use super::Font;
 
 #[derive(Debug)]
-pub struct BuildContext {
+pub struct BuildContext<'a> {
     /// The scale that should be applied to pixels
     pub scale_factor: f32,
 
@@ -41,11 +39,11 @@ pub struct BuildContext {
     /// flex axis
     pub flex_direction: FlexDirection,
 
-    pub font: Rc<Font>,
+    pub font: &'a Font,
 }
 
-impl BuildContext {
-    pub fn default(font: Rc<Font>, parent_size: Vec2<f32>, scale_factor: f32) -> Self {
+impl<'a> BuildContext<'a> {
+    pub fn default(font: &'a Font, parent_size: Vec2<f32>, scale_factor: f32) -> Self {
         Self {
             scale_factor,
 
@@ -89,7 +87,7 @@ impl BuildContext {
             predicted_cross: 0.0,
 
             flex_direction: dir,
-            font: self.font.clone(),
+            font: self.font,
         }
     }
 

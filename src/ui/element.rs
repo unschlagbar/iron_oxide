@@ -10,7 +10,7 @@ use super::{BuildContext, Text, Ui, UiEvent, system::InputResult};
 use crate::{
     graphics::Ressources,
     primitives::Vec2,
-    ui::{TextInput, UiRef, widget::Widget},
+    ui::{Font, TextInput, UiRef, widget::Widget},
 };
 
 pub struct UiElement {
@@ -320,15 +320,16 @@ impl Default for ElementFlags {
 }
 
 #[derive(Clone, Copy)]
-pub struct DrawInfo {
+pub struct DrawInfo<'a> {
     pub clip: Option<Rect2D>,
     pub scale_factor: f32,
     pub z_index: i16,
     pub z_start: i16,
     pub z_end: i16,
+    pub font: &'a Font,
 }
 
-impl DrawInfo {
+impl<'a> DrawInfo<'a> {
     pub fn inner(&self, z_index: i16) -> Self {
         Self {
             clip: self.clip,
@@ -336,6 +337,7 @@ impl DrawInfo {
             z_index,
             z_start: self.z_start,
             z_end: self.z_end,
+            font: self.font,
         }
     }
 

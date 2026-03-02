@@ -5,8 +5,7 @@ use crate::{
     primitives::Vec2,
     ui::{
         Align, BuildContext, DrawInfo, TextInput, UiElement, UiRef,
-        materials::{MSDFInstance, MatType},
-        text_input::InputCursor,
+        materials::MSDFInstance,
         text_layout::TextLayout,
         units::FlexAlign,
         widget::Widget,
@@ -20,7 +19,6 @@ pub struct Text {
     pub align: Align,
 
     pub selectable: bool,
-    pub cursor: Option<InputCursor>,
 
     pub dirty: bool,
 }
@@ -33,7 +31,6 @@ impl Text {
             layout: text_input.layout,
             align: text_input.align,
             selectable: text_input.selectable,
-            cursor: text_input.cursor,
             dirty: false,
         }
     }
@@ -54,7 +51,11 @@ impl Widget for Text {
         let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
         let align_size = context.size();
 
-        let font = self.layout.font.as_ref().unwrap_or(&context.font);
+        let font = if let Some(font) = &self.layout.font {
+            font
+        } else {
+            context.font
+        };
         let line_height = font.line_height * self.layout.font_size;
 
         context.place_child(context.element_size);
@@ -73,8 +74,8 @@ impl Widget for Text {
                 offset.x += (align_size.x - line.width) * 0.5;
             }
 
-            for c in &mut self.layout.glyphs[line.start..line.end] {
-                c.pos = c.pos + offset;
+            for c in &mut self.layout.glyphs[line.range()] {
+                c.pos += offset;
             }
         }
     }
@@ -98,17 +99,11 @@ impl Widget for Text {
     }
 
     fn draw_data(&mut self, _element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
-        let mat = if let Some(font) = &self.layout.font {
-            if font.bitmap {
-                MatType::Bitmap
-            } else {
-                MatType::MSDF
-            }
-        } else {
-            MatType::MSDF
-        };
+        let font = self.layout.font(&info.font);
+        let mat = font.material();
+
         let batch = ressources.batch_data::<MSDFInstance>(mat, info);
-        batch.reserve(self.layout.glyphs.len());
+        batch.reserve(self.layout.glyphs.len() * size_of::<MSDFInstance>());
 
         for glyph in &self.layout.glyphs {
             if glyph.size.x == 0.0 {
@@ -130,36 +125,6 @@ impl Widget for Text {
             };
             batch.extend_from_slice(slice);
         }
-
-        if let Some(cursor) = &self.cursor
-            && cursor.is_on
-        {
-            //   let pos = if cursor.index == 0 {
-            //       self.draw_data[0].pos
-            //  } else if let Some(char) = self.draw_data.get(cursor.index - 1) {
-            //       char.pos + Vec2::new(char.size.x, 0.0)
-            //   } else {
-            //       return;
-            //   };
-
-            //  let scale = self.layout.font_size * 1.2 - self.layout.font_size;
-            //  let to_add = UiInstance {
-            //      color: self.color,
-            //      border_color: RGBA::ZERO,
-            //      border: [0; 4],
-            //       pos: Vec2::new(pos.x as i16, (pos.y - scale * 0.5) as i16),
-            //      size: Vec2::new(
-            //          2 * info.scale_factor as i16,
-            //          (self.layout.font_size * info.scale_factor + scale) as i16,
-            //      ),
-            //      corner: 0,
-            //  };
-            //    ressources.add(MatType::Basic, to_add, info);
-        }
-    }
-
-    fn is_ticking(&self) -> bool {
-        self.cursor.is_some()
     }
 }
 
@@ -172,7 +137,6 @@ impl Default for Text {
             align: Align::default(),
 
             selectable: true,
-            cursor: None,
 
             dirty: true,
         }
