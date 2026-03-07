@@ -173,19 +173,18 @@ impl Ui {
         if let Some(mut parent) = element.parent {
             let parent = unsafe { parent.as_mut() };
 
-            if let Some(i) = parent.childs.iter().position(|c| c.id == element.id) {
-                element.remove_residue(self);
-                self.layout_changed();
-                let removed = parent.childs.remove(i);
+            let i = parent.childs.element_offset(&element).unwrap();
 
-                for shifted in &mut parent.childs[i..] {
-                    shifted.update_ptrs(self);
-                }
-                Some(removed)
-            } else {
-                panic!("Child to remove not found: {}", element.id);
+            element.remove_residue(self);
+            self.layout_changed();
+            let removed = parent.childs.remove(i);
+
+            for shifted in &mut parent.childs[i..] {
+                shifted.update_ptrs(self);
             }
-        } else if let Some(i) = self.elements.iter().position(|c| c.id == element.id) {
+            Some(removed)
+        } else {
+            let i = self.elements.element_offset(&element).unwrap();
             element.remove_residue(self);
             let removed = self.elements.remove(i);
 
@@ -195,8 +194,6 @@ impl Ui {
                 shifted.update_ptrs(self);
             }
             Some(removed)
-        } else {
-            panic!("Child to remove not found: {}", element.id);
         }
     }
 

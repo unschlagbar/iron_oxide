@@ -146,7 +146,7 @@ impl TextLayout {
             // Handle normal text flow
             let glyph = font.get_glyph(char);
             let advance = glyph.advance * font_size;
-            let next_width = cursor.x + advance;
+            let mut next_width = cursor.x + advance;
 
             let would_overflow = next_width > container_size.x;
 
@@ -157,8 +157,6 @@ impl TextLayout {
                         let current_line = self.lines.last_mut().unwrap();
                         current_line.end = split_point;
 
-                        let range = split_point..self.glyphs.len();
-
                         // remove leading spaces in split line (CSS behavior)
                         if self.white_space.collapses_spaces()
                             && let Some(g) = self.glyphs.last()
@@ -166,6 +164,8 @@ impl TextLayout {
                         {
                             self.glyphs.pop();
                         }
+
+                        let range = split_point..self.glyphs.len();
 
                         let first_char = &self.glyphs[(split_point - 1).max(0)];
                         let first_pos = first_char.pos.x;
@@ -175,6 +175,7 @@ impl TextLayout {
                         let last_width = last_char.pos.x + last_char.size.x;
 
                         let new_width = last_width - first_width;
+                        next_width = new_width + advance;
 
                         for g in &mut self.glyphs[range.clone()] {
                             g.pos.x -= first_pos;
@@ -192,6 +193,7 @@ impl TextLayout {
                         width = width.max(cursor.x);
 
                         cursor.x = new_width;
+                        cursor.y += line_height;
                         split_point = usize::MAX;
 
                     // Try split in words

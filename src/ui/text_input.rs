@@ -326,8 +326,8 @@ impl Widget for TextInput {
                     glyph.pos.x + glyph.size.x
                 } else {
                     self.layout.glyphs[end].pos.x
-                }.ceil();
-
+                }
+                .ceil();
 
                 let to_add = UiInstance {
                     color: RGBA::rgba(0, 255, 0, 150),

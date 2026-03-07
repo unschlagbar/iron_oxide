@@ -52,6 +52,29 @@ impl Material {
             desc_set: vk::DescriptorSet::null(),
         }
     }
+    pub fn new_slang<T: VertexDescription>(
+        base: &VkBase,
+        window_size: PhysicalSize<u32>,
+        render_pass: vk::RenderPass,
+        descriptor_set_layouts: &[vk::DescriptorSetLayout],
+        shaders: &[u8],
+    ) -> Self {
+        debug_assert!(align_of::<T>() >= 4);
+        Self {
+            buffer: Buffer::null(),
+            pipeline: Pipeline::create_ui_slang::<T>(
+                base,
+                window_size,
+                render_pass,
+                descriptor_set_layouts,
+                shaders,
+            ),
+            #[cfg(debug_assertions)]
+            instance_type: TypeId::of::<T>(),
+            stride: size_of::<T>(),
+            desc_set: vk::DescriptorSet::null(),
+        }
+    }
 }
 
 pub struct DrawBatch {

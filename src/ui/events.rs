@@ -66,6 +66,7 @@ impl TickEvent {
 #[derive(Debug)]
 pub struct QueuedEvent {
     pub element_id: u32,
+    pub element_ref: UiRef,
     pub element_name: &'static str,
     pub event: UiEvent,
     pub message: u16,
@@ -75,6 +76,7 @@ impl QueuedEvent {
     pub fn new(element: &UiElement, event: UiEvent, message: u16) -> Self {
         Self {
             element_id: element.id,
+            element_ref: UiRef::new_ref(element),
             element_name: element.name,
             event,
             message,

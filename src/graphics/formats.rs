@@ -147,6 +147,11 @@ impl RGBA {
         RGBA { r, g, b, a }
     }
 
+    pub const fn rgb_a(mut rgb: RGBA, a: u8) -> Self {
+        rgb.a = a;
+        rgb
+    }
+
     pub const fn rgb(r: u8, g: u8, b: u8) -> Self {
         RGBA { r, g, b, a: 255 }
     }

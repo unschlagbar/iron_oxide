@@ -4,11 +4,8 @@ use crate::{
     graphics::{Ressources, formats::RGBA},
     primitives::Vec2,
     ui::{
-        Align, BuildContext, DrawInfo, TextInput, UiElement, UiRef,
-        materials::MSDFInstance,
-        text_layout::TextLayout,
-        units::FlexAlign,
-        widget::Widget,
+        Align, BuildContext, DrawInfo, TextInput, UiElement, UiRef, materials::MSDFInstance,
+        text_layout::TextLayout, units::FlexAlign, widget::Widget,
     },
 };
 

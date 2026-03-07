@@ -229,6 +229,11 @@ impl VkBase {
 
         let mut features2 = vk::PhysicalDeviceFeatures2::default();
 
+        let mut features11 = vk::PhysicalDeviceVulkan11Features {
+            shader_draw_parameters: vk::TRUE,
+            ..Default::default()
+        };
+
         let extensions: &[&CStr] = {
             if capabilities != 0 {
                 &[
@@ -258,6 +263,8 @@ impl VkBase {
             p_queue_create_infos: queue_create_infos.as_ptr(),
             ..Default::default()
         };
+
+        create_info = create_info.push_next(&mut features11);
 
         if capabilities != 0 {
             create_info = create_info

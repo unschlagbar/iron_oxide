@@ -128,6 +128,10 @@ impl Widget for Button {
     }
 
     fn interaction(&mut self, element: UiRef, ui: &mut Ui, event: UiEvent) -> InputResult {
+        if self.state == ButtonState::Disabled && !ui.selection.is_captured(element) {
+            return InputResult::New;
+        }
+
         let mut result = InputResult::New;
 
         let old_state = self.state;
@@ -150,7 +154,7 @@ impl Widget for Button {
                 }
             }
             UiEvent::Move => {
-                if self.state != ButtonState::Pressed {
+                if self.state == ButtonState::Normal {
                     self.state = ButtonState::Hovered;
                 }
             }
@@ -189,7 +193,7 @@ impl Default for Button {
             corner: [UiUnit::Px(5.0); 4],
             shadow: Shadow::default(),
             flex_direction: FlexDirection::Horizontal,
-            state: ButtonState::Normal,
+            state: ButtonState::default(),
             callback: None,
             cursor: CursorIcon::Pointer,
             message: 0,
@@ -197,8 +201,9 @@ impl Default for Button {
     }
 }
 
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy, Default)]
 pub enum ButtonState {
+    #[default]
     Normal,
     Hovered,
     Pressed,
