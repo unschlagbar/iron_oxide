@@ -1,5 +1,5 @@
 use crate::{
-    graphics::{Ressources, formats::RGBA},
+    graphics::{Resources, formats::RGBA},
     primitives::Vec2,
     ui::{
         BuildContext, DrawInfo, UiElement, UiRef, UiUnit,
@@ -26,8 +26,8 @@ impl Widget for Image {
         context.apply_size(context.available_space);
     }
 
-    fn draw_data(&mut self, element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
-        let atlas_entry = &ressources.texture_atlas.images[self.atlas_index as usize];
+    fn draw_data(&mut self, element: UiRef, resources: &mut Resources, info: &mut DrawInfo) {
+        let atlas_entry = &resources.texture_atlas.images[self.atlas_index as usize];
         let to_add = AtlasInstance {
             color: self.color,
             pos: Vec2::new(element.pos.x as f32, element.pos.y as f32),
@@ -35,7 +35,7 @@ impl Widget for Image {
             uv_start: atlas_entry.uv_start,
             uv_size: atlas_entry.uv_size,
         };
-        ressources.add(MatType::Atlas, to_add, info);
+        resources.add(MatType::Atlas, to_add, info);
     }
 }
 

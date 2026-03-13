@@ -20,7 +20,7 @@ use crate::{
 pub const MAX_IMGS: u32 = 3;
 
 #[derive(Debug)]
-pub struct Ressources {
+pub struct Resources {
     pub mem_manager: MemManager,
     pub materials: Vec<Material>,
     pub draw_batches: Vec<DrawBatch>,
@@ -33,7 +33,7 @@ pub struct Ressources {
     pub texture_atlas: TextureAtlas,
 }
 
-impl Ressources {
+impl Resources {
     pub fn new(base: &VkBase) -> Self {
         let mut mem_manager = MemManager::new(base);
         mem_manager.allocate_memory(base, mem_manager.host_visible, 5_000_000, 0);

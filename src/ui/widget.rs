@@ -3,7 +3,7 @@ use std::any::Any;
 use winit::event::KeyEvent;
 
 use crate::{
-    graphics::Ressources,
+    graphics::Resources,
     primitives::Vec2,
     ui::{
         BuildContext, InputResult, Ui, UiElement, UiEvent, UiRef,
@@ -19,7 +19,7 @@ pub trait Widget: Any + 'static {
 
     fn predict_size(&mut self, context: &mut BuildContext) {}
 
-    fn draw_data(&mut self, element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {}
+    fn draw_data(&mut self, element: UiRef, resources: &mut Resources, info: &mut DrawInfo) {}
 
     fn interaction(&mut self, element: UiRef, ui: &mut Ui, event: UiEvent) -> InputResult {
         InputResult::None
@@ -67,6 +67,20 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
 
     fn wrap(self, name: &'static str) -> UiElement {
         self.wrap_childs(name, Vec::new())
+    }
+
+    fn wrap_flags(self, name: &'static str, flags: ElementFlags) -> UiElement {
+        UiElement {
+            id: u32::MAX,
+            name,
+            flags,
+            size: Vec2::default(),
+            pos: Vec2::default(),
+            parent: None,
+            childs: Vec::new(),
+            widget: Box::new(self),
+            z_index: 0,
+        }
     }
 
     fn wrap_transparent(self, name: &'static str) -> UiElement {

@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use super::{BuildContext, UiElement};
 use crate::{
-    graphics::Ressources,
+    graphics::Resources,
     ui::{ButtonContext, DrawInfo, Ui, UiEvent, UiRef, system::InputResult, widget::Widget},
 };
 
@@ -30,8 +30,8 @@ impl<T: Widget> Widget for Ticking<T> {
         self.inner.predict_size(context);
     }
 
-    fn draw_data(&mut self, element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
-        self.inner.draw_data(element, ressources, info)
+    fn draw_data(&mut self, element: UiRef, resources: &mut Resources, info: &mut DrawInfo) {
+        self.inner.draw_data(element, resources, info)
     }
 
     fn tick(&mut self, element: UiRef, ui: &mut Ui) {

@@ -8,9 +8,9 @@ use winit::{event::KeyEvent, window::CursorIcon};
 
 use super::{BuildContext, Text, Ui, UiEvent, system::InputResult};
 use crate::{
-    graphics::Ressources,
+    graphics::Resources,
     primitives::Vec2,
-    ui::{Font, TextInput, UiRef, widget::Widget},
+    ui::{Font, TextInput, UiRef, build_context::BuildPass, widget::Widget},
 };
 
 pub struct UiElement {
@@ -62,47 +62,69 @@ impl UiElement {
         }
     }
 
-    fn childs_mut<'a>(&mut self) -> &'a mut Vec<Self> {
-        unsafe {
-            let childs = &mut self.childs;
-            &mut *(childs as *mut Vec<Self>)
-        }
-    }
-
     pub fn build(&mut self, context: &mut BuildContext) {
+        if self.flags.contains(ElementFlags::Disabled) {
+            return;
+        }
+
         context.z_index = self.z_index;
         context.element_pos = Vec2::new(self.pos.x as f32, self.pos.y as f32);
         context.element_size = Vec2::new(self.size.x as f32, self.size.y as f32);
 
-        let childs = self.childs_mut();
-        self.widget.build_layout(childs, context);
+        let (widget, childs) = (&mut self.widget, &mut self.childs);
+        widget.build_layout(childs, context);
 
         self.pos = Vec2::new(context.element_pos.x as i16, context.element_pos.y as i16);
     }
 
     pub fn build_size(&mut self, context: &mut BuildContext) {
+        if self.flags.contains(ElementFlags::Disabled) {
+            return;
+        }
+
+        if self.flags.contains(ElementFlags::IsFill) {
+            match context.pass {
+                BuildPass::First => return,
+                BuildPass::Second => self.flags.remove(ElementFlags::IsFill),
+            }
+        } else {
+            if !matches!(context.pass, BuildPass::First) {
+                return;
+            }
+        }
+
         context.z_index = self.z_index;
 
-        let childs = self.childs_mut();
-        self.widget.build_size(childs, context);
+        let (widget, childs) = (&mut self.widget, &mut self.childs);
+        widget.build_size(childs, context);
 
         self.size = Vec2::new(context.element_size.x as i16, context.element_size.y as i16);
     }
 
     pub(crate) fn predict_size(&mut self, context: &mut BuildContext) {
-        self.widget.predict_size(context);
+        if !self.flags.contains(ElementFlags::Disabled) {
+            context.is_fill = false;
+            self.widget.predict_size(context);
+
+            if context.is_fill {
+                self.flags.set(ElementFlags::IsFill, true);
+            }
+        }
     }
 
-    pub fn get_draw_data(&mut self, ressources: &mut Ressources, info: DrawInfo) {
+    pub fn get_draw_data(&mut self, resources: &mut Resources, info: DrawInfo) {
+        if self.flags.contains(ElementFlags::Disabled) {
+            return;
+        }
         let mut inner_info = info.inner(self.z_index);
 
         if self.flags.contains(ElementFlags::Visible) {
             let element = UiRef::new(self);
-            self.widget.draw_data(element, ressources, &mut inner_info);
+            self.widget.draw_data(element, resources, &mut inner_info);
         }
 
         for child in &mut self.childs {
-            child.get_draw_data(ressources, inner_info);
+            child.get_draw_data(resources, inner_info);
         }
     }
 
@@ -309,7 +331,10 @@ bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct ElementFlags: u8 {
         const Visible = 0b00000001;
-        const Transparent = 0b00000010;
+        const Disabled = 0b00000010;
+        const Transparent = 0b00000100;
+
+        const IsFill = 0b00001000;
     }
 }
 

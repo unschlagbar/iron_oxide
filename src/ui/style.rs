@@ -74,6 +74,15 @@ impl UiRect {
         }
     }
 
+    pub const fn left_auto() -> Self {
+        Self {
+            left: UiUnit::Fit,
+            top: UiUnit::Zero,
+            right: UiUnit::Zero,
+            bottom: UiUnit::Zero,
+        }
+    }
+
     pub const fn top(pixel: f32) -> Self {
         Self {
             left: UiUnit::Zero,
@@ -101,16 +110,8 @@ impl UiRect {
         }
     }
 
-    pub fn x(&self, context: &BuildContext) -> f32 {
-        self.left.pixelx(context) + self.right.pixelx(context)
-    }
-
-    pub fn y(&self, context: &BuildContext) -> f32 {
-        self.top.pixely(context) + self.bottom.pixely(context)
-    }
-
     pub fn start(&self, context: &BuildContext) -> Vec2<f32> {
-        Vec2::new(self.left.pixelx(context), self.top.pixely(context))
+        Vec2::new(self.left.autox(context), self.top.autoy(context))
     }
 
     pub fn end(&self, context: &BuildContext) -> Vec2<f32> {
@@ -120,7 +121,7 @@ impl UiRect {
     pub fn size(&self, context: &BuildContext) -> Vec2<f32> {
         Vec2::new(
             self.left.pixelx(context) + self.right.pixelx(context),
-            self.top.pixely(context) + self.bottom.pixelx(context),
+            self.top.pixely(context) + self.bottom.pixely(context),
         )
     }
 
@@ -141,7 +142,7 @@ impl Default for UiRect {
 }
 
 #[derive(Default, Debug, Clone, Copy)]
-pub enum FlexDirection {
+pub enum FlexAxis {
     #[default]
     Vertical,
     Horizontal,

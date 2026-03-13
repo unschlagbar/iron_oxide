@@ -19,7 +19,7 @@ pub use asset_manager::AssetManager;
 pub use image::VulkanImage;
 pub use memory_manager::MemManager;
 pub use pipeline::Pipeline;
-pub use ressource_manager::Ressources;
+pub use ressource_manager::Resources;
 pub use shader_modul::create_shader_modul;
 pub use single_time_commands::SinlgeTimeCommands;
 pub use swapchain::Swapchain;

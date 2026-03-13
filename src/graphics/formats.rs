@@ -193,6 +193,37 @@ impl Default for RGBA {
     }
 }
 
+#[macro_export]
+macro_rules! hex_rgba {
+    ($hex:literal) => {{
+        const S: &str = $hex;
+
+        const fn hex_val(b: u8) -> u8 {
+            match b {
+                b'0'..=b'9' => b - b'0',
+                b'a'..=b'f' => b - b'a' + 10,
+                b'A'..=b'F' => b - b'A' + 10,
+                _ => panic!("invalid hex"),
+            }
+        }
+
+        const fn parse(s: &str) -> RGBA {
+            let bytes = s.as_bytes();
+
+            let offset = if bytes[0] == b'#' { 1 } else { 0 };
+
+            RGBA {
+                r: (hex_val(bytes[offset]) << 4) | hex_val(bytes[offset + 1]),
+                g: (hex_val(bytes[offset + 2]) << 4) | hex_val(bytes[offset + 3]),
+                b: (hex_val(bytes[offset + 4]) << 4) | hex_val(bytes[offset + 5]),
+                a: 255,
+            }
+        }
+
+        parse(S)
+    }};
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Default)]
 pub struct Color {
     pub r: f32,

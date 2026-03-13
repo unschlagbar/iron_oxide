@@ -1,7 +1,7 @@
 use std::slice;
 
 use crate::{
-    graphics::{Ressources, formats::RGBA},
+    graphics::{Resources, formats::RGBA},
     primitives::Vec2,
     ui::{
         Align, BuildContext, DrawInfo, TextInput, UiElement, UiRef, materials::MSDFInstance,
@@ -48,28 +48,16 @@ impl Widget for Text {
         let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
         let align_size = context.size();
 
-        let font = if let Some(font) = &self.layout.font {
-            font
-        } else {
-            context.font
-        };
-        let line_height = font.line_height * self.layout.font_size;
-
         context.place_child(context.element_size);
 
-        let lines = self.layout.lines.len() as f32;
-        if self.align.vertical_centered() {
-            offset.y += (align_size.y - line_height * lines) * 0.5;
-        }
+        offset.y = self.align.get_y(align_size.y, self.layout.size.y, offset.y);
 
         context.apply_pos(offset);
         offset.y = offset.y.floor();
 
         for line in &self.layout.lines {
             let mut offset = offset;
-            if self.align.horizontal_centered() {
-                offset.x += (align_size.x - line.width) * 0.5;
-            }
+            offset.x = self.align.get_x(align_size.x, line.width, offset.x);
 
             for c in &mut self.layout.glyphs[line.range()] {
                 c.pos += offset;
@@ -95,11 +83,11 @@ impl Widget for Text {
         ctx.predict_child(self.layout.size);
     }
 
-    fn draw_data(&mut self, _element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
+    fn draw_data(&mut self, _element: UiRef, resources: &mut Resources, info: &mut DrawInfo) {
         let font = self.layout.font(info.font);
         let mat = font.material();
 
-        let batch = ressources.batch_data::<MSDFInstance>(mat, info);
+        let batch = resources.batch_data::<MSDFInstance>(mat, info);
         batch.reserve(self.layout.glyphs.len() * size_of::<MSDFInstance>());
 
         for glyph in &self.layout.glyphs {

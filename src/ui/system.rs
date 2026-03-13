@@ -10,7 +10,7 @@ use winit::window::CursorIcon;
 
 use super::{BuildContext, Font, UiElement, UiEvent};
 use crate::{
-    graphics::{Ressources, VkBase},
+    graphics::{Resources, VkBase},
     primitives::Vec2,
     ui::{
         Absolute, DrawInfo, QueuedEvent, Ticking, UiRef,
@@ -227,20 +227,21 @@ impl Ui {
     }
 
     pub(crate) fn build(&mut self) {
-        let mut build_context = BuildContext::default(&self.font, self.size, self.scale_factor);
+        let mut context = BuildContext::default(&self.font, self.size, self.scale_factor);
 
         for element in &mut self.elements {
-            element.build_size(&mut build_context);
+            element.build_size(&mut context);
         }
 
-        let mut build_context = BuildContext::default(&self.font, self.size, self.scale_factor);
+        context.used_main = 0.0;
+        context.used_cross = 0.0;
 
         for element in &mut self.elements {
-            element.build(&mut build_context);
+            element.build(&mut context);
         }
     }
 
-    pub(crate) fn get_instaces(&mut self, ressources: &mut Ressources) {
+    pub(crate) fn get_instaces(&mut self, resources: &mut Resources) {
         self.dirty = DirtyFlags::None;
 
         if !self.visible || self.elements.is_empty() {
@@ -257,7 +258,7 @@ impl Ui {
         };
 
         for raw_e in &mut self.elements {
-            raw_e.get_draw_data(ressources, info);
+            raw_e.get_draw_data(resources, info);
         }
     }
 
@@ -435,7 +436,7 @@ impl Ui {
         !matches!(self.dirty, DirtyFlags::None)
     }
 
-    pub fn update(&mut self, base: &VkBase, ressources: &mut Ressources, start: usize) {
+    pub fn update(&mut self, base: &VkBase, resources: &mut Resources, start: usize) {
         if !self.visible || !self.is_dirty() {
             return;
         }
@@ -444,11 +445,11 @@ impl Ui {
             self.build();
         }
 
-        ressources.clear_batches();
+        resources.clear_batches();
 
-        self.get_instaces(ressources);
+        self.get_instaces(resources);
 
-        ressources.upload(base, start);
+        resources.upload(base, start);
     }
 }
 
@@ -545,7 +546,7 @@ bitflags! {
     #[derive(Debug, Clone, Copy, Default)]
     pub struct KeyModifiers: u8 {
         const Shift = 0b00000001;
-        const Strg = 0b00000010;
+        const Ctrg = 0b00000010;
         const Alt = 0b00000100;
     }
 }

@@ -1,9 +1,9 @@
 use super::{Align, BuildContext, UiElement, UiRect, UiUnit};
 use crate::{
-    graphics::{Ressources, formats::RGBA},
+    graphics::{Resources, formats::RGBA},
     primitives::Vec2,
     ui::{
-        FlexDirection, UiRef,
+        FlexAlign, FlexAxis, UiRef,
         element::DrawInfo,
         materials::{MatType, ShadowInstance, UiInstance},
         style::Shadow,
@@ -36,7 +36,8 @@ impl Widget for Absolute {
             context,
             size - padding,
             pos + self.padding.start(context),
-            FlexDirection::default(),
+            FlexAxis::default(),
+            FlexAlign::Start,
         );
 
         for child in childs {
@@ -50,7 +51,12 @@ impl Widget for Absolute {
 
         let mut size = Vec2::new(self.width.size_x(context), self.height.size_y(context));
 
-        let mut child_ctx = context.child(size - padding, Vec2::zero(), FlexDirection::default());
+        let mut child_ctx = context.child(
+            size - padding,
+            Vec2::zero(),
+            FlexAxis::default(),
+            FlexAlign::Start,
+        );
 
         for child in &mut *childs {
             child.predict_size(&mut child_ctx);
@@ -73,7 +79,7 @@ impl Widget for Absolute {
         context.apply_size(size);
     }
 
-    fn draw_data(&mut self, element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
+    fn draw_data(&mut self, element: UiRef, resources: &mut Resources, info: &mut DrawInfo) {
         let corner = self.corner[0].px_i16(element.size, info.scale_factor);
 
         if self.shadow.color != RGBA::ZERO {
@@ -84,7 +90,7 @@ impl Widget for Absolute {
                 blur: self.shadow.blur,
                 corner,
             };
-            ressources.add(MatType::Shadow, to_add, info);
+            resources.add(MatType::Shadow, to_add, info);
         }
 
         let to_add = UiInstance {
@@ -95,7 +101,7 @@ impl Widget for Absolute {
             size: element.size,
             corner,
         };
-        ressources.add(MatType::Basic, to_add, info);
+        resources.add(MatType::Basic, to_add, info);
     }
 }
 

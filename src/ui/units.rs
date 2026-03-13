@@ -1,3 +1,5 @@
+use core::f32;
+
 use crate::{primitives::Vec2, ui::BuildContext};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
@@ -61,13 +63,16 @@ impl UiUnit {
         }
     }
 
-    pub fn pre_size_x(&self, context: &BuildContext) -> f32 {
+    pub fn pre_size_x(&self, context: &mut BuildContext) -> f32 {
         match *self {
             Self::Undefined => 0.0,
             Self::Zero => 0.0,
             Self::Px(value) => value * context.scale_factor,
             Self::Fit => 0.0,
-            Self::Fill(_) => panic!(),
+            Self::Fill(weight) => {
+                context.fill_x(weight);
+                0.0
+            }
             Self::Relative(value) | Self::RelativeWidth(value) => context.available_space.x * value,
             Self::RelativeHeight(value) => context.available_space.y * value,
             Self::RelativeMax(value) => context.available_space.max() * value,
@@ -75,13 +80,16 @@ impl UiUnit {
         }
     }
 
-    pub fn pre_size_y(&self, context: &BuildContext) -> f32 {
+    pub fn pre_size_y(&self, context: &mut BuildContext) -> f32 {
         match *self {
             Self::Undefined => 0.0,
             Self::Zero => 0.0,
             Self::Px(value) => value * context.scale_factor,
             Self::Fit => 0.0,
-            Self::Fill(_) => panic!(),
+            Self::Fill(weight) => {
+                context.fill_y(weight);
+                0.0
+            }
             Self::Relative(value) | Self::RelativeHeight(value) => {
                 context.available_space.y * value
             }
@@ -92,38 +100,74 @@ impl UiUnit {
     }
 
     #[inline]
-    pub fn pixelx(&self, context: &BuildContext) -> f32 {
-        let parent_size = context.available_space;
+    pub fn autox(&self, context: &BuildContext) -> f32 {
+        let space = context.available_space;
         match *self {
             Self::Undefined => 0.0,
             Self::Zero => 0.0,
             Self::Px(pixel) => pixel * context.scale_factor,
-            Self::Fit => f32::MAX,
+            Self::Fit => space.x - context.element_size.x,
             Self::Fill(_) => {
                 panic!()
             }
-            Self::Relative(percent) | Self::RelativeWidth(percent) => parent_size.x * percent,
-            Self::RelativeHeight(percent) => parent_size.y * percent,
-            Self::RelativeMax(percent) => parent_size.max() * percent,
-            Self::RelativeMin(percent) => parent_size.min() * percent,
+            Self::Relative(percent) | Self::RelativeWidth(percent) => space.x * percent,
+            Self::RelativeHeight(percent) => space.y * percent,
+            Self::RelativeMax(percent) => space.max() * percent,
+            Self::RelativeMin(percent) => space.min() * percent,
+        }
+    }
+
+    #[inline]
+    pub fn autoy(&self, context: &BuildContext) -> f32 {
+        let space = context.available_space;
+        match *self {
+            Self::Undefined => 0.0,
+            Self::Zero => 0.0,
+            Self::Px(pixel) => pixel * context.scale_factor,
+            Self::Fit => space.y - context.element_size.y,
+            Self::Fill(_) => {
+                panic!()
+            }
+            Self::Relative(percent) | Self::RelativeHeight(percent) => space.y * percent,
+            Self::RelativeWidth(percent) => space.x * percent,
+            Self::RelativeMax(percent) => space.max() * percent,
+            Self::RelativeMin(percent) => space.min() * percent,
+        }
+    }
+
+    #[inline]
+    pub fn pixelx(&self, context: &BuildContext) -> f32 {
+        let space = context.available_space;
+        match *self {
+            Self::Undefined => 0.0,
+            Self::Zero => 0.0,
+            Self::Px(pixel) => pixel * context.scale_factor,
+            Self::Fit => 0.0,
+            Self::Fill(_) => {
+                panic!()
+            }
+            Self::Relative(percent) | Self::RelativeWidth(percent) => space.x * percent,
+            Self::RelativeHeight(percent) => space.y * percent,
+            Self::RelativeMax(percent) => space.max() * percent,
+            Self::RelativeMin(percent) => space.min() * percent,
         }
     }
 
     #[inline]
     pub fn pixely(&self, context: &BuildContext) -> f32 {
-        let parent_size = context.available_space;
+        let space = context.available_space;
         match *self {
             Self::Undefined => 0.0,
             Self::Zero => 0.0,
             Self::Px(pixel) => pixel * context.scale_factor,
-            Self::Fit => f32::MAX,
+            Self::Fit => 0.0,
             Self::Fill(_) => {
                 panic!()
             }
-            Self::Relative(percent) | Self::RelativeHeight(percent) => parent_size.y * percent,
-            Self::RelativeWidth(percent) => parent_size.x * percent,
-            Self::RelativeMax(percent) => parent_size.max() * percent,
-            Self::RelativeMin(percent) => parent_size.min() * percent,
+            Self::Relative(percent) | Self::RelativeHeight(percent) => space.y * percent,
+            Self::RelativeWidth(percent) => space.x * percent,
+            Self::RelativeMax(percent) => space.max() * percent,
+            Self::RelativeMin(percent) => space.min() * percent,
         }
     }
 
@@ -163,23 +207,39 @@ impl Align {
     #[inline]
     pub fn get_pos(&self, space: Vec2<f32>, size: Vec2<f32>, offset: Vec2<f32>) -> Vec2<f32> {
         match self {
-            Align::Center => (space - size) * 0.5 + offset,
-            Align::Top => Vec2::new((space.x - size.x) * 0.5 + offset.x, offset.y),
-            Align::TopRight => Vec2::new(space.x - size.x - offset.x, offset.x),
-            Align::Right => Vec2::new(
+            Self::Center => (space - size) * 0.5 + offset,
+            Self::Top => Vec2::new((space.x - size.x) * 0.5 + offset.x, offset.y),
+            Self::TopRight => Vec2::new(space.x - size.x - offset.x, offset.x),
+            Self::Right => Vec2::new(
                 space.x - size.x - offset.x,
                 (space.y - size.y) * 0.5 + offset.y,
             ),
-            Align::BottomRight => {
+            Self::BottomRight => {
                 Vec2::new(space.x - size.x - offset.x, space.y - size.y - offset.y)
             }
-            Align::Bottom => Vec2::new(
+            Self::Bottom => Vec2::new(
                 (space.x - size.x) * 0.5 + offset.x,
                 space.y - size.y - offset.y,
             ),
-            Align::BottomLeft => Vec2::new(offset.x, space.y - size.y - offset.y),
-            Align::Left => Vec2::new(offset.x, (space.y - size.y) * 0.5 + offset.y),
-            Align::TopLeft => offset,
+            Self::BottomLeft => Vec2::new(offset.x, space.y - size.y - offset.y),
+            Self::Left => Vec2::new(offset.x, (space.y - size.y) * 0.5 + offset.y),
+            Self::TopLeft => offset,
+        }
+    }
+
+    pub fn get_x(&self, space: f32, size: f32, offset: f32) -> f32 {
+        match self {
+            Self::Right | Self::TopRight | Self::BottomRight => space - size + offset,
+            Self::Center | Self::Top | Self::Bottom => (space - size) * 0.5 + offset,
+            _ => offset,
+        }
+    }
+
+    pub fn get_y(&self, space: f32, size: f32, offset: f32) -> f32 {
+        match self {
+            Self::Left | Self::Center | Self::Right => (space - size) * 0.5 + offset,
+            Self::BottomLeft | Self::Bottom | Self::BottomRight => space - size + offset,
+            _ => offset,
         }
     }
 

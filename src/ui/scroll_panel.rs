@@ -4,10 +4,10 @@ use winit::event::MouseScrollDelta;
 
 use super::{BuildContext, UiElement};
 use crate::{
-    graphics::Ressources,
+    graphics::Resources,
     primitives::Vec2,
     ui::{
-        DrawInfo, FlexDirection, Ui, UiEvent, UiRect, UiRef, UiUnit, system::InputResult,
+        DrawInfo, FlexAxis, Ui, UiEvent, UiRect, UiRef, UiUnit, system::InputResult,
         units::FlexAlign, widget::Widget,
     },
 };
@@ -30,7 +30,8 @@ impl Widget for ScrollPanel {
             context,
             available_size,
             child_start_pos + self.scroll_offset,
-            FlexDirection::Vertical,
+            FlexAxis::Vertical,
+            FlexAlign::Start,
         );
 
         for child in childs {
@@ -48,7 +49,12 @@ impl Widget for ScrollPanel {
             UiUnit::Fill(1.0).size_y(context),
         );
 
-        let mut child_ctx = context.child(size - padding, Vec2::zero(), FlexDirection::default());
+        let mut child_ctx = context.child(
+            size - padding,
+            Vec2::zero(),
+            FlexAxis::Horizontal,
+            FlexAlign::Start,
+        );
 
         for child in &mut *childs {
             child.predict_size(&mut child_ctx);
@@ -106,7 +112,7 @@ impl Widget for ScrollPanel {
         }
     }
 
-    fn draw_data(&mut self, element: UiRef, _: &mut Ressources, info: &mut DrawInfo) {
+    fn draw_data(&mut self, element: UiRef, _: &mut Resources, info: &mut DrawInfo) {
         if element.size.y < self.size.y as i16 {
             info.clip(element.pos.into_f32(), element.size.into_f32());
         }

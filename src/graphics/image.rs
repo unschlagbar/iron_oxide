@@ -8,7 +8,7 @@ use ash::vk::{
 };
 use png::Encoder;
 
-use crate::graphics::{Ressources, SinlgeTimeCommands};
+use crate::graphics::{Resources, SinlgeTimeCommands};
 
 use super::VkBase;
 
@@ -191,14 +191,14 @@ impl VulkanImage {
     pub fn save_to_png(
         &self,
         base: &VkBase,
-        ressources: &mut Ressources,
+        resources: &mut Resources,
         cmd_pool: CommandPool,
         extent: Extent3D,
         path: &str,
     ) {
         let size = extent.width as usize * extent.height as usize * 4;
 
-        let (staging_buffer, offset) = ressources.mem_manager.create_buffer(
+        let (staging_buffer, offset) = resources.mem_manager.create_buffer(
             base,
             0,
             size as u64,
@@ -239,7 +239,7 @@ impl VulkanImage {
         let mut buf: Vec<u8> = Vec::with_capacity(size);
 
         unsafe {
-            let src = ressources.mem_manager.memory_pool[0].get_ptr(offset as usize);
+            let src = resources.mem_manager.memory_pool[0].get_ptr(offset as usize);
             buf.as_mut_ptr()
                 .copy_from_nonoverlapping(src as *const u8, size);
             buf.set_len(size);
@@ -257,7 +257,7 @@ impl VulkanImage {
         let mut writer = encoder.write_header().unwrap();
         writer.write_image_data(&buf).unwrap();
 
-        ressources.mem_manager.pop_buffer(base);
+        resources.mem_manager.pop_buffer(base);
     }
 
     pub fn destroy_view(&mut self, device: &ash::Device) {

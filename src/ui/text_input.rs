@@ -7,7 +7,8 @@ use winit::{
 };
 
 use crate::{
-    graphics::{Ressources, formats::RGBA},
+    graphics::{Resources, formats::RGBA},
+    hex_rgba,
     primitives::Vec2,
     ui::{
         Align, BuildContext, DrawInfo, InputResult, QueuedEvent, Text, TextInputContext, Ui,
@@ -22,6 +23,9 @@ use crate::{
 };
 
 pub struct TextInput {
+    pub placeholder: &'static str,
+    pub placeholder_color: RGBA,
+
     pub text: String,
     pub color: RGBA,
     pub layout: TextLayout,
@@ -41,6 +45,9 @@ pub struct TextInput {
 impl TextInput {
     pub fn from(text: Text) -> Self {
         Self {
+            placeholder: "Text",
+            placeholder_color: RGBA::grey(150),
+
             text: text.text,
             color: text.color,
             layout: text.layout,
@@ -249,18 +256,14 @@ impl Widget for TextInput {
 
         context.place_child(context.element_size);
 
-        if self.align.vertical_centered() {
-            offset.y += (align_size.y - self.layout.size.y) * 0.5;
-        }
+        offset.y = self.align.get_y(align_size.y, self.layout.size.y, offset.y);
 
         context.apply_pos(offset);
         offset.y = offset.y.floor();
 
         for line in &self.layout.lines {
             let mut offset = offset;
-            if self.align.horizontal_centered() {
-                offset.x += (align_size.x - line.width) * 0.5;
-            }
+            offset.x = self.align.get_x(align_size.x, line.width, offset.x);
 
             for c in &mut self.layout.glyphs[line.range()] {
                 c.pos += offset;
@@ -289,10 +292,10 @@ impl Widget for TextInput {
         context.predict_child(Vec2::new(0.0, self.layout.size.y));
     }
 
-    fn draw_data(&mut self, element: UiRef, ressources: &mut Ressources, info: &mut DrawInfo) {
+    fn draw_data(&mut self, element: UiRef, resources: &mut Resources, info: &mut DrawInfo) {
         let font = self.layout.font(info.font);
         let mat = font.material();
-        let batch = ressources.batch_data::<MSDFInstance>(mat, info);
+        let batch = resources.batch_data::<MSDFInstance>(mat, info);
         batch.reserve(self.layout.glyphs.len() * size_of::<MSDFInstance>());
 
         for glyph in &self.layout.glyphs {
@@ -330,7 +333,7 @@ impl Widget for TextInput {
                 .ceil();
 
                 let to_add = UiInstance {
-                    color: RGBA::rgba(0, 255, 0, 150),
+                    color: hex_rgba!("#ff6b35"),
                     border_color: RGBA::ZERO,
                     border: [0; 4],
                     pos: Vec2::new(start_pos as i16, element.pos.y),
@@ -340,7 +343,7 @@ impl Widget for TextInput {
                     ),
                     corner: 0,
                 };
-                ressources.add(MatType::Basic, to_add, info);
+                resources.add(MatType::Basic, to_add, info);
             }
         } else if let Some(cursor) = &self.cursor
             && cursor.is_on
@@ -363,7 +366,7 @@ impl Widget for TextInput {
                 size: Vec2::new(((height as i16) / 12).max(1), height as i16),
                 corner: 0,
             };
-            ressources.add(MatType::Basic, to_add, info);
+            resources.add(MatType::Basic, to_add, info);
         }
     }
 
@@ -498,10 +501,13 @@ impl Widget for TextInput {
 impl Default for TextInput {
     fn default() -> Self {
         Self {
+            placeholder: "text",
+            placeholder_color: RGBA::grey(150),
+
             text: "Text".to_string(),
             color: RGBA::WHITE,
             layout: TextLayout::default(),
-            align: Align::default(),
+            align: Align::Left,
 
             selectable: true,
             focus_on_click: true,
