@@ -230,6 +230,12 @@ impl Ui {
         let mut context = BuildContext::default(&self.font, self.size, self.scale_factor);
 
         for element in &mut self.elements {
+            element.predict_size(&mut context);
+        }
+
+        context.next();
+
+        for element in &mut self.elements {
             element.build_size(&mut context);
         }
 

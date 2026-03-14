@@ -33,13 +33,13 @@ impl UiUnit {
         }
     }
 
-    pub fn size_x(&self, context: &BuildContext) -> f32 {
+    pub fn size_x(&self, context: &BuildContext, margin: f32) -> f32 {
         match *self {
             Self::Undefined => 0.0,
             Self::Zero => 0.0,
             Self::Px(value) => value * context.scale_factor,
             Self::Fit => context.available_space.x,
-            Self::Fill(weight) => context.fill_size_x(weight),
+            Self::Fill(weight) => context.fill_size_x(weight) - margin,
             Self::Relative(value) | Self::RelativeWidth(value) => context.available_space.x * value,
             Self::RelativeHeight(value) => context.available_space.y * value,
             Self::RelativeMax(value) => context.available_space.max() * value,
@@ -47,13 +47,13 @@ impl UiUnit {
         }
     }
 
-    pub fn size_y(&self, context: &BuildContext) -> f32 {
+    pub fn size_y(&self, context: &BuildContext, margin: f32) -> f32 {
         match *self {
             Self::Undefined => 0.0,
             Self::Zero => 0.0,
             Self::Px(value) => value * context.scale_factor,
             Self::Fit => context.available_space.y,
-            Self::Fill(weight) => context.fill_size_y(weight),
+            Self::Fill(weight) => context.fill_size_y(weight) - margin,
             Self::Relative(value) | Self::RelativeHeight(value) => {
                 context.available_space.y * value
             }

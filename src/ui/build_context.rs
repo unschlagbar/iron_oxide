@@ -5,7 +5,7 @@ use crate::{
 
 use super::Font;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum BuildPass {
     First,
     Second,
@@ -118,22 +118,14 @@ impl<'a> BuildContext<'a> {
 
     pub fn next(&mut self) {
         self.pass = BuildPass::Second;
+
+        //println!("context: {:#?}", self);
         self.predicted_main = self.used_main;
         self.predicted_cross = self.used_cross;
     }
 
     /// Gets the remaining space
-    pub fn remaining_space(&self) -> Vec2<f32> {
-        match self.flex_axis {
-            FlexAxis::Horizontal => {
-                self.available_space - Vec2::new(self.used_main, self.used_cross)
-            }
-            FlexAxis::Vertical => self.available_space - Vec2::new(self.used_cross, self.used_main),
-        }
-    }
-
-    /// Gets the remaining space
-    pub fn predicted_remaining_space(&self) -> Vec2<f32> {
+    pub fn predicted_space(&self) -> Vec2<f32> {
         match self.flex_axis {
             FlexAxis::Horizontal => self.available_space - Vec2::new(self.predicted_main, 0.0),
             FlexAxis::Vertical => self.available_space - Vec2::new(0.0, self.predicted_main),
@@ -141,43 +133,37 @@ impl<'a> BuildContext<'a> {
     }
 
     /// Gets the remaining space
-    pub fn size(&self) -> Vec2<f32> {
+    pub fn space(&self) -> Vec2<f32> {
         match self.flex_axis {
-            FlexAxis::Horizontal => Vec2::new(
-                self.available_space.x - self.used_main,
-                self.available_space.y,
-            ),
-            FlexAxis::Vertical => Vec2::new(
-                self.available_space.x,
-                self.available_space.y - self.used_main,
-            ),
+            FlexAxis::Horizontal => self.available_space - Vec2::new(self.used_main, 0.0),
+            FlexAxis::Vertical => self.available_space - Vec2::new(0.0, self.used_main),
         }
     }
 
     /// Places an element in the flow layout (similar to CSS block-level flex positioning)
-    pub fn place_child(&mut self, child_size: Vec2<f32>) {
+    pub fn place(&mut self, outer_size: Vec2<f32>) {
         match self.flex_axis {
             FlexAxis::Horizontal => {
-                self.used_main += child_size.x;
-                self.used_cross = self.used_cross.max(child_size.y);
+                self.used_main += outer_size.x;
+                self.used_cross = self.used_cross.max(outer_size.y);
             }
             FlexAxis::Vertical => {
-                self.used_main += child_size.y;
-                self.used_cross = self.used_cross.max(child_size.x);
+                self.used_main += outer_size.y;
+                self.used_cross = self.used_cross.max(outer_size.x);
             }
         }
     }
 
     /// Places an element in the flow layout (similar to CSS block-level flex positioning)
-    pub fn predict_child(&mut self, child_size: Vec2<f32>) {
+    pub fn predict(&mut self, outer_size: Vec2<f32>) {
         match self.flex_axis {
             FlexAxis::Horizontal => {
-                self.predicted_main += child_size.x;
-                self.predicted_cross = self.predicted_cross.max(child_size.y);
+                self.predicted_main += outer_size.x;
+                self.predicted_cross = self.predicted_cross.max(outer_size.y);
             }
             FlexAxis::Vertical => {
-                self.predicted_main += child_size.y;
-                self.predicted_cross = self.predicted_cross.max(child_size.x);
+                self.predicted_main += outer_size.y;
+                self.predicted_cross = self.predicted_cross.max(outer_size.x);
             }
         }
     }
@@ -215,23 +201,6 @@ impl<'a> BuildContext<'a> {
         }
     }
 
-    /// Gets the hard limited space
-    pub fn hard_size(&self, size: Vec2<f32>) -> Vec2<f32> {
-        Vec2::new(
-            if self.available_space.x == f32::MAX && matches!(self.flex_axis, FlexAxis::Vertical) {
-                self.used_cross.max(size.x)
-            } else {
-                self.available_space.x
-            },
-            if self.available_space.y == f32::MAX && matches!(self.flex_axis, FlexAxis::Horizontal)
-            {
-                self.used_cross.max(size.y)
-            } else {
-                self.available_space.y
-            },
-        )
-    }
-
     pub fn apply_size(&mut self, size: Vec2<f32>) {
         self.element_size = size;
     }
@@ -264,13 +233,13 @@ impl<'a> BuildContext<'a> {
     pub fn fill_size_y(&self, weight: f32) -> f32 {
         match self.flex_axis {
             FlexAxis::Horizontal => self.available_space.y,
-            FlexAxis::Vertical => self.predicted_remaining_space().y * (weight / self.fill_sum),
+            FlexAxis::Vertical => self.predicted_space().y * (weight / self.fill_sum),
         }
     }
 
     pub fn fill_size_x(&self, weight: f32) -> f32 {
         match self.flex_axis {
-            FlexAxis::Horizontal => self.predicted_remaining_space().x * (weight / self.fill_sum),
+            FlexAxis::Horizontal => self.predicted_space().x * (weight / self.fill_sum),
             FlexAxis::Vertical => self.available_space.x,
         }
     }

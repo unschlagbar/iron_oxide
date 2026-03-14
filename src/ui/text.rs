@@ -46,9 +46,9 @@ impl Text {
 impl Widget for Text {
     fn build_layout(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
         let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
-        let align_size = context.size();
+        let align_size = context.space();
 
-        context.place_child(context.element_size);
+        context.place(context.element_size);
 
         offset.y = self.align.get_y(align_size.y, self.layout.size.y, offset.y);
 
@@ -66,7 +66,7 @@ impl Widget for Text {
     }
 
     fn build_size(&mut self, _: &mut [UiElement], ctx: &mut BuildContext) {
-        ctx.place_child(self.layout.size);
+        ctx.place(self.layout.size);
         ctx.apply_size(self.layout.size);
     }
 
@@ -80,7 +80,7 @@ impl Widget for Text {
         };
 
         self.layout.build(text, ctx);
-        ctx.predict_child(self.layout.size);
+        ctx.predict(self.layout.size);
     }
 
     fn draw_data(&mut self, _element: UiRef, resources: &mut Resources, info: &mut DrawInfo) {

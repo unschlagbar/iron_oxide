@@ -77,20 +77,18 @@ impl UiElement {
         self.pos = Vec2::new(context.element_pos.x as i16, context.element_pos.y as i16);
     }
 
+    #[track_caller]
     pub fn build_size(&mut self, context: &mut BuildContext) {
         if self.flags.contains(ElementFlags::Disabled) {
             return;
         }
 
+        debug_assert_eq!(context.pass, BuildPass::Second);
+
         if self.flags.contains(ElementFlags::IsFill) {
-            match context.pass {
-                BuildPass::First => return,
-                BuildPass::Second => self.flags.remove(ElementFlags::IsFill),
-            }
+            self.flags.remove(ElementFlags::IsFill);
         } else {
-            if !matches!(context.pass, BuildPass::First) {
-                return;
-            }
+            return;
         }
 
         context.z_index = self.z_index;
@@ -103,11 +101,15 @@ impl UiElement {
 
     pub(crate) fn predict_size(&mut self, context: &mut BuildContext) {
         if !self.flags.contains(ElementFlags::Disabled) {
+            let widget = &mut self.widget;
             context.is_fill = false;
-            self.widget.predict_size(context);
+            widget.predict_size(context);
 
             if context.is_fill {
                 self.flags.set(ElementFlags::IsFill, true);
+            } else {
+                widget.build_size(&mut self.childs, context);
+                self.size = Vec2::new(context.element_size.x as i16, context.element_size.y as i16);
             }
         }
     }

@@ -49,7 +49,10 @@ impl Widget for Absolute {
     fn build_size(&mut self, childs: &mut [UiElement], context: &mut BuildContext) {
         let padding = self.padding.size(context);
 
-        let mut size = Vec2::new(self.width.size_x(context), self.height.size_y(context));
+        let mut size = Vec2::new(
+            self.width.size_x(context, 0.0),
+            self.height.size_y(context, 0.0),
+        );
 
         let mut child_ctx = context.child(
             size - padding,
@@ -75,7 +78,7 @@ impl Widget for Absolute {
             size.y = child_ctx.final_size().y + padding.y;
         }
 
-        context.place_child(size);
+        context.place(size);
         context.apply_size(size);
     }
 

@@ -252,9 +252,9 @@ impl TextInput {
 impl Widget for TextInput {
     fn build_layout(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
         let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
-        let align_size = context.size();
+        let align_size = context.space();
 
-        context.place_child(context.element_size);
+        context.place(context.element_size);
 
         offset.y = self.align.get_y(align_size.y, self.layout.size.y, offset.y);
 
@@ -273,7 +273,7 @@ impl Widget for TextInput {
 
     fn build_size(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
         let size = Vec2::new(context.fill_size_x(1.0), self.layout.size.y);
-        context.place_child(size);
+        context.place(size);
         context.apply_size(size);
     }
 
@@ -289,7 +289,7 @@ impl Widget for TextInput {
         };
 
         self.layout.build(text, context);
-        context.predict_child(Vec2::new(0.0, self.layout.size.y));
+        context.predict(Vec2::new(0.0, self.layout.size.y));
     }
 
     fn draw_data(&mut self, element: UiRef, resources: &mut Resources, info: &mut DrawInfo) {

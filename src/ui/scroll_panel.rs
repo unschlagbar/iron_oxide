@@ -45,8 +45,8 @@ impl Widget for ScrollPanel {
         let padding = self.padding.size(context);
 
         let size = Vec2::new(
-            UiUnit::Fill(1.0).size_x(context),
-            UiUnit::Fill(1.0).size_y(context),
+            UiUnit::Fill(1.0).size_x(context, 0.0),
+            UiUnit::Fill(1.0).size_y(context, 0.0),
         );
 
         let mut child_ctx = context.child(
@@ -59,6 +59,8 @@ impl Widget for ScrollPanel {
         for child in &mut *childs {
             child.predict_size(&mut child_ctx);
         }
+
+        context.next();
 
         for child in &mut *childs {
             child.build_size(&mut child_ctx);

@@ -53,7 +53,7 @@ impl Widget for Button {
             child.build(&mut child_ctx);
         }
 
-        context.place_child(size + margin);
+        context.place(size + margin);
         context.apply_pos(pos);
     }
 
@@ -61,7 +61,10 @@ impl Widget for Button {
         let margin = self.margin.size(context);
         let padding = self.padding.size(context);
 
-        let mut size = Vec2::new(self.width.size_x(context), self.height.size_y(context));
+        let mut size = Vec2::new(
+            self.width.size_x(context, margin.x),
+            self.height.size_y(context, margin.y),
+        );
 
         let mut child_ctx = context.child(
             size - padding,
@@ -72,12 +75,6 @@ impl Widget for Button {
 
         for child in &mut *childs {
             child.predict_size(&mut child_ctx);
-        }
-
-        // Size must be defined in order to work
-        //if any element depends on parent size while parent size
-        for child in &mut *childs {
-            child.build_size(&mut child_ctx);
         }
 
         child_ctx.next();
@@ -96,7 +93,7 @@ impl Widget for Button {
             size.y = child_ctx.final_size().y + padding.y;
         }
 
-        context.place_child(size + margin);
+        context.place(size + margin);
         context.apply_size(size);
     }
 
@@ -107,7 +104,7 @@ impl Widget for Button {
         );
         let margin = self.margin.size(context);
 
-        context.predict_child(size + margin);
+        context.predict(size + margin);
     }
 
     fn draw_data(&mut self, element: UiRef, resources: &mut Resources, info: &mut DrawInfo) {
