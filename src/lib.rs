@@ -5,6 +5,7 @@ pub mod physics2d;
 pub mod primitives;
 pub mod rand;
 pub mod security;
+pub mod serial;
 
 #[cfg(feature = "vulkan")]
 pub mod graphics;
