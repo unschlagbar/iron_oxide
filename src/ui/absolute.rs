@@ -65,6 +65,8 @@ impl Widget for Absolute {
             child.predict_size(&mut child_ctx);
         }
 
+        child_ctx.next();
+
         // Size must be defined in order to work
         for child in childs {
             child.build_size(&mut child_ctx);

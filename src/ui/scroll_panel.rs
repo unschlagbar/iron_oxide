@@ -60,7 +60,7 @@ impl Widget for ScrollPanel {
             child.predict_size(&mut child_ctx);
         }
 
-        context.next();
+        child_ctx.next();
 
         for child in &mut *childs {
             child.build_size(&mut child_ctx);
