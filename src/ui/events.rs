@@ -16,6 +16,7 @@ pub enum UiEvent {
     End,
     Submit,
     UnFocus,
+    TextInput,
 }
 
 impl UiEvent {

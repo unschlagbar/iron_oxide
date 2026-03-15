@@ -32,7 +32,13 @@ impl UiRef {
 
     #[allow(unused)]
     #[inline]
-    pub fn downcast_mut<'a, T: Widget>(&mut self, ui: &'a mut Ui) -> Option<&'a mut T> {
+    pub fn try_downcast_mut<'a, T: Widget>(&mut self, ui: &'a mut Ui) -> Option<&'a mut T> {
+        unsafe { self.inner.as_mut().try_downcast_mut() }
+    }
+
+    #[allow(unused)]
+    #[inline]
+    pub fn downcast_mut<'a, T: Widget>(&mut self, ui: &'a mut Ui) -> &'a mut T {
         unsafe { self.inner.as_mut().downcast_mut() }
     }
 

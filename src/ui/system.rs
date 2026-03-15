@@ -85,6 +85,8 @@ impl Ui {
         };
         let ticking = element.widget.is_ticking();
 
+        self.layout_changed();
+
         element.id = self.get_id();
         element.z_index = z_index;
         element.parent = None;
@@ -114,6 +116,8 @@ impl Ui {
         parent: T,
     ) -> Option<UiRef> {
         let mut parent = self.element_to_ref(parent)?;
+
+        self.layout_changed();
 
         child.id = self.get_id();
         child.z_index = parent.z_index + 10;
@@ -145,6 +149,8 @@ impl Ui {
     ) -> Option<UiRef> {
         let mut parent = self.element_to_ref(parent)?;
 
+        self.layout_changed();
+
         child.id = self.get_id();
         child.z_index = parent.z_index + 10;
         child.parent = Some(parent);
@@ -169,6 +175,8 @@ impl Ui {
 
     pub fn remove_element<T: Into<Element>>(&mut self, element: T) -> Option<UiElement> {
         let element = self.element_to_ref(element)?;
+
+        self.layout_changed();
 
         if let Some(mut parent) = element.parent {
             let parent = unsafe { parent.as_mut() };
@@ -200,6 +208,10 @@ impl Ui {
     pub fn remove_elements(&mut self, mut parent: UiRef, range: Range<usize>) {
         let i = range.start;
         let parent = unsafe { parent.as_mut() };
+
+        if range.start != range.end {
+            self.layout_changed();
+        }
 
         for element in parent.childs.drain(range) {
             element.remove_residue(self);

@@ -36,6 +36,7 @@ pub struct TextInput {
     pub cursor: Option<InputCursor>,
     pub selection: Option<Selection>,
 
+    pub message: u16,
     pub on_input: Option<fn(&mut TextInputContext)>,
     pub on_blur: Option<fn(TextExitContext)>,
 
@@ -56,6 +57,8 @@ impl TextInput {
             focus_on_click: false,
             cursor: None,
             selection: None,
+
+            message: 0,
             on_input: Some(default_on_input),
             on_blur: None,
             dirty: false,
@@ -85,7 +88,7 @@ impl TextInput {
     }
 
     pub fn unfocus(ui: &mut Ui, mut element: UiRef, reason: ExitReason) {
-        let this: &mut Self = unsafe { element.as_mut().downcast_mut().unwrap() };
+        let this: &mut Self = unsafe { element.as_mut().downcast_mut() };
 
         if let Some(cursor) = &this.cursor
             && cursor.is_on
@@ -441,6 +444,8 @@ impl Widget for TextInput {
         let cursor_pos = self.cursor.as_ref().unwrap().index;
         let text_len = self.text.len();
 
+        ui.set_event(QueuedEvent::new(&element, UiEvent::TextInput, self.message));
+
         if let Key::Named(name) = event.logical_key {
             match name {
                 NamedKey::ArrowRight => {
@@ -514,6 +519,7 @@ impl Default for TextInput {
             cursor: None,
             selection: None,
 
+            message: 0,
             on_input: Some(default_on_input),
             on_blur: None,
 

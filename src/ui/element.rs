@@ -53,13 +53,18 @@ impl UiElement {
         }
     }
 
-    pub fn downcast_mut<T: Widget>(&mut self) -> Option<&mut T> {
+    pub fn try_downcast_mut<T: Widget>(&mut self) -> Option<&mut T> {
         if self.type_of::<T>() {
             let gg = unsafe { &mut *(&mut *self.widget as *mut dyn Widget as *mut T) };
             Some(gg)
         } else {
             None
         }
+    }
+
+    pub fn downcast_mut<T: Widget>(&mut self) -> &mut T {
+        debug_assert!(self.type_of::<T>());
+        unsafe { &mut *(&mut *self.widget as *mut dyn Widget as *mut T) }
     }
 
     pub fn build(&mut self, context: &mut BuildContext) {
@@ -133,11 +138,11 @@ impl UiElement {
     pub fn offset_element(&mut self, offset: Vec2<f32>) {
         self.pos += Vec2::new(offset.x as i16, offset.y as i16);
 
-        if let Some(text) = self.downcast_mut::<Text>() {
+        if let Some(text) = self.try_downcast_mut::<Text>() {
             for glyph in &mut text.layout.glyphs {
                 glyph.pos += offset;
             }
-        } else if let Some(text) = self.downcast_mut::<TextInput>() {
+        } else if let Some(text) = self.try_downcast_mut::<TextInput>() {
             for glyph in &mut text.layout.glyphs {
                 glyph.pos += offset;
             }
