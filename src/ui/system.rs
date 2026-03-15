@@ -4,7 +4,7 @@ use std::{
     ops::Range,
     ptr,
     rc::Rc,
-    sync::atomic::{AtomicU32, Ordering},
+    sync::atomic::{AtomicUsize, Ordering},
 };
 use winit::window::CursorIcon;
 
@@ -44,7 +44,7 @@ pub struct Ui {
     pub events: QueuedEventHandler,
     pub tick_queue: Vec<TickEvent>,
 
-    pub(crate) id_gen: AtomicU32,
+    pub(crate) id_gen: AtomicUsize,
     pub(crate) elements: Vec<UiElement>,
 }
 
@@ -70,7 +70,7 @@ impl Ui {
             tick_queue: Vec::new(),
 
             // 0 is reserved for invalid UiRef
-            id_gen: AtomicU32::new(1),
+            id_gen: AtomicUsize::new(1),
             elements: Vec::new(),
         }
     }
@@ -222,7 +222,7 @@ impl Ui {
         }
     }
 
-    pub(crate) fn get_id(&self) -> u32 {
+    pub(crate) fn get_id(&self) -> usize {
         self.id_gen.fetch_add(1, Ordering::Relaxed)
     }
 
@@ -270,11 +270,11 @@ impl Ui {
 
     /// UiRef
     #[track_caller]
-    pub fn get_element(&mut self, id: u32) -> Option<UiRef> {
+    pub fn get_element(&mut self, id: usize) -> Option<UiRef> {
         debug_assert_ne!(id, 0, "0 is reserved for invalid UiRef");
         debug_assert_ne!(
             id,
-            u32::MAX,
+            usize::MAX,
             "The element has not initialized yet, so it has id of u32::MAX"
         );
         for element in &mut self.elements {
@@ -287,7 +287,7 @@ impl Ui {
         None
     }
 
-    pub fn get_element_mut(&mut self, id: u32) -> Option<&mut UiElement> {
+    pub fn get_element_mut(&mut self, id: usize) -> Option<&mut UiElement> {
         for element in &mut self.elements {
             if element.id == id {
                 return Some(element);
@@ -395,7 +395,7 @@ impl Ui {
         self.tick_queue.push(TickEvent::new(element));
     }
 
-    pub fn remove_tick(&mut self, id: u32) {
+    pub fn remove_tick(&mut self, id: usize) {
         if let Some(pos) = self.tick_queue.iter().position(|x| x.element_id == id) {
             self.tick_queue[pos].done = true;
         }
@@ -531,12 +531,12 @@ pub enum DirtyFlags {
 }
 
 pub enum Element {
-    Id(u32),
+    Id(usize),
     Ref(UiRef),
 }
 
-impl From<u32> for Element {
-    fn from(value: u32) -> Self {
+impl From<usize> for Element {
+    fn from(value: usize) -> Self {
         Self::Id(value)
     }
 }

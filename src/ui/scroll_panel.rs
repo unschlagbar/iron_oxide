@@ -17,7 +17,7 @@ pub struct ScrollPanel {
     pub scroll_offset: Vec2<f32>,
     pub size: Vec2<f32>,
     pub padding: UiRect,
-    pub child_hash: u32,
+    pub child_hash: usize,
 }
 
 impl Widget for ScrollPanel {

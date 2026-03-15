@@ -39,7 +39,7 @@ pub trait Widget: Any + 'static {
 pub trait ElementBuilder: Default + Widget + Sized + 'static {
     fn wrap_childs(self, name: &'static str, childs: Vec<UiElement>) -> UiElement {
         UiElement {
-            id: u32::MAX,
+            id: usize::MAX,
             name,
             flags: ElementFlags::default(),
             size: Vec2::default(),
@@ -53,7 +53,7 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
 
     fn wrap_childs_transparent(self, name: &'static str, childs: Vec<UiElement>) -> UiElement {
         UiElement {
-            id: u32::MAX,
+            id: usize::MAX,
             name,
             flags: ElementFlags::Transparent | ElementFlags::Visible,
             size: Vec2::default(),
@@ -71,7 +71,7 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
 
     fn wrap_flags(self, name: &'static str, flags: ElementFlags) -> UiElement {
         UiElement {
-            id: u32::MAX,
+            id: usize::MAX,
             name,
             flags,
             size: Vec2::default(),

@@ -47,7 +47,7 @@ impl From<(ElementState, MouseButton)> for UiEvent {
 
 #[derive(Debug)]
 pub struct TickEvent {
-    pub element_id: u32,
+    pub element_id: usize,
     pub done: bool,
     pub element: UiRef,
 }
@@ -65,7 +65,7 @@ impl TickEvent {
 
 #[derive(Debug)]
 pub struct QueuedEvent {
-    pub element_id: u32,
+    pub element_id: usize,
     pub element_ref: UiRef,
     pub element_name: &'static str,
     pub event: UiEvent,

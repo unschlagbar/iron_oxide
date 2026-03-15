@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub struct UiElement {
-    pub(crate) id: u32,
+    pub(crate) id: usize,
     pub name: &'static str,
     pub flags: ElementFlags,
     pub size: Vec2<i16>,
@@ -26,7 +26,7 @@ pub struct UiElement {
 }
 
 impl UiElement {
-    pub const fn id(&self) -> u32 {
+    pub const fn id(&self) -> usize {
         self.id
     }
 
@@ -289,7 +289,7 @@ impl UiElement {
 
     /// Returns a ref to the child
     /// Searches for childs with the id
-    pub fn get_child(&self, id: u32) -> Option<UiRef> {
+    pub fn get_child(&self, id: usize) -> Option<UiRef> {
         for child in &self.childs {
             if child.id == id {
                 return Some(UiRef::new_ref(child));
@@ -305,7 +305,7 @@ impl UiElement {
         self.childs.get(idx).map(UiRef::new_ref)
     }
 
-    pub fn get_child_mut(&mut self, id: u32) -> Option<&mut UiElement> {
+    pub fn get_child_mut(&mut self, id: usize) -> Option<&mut UiElement> {
         for child in &mut self.childs {
             if child.id == id {
                 return Some(child);

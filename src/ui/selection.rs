@@ -50,7 +50,7 @@ impl Selection {
         }
     }
 
-    pub fn check_removed(&mut self, id: u32) -> bool {
+    pub fn check_removed(&mut self, id: usize) -> bool {
         let was_hover;
 
         if let Some(hovered) = &self.hovered
@@ -81,7 +81,7 @@ impl Selection {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Select {
     ptr: UiRef,
-    id: u32,
+    id: usize,
 }
 
 impl Select {
