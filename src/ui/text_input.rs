@@ -286,7 +286,11 @@ impl Widget for TextInput {
         context.fill_x(1.0);
 
         let text = if self.text.is_empty() {
-            "\u{200B}"
+            if self.placeholder.is_empty() {
+                "\u{200B}"
+            } else {
+                self.placeholder
+            }
         } else {
             &self.text
         };
@@ -301,13 +305,19 @@ impl Widget for TextInput {
         let batch = resources.batch_data::<MSDFInstance>(mat, info);
         batch.reserve(self.layout.glyphs.len() * size_of::<MSDFInstance>());
 
+        let color = if self.text.is_empty() {
+            self.placeholder_color
+        } else {
+            self.color
+        };
+
         for glyph in &self.layout.glyphs {
             if glyph.size.x == 0.0 {
                 continue;
             }
 
             let to_add = MSDFInstance {
-                color: self.color,
+                color,
                 pos: glyph.pos,
                 size: glyph.size,
                 uv_start: glyph.uv_start,
@@ -506,10 +516,10 @@ impl Widget for TextInput {
 impl Default for TextInput {
     fn default() -> Self {
         Self {
-            placeholder: "text",
+            placeholder: "text eingeben",
             placeholder_color: RGBA::grey(150),
 
-            text: "Text".to_string(),
+            text: String::new(),
             color: RGBA::WHITE,
             layout: TextLayout::default(),
             align: Align::Left,
