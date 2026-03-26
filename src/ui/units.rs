@@ -21,18 +21,6 @@ pub enum UiUnit {
 impl UiUnit {
     pub const FILL: Self = Self::Relative(1.0);
 
-    /// Gets pre values
-    /// Undefined | Zero | Px(x) => 0 | x;
-    /// Depends on child => f32::MIN;
-    /// Depends on parent => f32::MAX;
-    pub fn pre_size(&self) -> f32 {
-        match self {
-            Self::Fit => f32::MIN,
-            Self::Undefined | Self::Zero | Self::Px(_) => 0.0,
-            _ => f32::MAX,
-        }
-    }
-
     pub fn size_x(&self, context: &BuildContext, margin: f32) -> f32 {
         match *self {
             Self::Undefined => 0.0,
@@ -171,7 +159,7 @@ impl UiUnit {
         }
     }
 
-    pub fn px_i16(&self, size: Vec2<i16>, scale_factor: f32) -> u16 {
+    pub fn px_16(&self, size: Vec2<i16>, scale_factor: f32) -> u16 {
         match self {
             Self::Zero => 0,
             Self::Undefined => 100,

@@ -96,7 +96,7 @@ impl Widget for Container {
     }
 
     fn draw_data(&mut self, element: UiRef, resources: &mut Resources, info: &mut DrawInfo) {
-        let corner = self.corner[0].px_i16(element.size, info.scale_factor);
+        let corner = self.corner[0].px_16(element.size, info.scale_factor);
 
         if self.shadow.color != RGBA::ZERO {
             let to_add = ShadowInstance {

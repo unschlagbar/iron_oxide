@@ -55,7 +55,7 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
         UiElement {
             id: usize::MAX,
             name,
-            flags: ElementFlags::Transparent | ElementFlags::Visible,
+            flags: ElementFlags::Transparent,
             size: Vec2::default(),
             pos: Vec2::default(),
             parent: None,
@@ -65,8 +65,12 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
         }
     }
 
-    fn wrap(self, name: &'static str) -> UiElement {
+    fn wrap_name(self, name: &'static str) -> UiElement {
         self.wrap_childs(name, Vec::new())
+    }
+
+    fn wrap(self) -> UiElement {
+        self.wrap_childs("", Vec::new())
     }
 
     fn wrap_flags(self, name: &'static str, flags: ElementFlags) -> UiElement {
@@ -89,3 +93,83 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
 }
 
 impl<T: Default + Widget + Sized + 'static> ElementBuilder for T {}
+
+#[macro_export]
+macro_rules! node {
+    // --- Einstieg ---
+    ($widget:expr $(, $($rest:tt)*)?) => {
+        node!(@parse
+            widget = $widget,
+            name = "",
+            flags = iron_oxide::ui::ElementFlags::default(),
+            children = [],
+            $($($rest)*, )?
+        )
+    };
+
+    // --- Basisregel ---
+    (@parse
+        widget = $widget:expr,
+        name = $name:expr,
+        flags = $flags:expr,
+        children = [$($children:expr),*],
+    ) => {
+        iron_oxide::ui::UiElement::from_raw(
+            $name,
+            $flags,
+            vec![$($children),*],
+            $widget
+        )
+    };
+
+    // --- String-Literal → name ---
+    (@parse
+        widget = $widget:expr,
+        name = $_old_name:expr,
+        flags = $flags:expr,
+        children = [$($children:expr),*],
+        $name:literal, $($rest:tt)*
+    ) => {
+        node!(@parse
+            widget = $widget,
+            name = $name,
+            flags = $flags,
+            children = [$($children),*],
+            $($rest)*
+        )
+    };
+
+    // --- flags(...) → flags ---
+    (@parse
+        widget = $widget:expr,
+        name = $name:expr,
+        flags = $_old_flags:expr,
+        children = [$($children:expr),*],
+        flags($new_flags:expr), $($rest:tt)*
+    ) => {
+        node!(@parse
+            widget = $widget,
+            name = $name,
+            flags = $new_flags,
+            children = [$($children),*],
+            $($rest)*
+        )
+    };
+
+    // --- Ausdruck → Kind-Element ---
+    (@parse
+        widget = $widget:expr,
+        name = $name:expr,
+        flags = $flags:expr,
+        children = [$($children:expr),*],
+        $child:expr, $($rest:tt)*
+    ) => {
+        node!(@parse
+            widget = $widget,
+            name = $name,
+            flags = $flags,
+            children = [$($children,)* $child],
+            $($rest)*
+        )
+    };
+}

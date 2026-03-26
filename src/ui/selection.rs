@@ -79,7 +79,7 @@ impl Selection {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Select {
+pub struct Select {
     ptr: UiRef,
     id: usize,
 }

@@ -13,7 +13,6 @@ use winit::{
 use crate::graphics::platform::{create_surface, get_required_extensions};
 
 pub struct VkBase {
-    pub entry: ash::Entry,
     pub instance: ash::Instance,
 
     #[cfg(debug_assertions)]
@@ -87,7 +86,6 @@ impl VkBase {
 
         (
             Self {
-                entry,
                 instance,
                 #[cfg(debug_assertions)]
                 debug_utils,

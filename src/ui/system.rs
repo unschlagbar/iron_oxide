@@ -85,8 +85,6 @@ impl Ui {
         };
         let ticking = element.widget.is_ticking();
 
-        self.layout_changed();
-
         element.id = self.get_id();
         element.z_index = z_index;
         element.parent = None;
@@ -116,8 +114,6 @@ impl Ui {
         parent: T,
     ) -> Option<UiRef> {
         let mut parent = self.element_to_ref(parent)?;
-
-        self.layout_changed();
 
         child.id = self.get_id();
         child.z_index = parent.z_index + 10;
@@ -175,8 +171,6 @@ impl Ui {
 
     pub fn remove_element<T: Into<Element>>(&mut self, element: T) -> Option<UiElement> {
         let element = self.element_to_ref(element)?;
-
-        self.layout_changed();
 
         if let Some(mut parent) = element.parent {
             let parent = unsafe { parent.as_mut() };
@@ -315,8 +309,7 @@ impl Ui {
 
     pub fn set_focus(&mut self, element: UiRef) {
         if let Some(input) = &mut self.selection.focused {
-            let widget = &mut input.as_mut().widget;
-            widget.interaction(input.as_ui_ref(), self, UiEvent::End);
+            input.as_mut().interaction(self, UiEvent::End);
         }
         self.selection.focused = Some(Select::new(element))
     }
@@ -327,14 +320,13 @@ impl Ui {
 
         // 1. Check and update Captured
         if let Some(captured) = &mut self.selection.captured {
-            let element = UiRef::new(captured.as_mut());
-            let widget = &mut captured.as_mut().widget;
+            let mut captured = captured.as_ui_ref();
 
             if event.is_release() {
                 self.selection.captured = None;
             }
 
-            if widget.interaction(element, self, event).is_new() {
+            if captured.get_mut(self).interaction(ui, event).is_new() {
                 return InputResult::New;
             }
         } else if event == UiEvent::Press {
@@ -342,8 +334,7 @@ impl Ui {
             if let Some(focused) = &mut self.selection.focused
                 && !focused.as_ref().is_in(ui.cursor_pos)
             {
-                let widget = &mut focused.as_mut().widget;
-                widget.interaction(focused.as_ui_ref(), self, UiEvent::End);
+                focused.as_mut().interaction(self, UiEvent::End);
                 exit = true;
             }
 
@@ -352,14 +343,19 @@ impl Ui {
             }
         }
 
-        // 2. Check for new hover
+        self.handle_move(event, self.new_absolute || event == UiEvent::Move)
+    }
+
+    fn handle_move(&mut self, event: UiEvent, check_new: bool) -> InputResult {
+        let ui = unsafe { &mut *ptr::from_mut(self) };
+
         let last_hovered = self.selection.hovered;
 
-        if self.new_absolute || event == UiEvent::Move {
+        if check_new {
             for element in &mut self.elements {
                 if element.is_in(ui.cursor_pos) {
                     // We still can't break since there could be a absolute element above
-                    element.update_hover(ui, event);
+                    element.update_hover(ui);
                 }
             }
             self.new_absolute = false;
@@ -369,10 +365,8 @@ impl Ui {
             if let Some(mut new) = self.selection.hovered
                 && last != new
             {
-                let widget = &mut last.as_mut().widget;
-                widget.interaction(UiRef::new(last.as_mut()), self, UiEvent::HoverEnd);
-
-                new.as_mut().handle_hover(ui, event)
+                last.as_mut().interaction(self, UiEvent::HoverEnd);
+                new.as_mut().handle_hover(ui, UiEvent::Move)
             } else {
                 last.as_mut().handle_hover(ui, event)
             }
@@ -441,13 +435,19 @@ impl Ui {
     }
 
     pub fn color_changed(&mut self) {
-        if !matches!(self.dirty, DirtyFlags::Layout) {
+        if !matches!(self.dirty, DirtyFlags::Layout | DirtyFlags::HoverLayout) {
             self.dirty = DirtyFlags::Color;
         }
     }
 
     pub fn layout_changed(&mut self) {
-        self.dirty = DirtyFlags::Layout;
+        if !matches!(self.dirty, DirtyFlags::HoverLayout) {
+            self.dirty = DirtyFlags::Layout;
+        }
+    }
+
+    pub fn layout_hover_changed(&mut self) {
+        self.dirty = DirtyFlags::HoverLayout;
     }
 
     pub const fn is_dirty(&self) -> bool {
@@ -459,8 +459,12 @@ impl Ui {
             return;
         }
 
-        if matches!(self.dirty, DirtyFlags::Layout) {
+        if matches!(self.dirty, DirtyFlags::Layout | DirtyFlags::HoverLayout) {
             self.build();
+        }
+
+        if matches!(self.dirty, DirtyFlags::HoverLayout) {
+            self.handle_move(UiEvent::Move, true);
         }
 
         resources.clear_batches();
@@ -539,6 +543,7 @@ impl InputResult {
 pub enum DirtyFlags {
     None,
     Layout,
+    HoverLayout,
     Color,
 }
 

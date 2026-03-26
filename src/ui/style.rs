@@ -1,115 +1,16 @@
 use super::UiUnit;
 use crate::{graphics::formats::RGBA, primitives::Vec2, ui::BuildContext};
 
-#[derive(Debug, Clone, Copy)]
-pub struct UiRect {
-    pub left: UiUnit,
-    pub top: UiUnit,
-    pub right: UiUnit,
-    pub bottom: UiUnit,
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UiRect<T = UiUnit> {
+    pub top: T,
+    pub right: T,
+    pub bottom: T,
+    pub left: T,
 }
 
-impl UiRect {
-    pub const fn px(pixel: f32) -> Self {
-        Self {
-            left: UiUnit::Px(pixel),
-            right: UiUnit::Px(pixel),
-            top: UiUnit::Px(pixel),
-            bottom: UiUnit::Px(pixel),
-        }
-    }
-
-    pub const fn new(data: [UiUnit; 4]) -> Self {
-        Self {
-            left: data[0],
-            right: data[1],
-            top: data[2],
-            bottom: data[3],
-        }
-    }
-
-    pub const fn from(pixel: &[f32]) -> Self {
-        match pixel.len() {
-            1 => Self::px(pixel[0]),
-            2 => Self {
-                left: UiUnit::Px(pixel[0]),
-                top: UiUnit::Px(pixel[1]),
-                right: UiUnit::Px(pixel[0]),
-                bottom: UiUnit::Px(pixel[1]),
-            },
-            4 => Self {
-                left: UiUnit::Px(pixel[0]),
-                top: UiUnit::Px(pixel[1]),
-                right: UiUnit::Px(pixel[2]),
-                bottom: UiUnit::Px(pixel[3]),
-            },
-            _ => panic!("Invalid layout"),
-        }
-    }
-
-    pub const fn horizontal(value: UiUnit) -> Self {
-        Self {
-            left: value,
-            top: UiUnit::Zero,
-            right: value,
-            bottom: UiUnit::Zero,
-        }
-    }
-
-    pub const fn vertical(value: UiUnit) -> Self {
-        Self {
-            left: UiUnit::Zero,
-            top: value,
-            right: UiUnit::Zero,
-            bottom: value,
-        }
-    }
-
-    pub const fn left(pixel: f32) -> Self {
-        Self {
-            left: UiUnit::Px(pixel),
-            top: UiUnit::Zero,
-            right: UiUnit::Zero,
-            bottom: UiUnit::Zero,
-        }
-    }
-
-    pub const fn left_auto() -> Self {
-        Self {
-            left: UiUnit::Fit,
-            top: UiUnit::Zero,
-            right: UiUnit::Zero,
-            bottom: UiUnit::Zero,
-        }
-    }
-
-    pub const fn top(pixel: f32) -> Self {
-        Self {
-            left: UiUnit::Zero,
-            top: UiUnit::Px(pixel),
-            right: UiUnit::Zero,
-            bottom: UiUnit::Zero,
-        }
-    }
-
-    pub const fn right(pixel: f32) -> Self {
-        Self {
-            left: UiUnit::Zero,
-            top: UiUnit::Zero,
-            right: UiUnit::Px(pixel),
-            bottom: UiUnit::Zero,
-        }
-    }
-
-    pub const fn bottom(pixel: f32) -> Self {
-        Self {
-            left: UiUnit::Zero,
-            top: UiUnit::Zero,
-            right: UiUnit::Zero,
-            bottom: UiUnit::Px(pixel),
-        }
-    }
-
+// Methoden die nur UiUnit brauchen
+impl UiRect<UiUnit> {
     pub fn start(&self, context: &BuildContext) -> Vec2<f32> {
         Vec2::new(self.left.autox(context), self.top.autoy(context))
     }
@@ -125,22 +26,130 @@ impl UiRect {
         )
     }
 
-    pub const fn zero() -> Self {
+    pub const fn px(px: f32) -> Self {
+        Self::all(UiUnit::Px(px))
+    }
+
+    pub const fn left_auto() -> Self {
         Self {
-            left: UiUnit::Zero,
-            right: UiUnit::Zero,
+            left: UiUnit::Fit,
             top: UiUnit::Zero,
+            right: UiUnit::Zero,
             bottom: UiUnit::Zero,
+        }
+    }
+
+    pub fn top(top: UiUnit) -> Self {
+        Self {
+            top,
+            ..Default::default()
+        }
+    }
+
+    pub fn right(right: UiUnit) -> Self {
+        Self {
+            right,
+            ..Default::default()
+        }
+    }
+
+    pub fn bottom(bottom: UiUnit) -> Self {
+        Self {
+            bottom,
+            ..Default::default()
+        }
+    }
+    pub fn left(left: UiUnit) -> Self {
+        Self {
+            left,
+            ..Default::default()
         }
     }
 }
 
-impl Default for UiRect {
-    fn default() -> Self {
-        Self::zero()
+// Methoden für alle T: Copy
+impl<T: Copy> UiRect<T> {
+    pub const fn all(v: T) -> Self {
+        Self {
+            top: v,
+            right: v,
+            bottom: v,
+            left: v,
+        }
+    }
+
+    pub const fn axes(vertical: T, horizontal: T) -> Self {
+        Self {
+            top: vertical,
+            bottom: vertical,
+            left: horizontal,
+            right: horizontal,
+        }
     }
 }
 
+impl UiRect<UiUnit> {}
+
+impl Default for UiRect<UiUnit> {
+    fn default() -> Self {
+        Self::all(UiUnit::Zero)
+    }
+}
+
+#[macro_export]
+macro_rules! u {
+    (0) => {
+        UiUnit::Zero
+    };
+    (fit) => {
+        UiUnit::Fit
+    };
+    (fill) => {
+        UiUnit::Fr(1.0)
+    };
+    ($v:literal px) => {
+        UiUnit::Px($v as f32)
+    };
+    ($v:literal %) => {
+        UiUnit::Pct($v as f32 / 100.0)
+    };
+    ($v:literal fr) => {
+        UiUnit::Fr($v as f32)
+    };
+    ($v:literal ph) => {
+        UiUnit::Ph($v as f32 / 100.0)
+    };
+    ($v:literal pw) => {
+        UiUnit::Pw($v as f32 / 100.0)
+    };
+    ($v:literal) => {
+        UiUnit::Px($v as f32)
+    };
+    // fallback: roher UiUnit-Ausdruck
+    ($v:expr) => {
+        $v
+    };
+}
+
+// --- CSS-style rect! Macro ---
+// Order like css: top, right, bottom, left
+#[macro_export]
+macro_rules! rect {
+    ($all:tt $($unit:ident)?) => {
+        iron_oxide::ui::UiRect::all(iron_oxide::u!($all $($unit)?))
+    };
+    ($v:tt $($vu:ident)?, $h:tt $($hu:ident)?) => {
+        iron_oxide::ui::UiRect::axes(iron_oxide::u!($v $($vu)?), iron_oxide::u!($h $($hu)?))
+    };
+    ($t:tt $($tu:ident)?, $r:tt $($ru:ident)?, $b:tt $($bu:ident)?, $l:tt $($lu:ident)?) => {
+        iron_oxide::ui::UiRect {
+            top:    iron_oxide::u!($t $($tu)?),
+            right:  iron_oxide::u!($r $($ru)?),
+            bottom: iron_oxide::u!($b $($bu)?),
+            left:   iron_oxide::u!($l $($lu)?),
+        }
+    };
+}
 #[derive(Default, Debug, Clone, Copy)]
 pub enum FlexAxis {
     #[default]

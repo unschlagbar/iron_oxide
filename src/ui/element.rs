@@ -125,13 +125,26 @@ impl UiElement {
         }
         let mut inner_info = info.inner(self.z_index);
 
-        if self.flags.contains(ElementFlags::Visible) {
+        if !self.flags.contains(ElementFlags::Invisible) {
             let element = UiRef::new(self);
             self.widget.draw_data(element, resources, &mut inner_info);
         }
 
         for child in &mut self.childs {
             child.get_draw_data(resources, inner_info);
+        }
+    }
+
+    pub fn interaction(&mut self, ui: &mut Ui, event: UiEvent) -> InputResult {
+        let element = UiRef::new(self);
+
+        if !self.flags.contains(ElementFlags::Disabled)
+            || event == UiEvent::End
+            || event == UiEvent::HoverEnd
+        {
+            self.widget.interaction(element, ui, event)
+        } else {
+            InputResult::None
         }
     }
 
@@ -170,14 +183,16 @@ impl UiElement {
         }
     }
 
-    pub fn update_hover(&mut self, ui: &mut Ui, _event: UiEvent) -> InputResult {
-        if !self.flags.contains(ElementFlags::Visible) {
+    pub fn update_hover(&mut self, ui: &mut Ui) -> InputResult {
+        if self.flags.contains(ElementFlags::Invisible)
+            || self.flags.contains(ElementFlags::Disabled)
+        {
             return InputResult::None;
         }
 
         if self.is_in(ui.cursor_pos) {
             for child in &mut self.childs {
-                if child.update_hover(ui, _event) == InputResult::New {
+                if child.update_hover(ui) == InputResult::New {
                     return InputResult::New;
                 }
             }
@@ -320,6 +335,25 @@ impl UiElement {
         }
         None
     }
+
+    pub fn from_raw<T: Widget>(
+        name: &'static str,
+        flags: ElementFlags,
+        childs: Vec<Self>,
+        widget: T,
+    ) -> Self {
+        Self {
+            id: usize::MAX,
+            name,
+            flags,
+            size: Vec2::default(),
+            pos: Vec2::default(),
+            parent: None,
+            childs,
+            widget: Box::new(widget),
+            z_index: 0,
+        }
+    }
 }
 
 impl Debug for UiElement {
@@ -335,19 +369,13 @@ impl Debug for UiElement {
 }
 
 bitflags::bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
     pub struct ElementFlags: u8 {
-        const Visible = 0b00000001;
+        const Invisible = 0b00000001;
         const Disabled = 0b00000010;
         const Transparent = 0b00000100;
 
         const IsFill = 0b00001000;
-    }
-}
-
-impl Default for ElementFlags {
-    fn default() -> Self {
-        Self::Visible
     }
 }
 
