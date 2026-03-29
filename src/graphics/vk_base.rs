@@ -1,6 +1,7 @@
 #[cfg(debug_assertions)]
 use pyronyx::ext::debug_utils::{self, DebugUtilsInstance};
 use pyronyx::khr::surface::SurfacePhysicalDevice;
+use pyronyx::raw_window_handle::{create_surface, get_required_extensions};
 use pyronyx::{
     khr,
     vk::{self},
@@ -12,8 +13,6 @@ use winit::{
     raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle},
     window::Window,
 };
-
-use crate::graphics::platform::{create_surface, get_required_extensions};
 
 pub struct VkBase {
     pub instance: vk::Instance,
@@ -97,9 +96,9 @@ impl VkBase {
     ) -> vk::Instance {
         let app_info = vk::ApplicationInfo {
             application_name: app_name.as_ptr(),
-            application_version: vk::make_api_version(0, 1, 0, 0),
+            application_version: vk::API_VERSION_1_0,
             engine_name: app_name.as_ptr(),
-            engine_version: vk::make_api_version(0, 1, 0, 0),
+            engine_version: vk::API_VERSION_1_0,
             api_version,
             ..Default::default()
         };
@@ -120,7 +119,7 @@ impl VkBase {
 
         let supported_layers = vk::enumerate_instance_layer_properties().unwrap();
 
-        // Layer filtern, die in LAYER_NAMES definiert sind und unterstützt werden
+        // Layer filtering
         let active_layers: Vec<*const c_char> = layer_names
             .iter()
             .filter_map(|&layer_name| {

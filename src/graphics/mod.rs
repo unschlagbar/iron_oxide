@@ -6,7 +6,6 @@ mod image;
 mod material;
 mod memory_manager;
 mod pipeline;
-pub mod platform;
 mod ressource_manager;
 mod shader_modul;
 mod single_time_commands;
