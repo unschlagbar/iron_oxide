@@ -1,4 +1,4 @@
-use ash::vk;
+use pyronyx::vk;
 
 use super::VkBase;
 
@@ -9,7 +9,7 @@ impl SinlgeTimeCommands {
     pub fn begin(base: &VkBase, cmd_pool: vk::CommandPool) -> vk::CommandBuffer {
         let allocate_info = vk::CommandBufferAllocateInfo {
             command_pool: cmd_pool,
-            level: vk::CommandBufferLevel::PRIMARY,
+            level: vk::CommandBufferLevel::Primary,
             command_buffer_count: 1,
             ..Default::default()
         };
@@ -21,140 +21,113 @@ impl SinlgeTimeCommands {
         };
 
         let begin_info = vk::CommandBufferBeginInfo {
-            flags: vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT,
+            flags: vk::CommandBufferUsageFlags::OneTimeSubmit,
             ..Default::default()
         };
 
-        unsafe {
-            base.device
-                .begin_command_buffer(command_buffer, &begin_info)
-                .unwrap_unchecked()
-        };
+        command_buffer.begin(&begin_info).unwrap();
         command_buffer
     }
 
     #[inline]
-    pub fn rebegin(base: &VkBase, cmd_buf: vk::CommandBuffer) {
+    pub fn rebegin(cmd_buf: vk::CommandBuffer) {
         let begin_info = vk::CommandBufferBeginInfo {
-            flags: vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT,
+            flags: vk::CommandBufferUsageFlags::OneTimeSubmit,
             ..Default::default()
         };
 
-        unsafe {
-            base.device
-                .begin_command_buffer(cmd_buf, &begin_info)
-                .unwrap_unchecked()
-        };
+        cmd_buf.begin(&begin_info).unwrap()
     }
 
     #[inline]
     pub fn end(base: &VkBase, cmd_pool: vk::CommandPool, cmd_buf: vk::CommandBuffer) {
-        unsafe { base.device.end_command_buffer(cmd_buf).unwrap_unchecked() }
+        cmd_buf.end().unwrap();
 
         let submits = vk::SubmitInfo {
             command_buffer_count: 1,
-            p_command_buffers: &cmd_buf,
+            command_buffers: &cmd_buf.handle(),
             ..Default::default()
         };
 
-        unsafe {
-            base.device
-                .queue_submit(base.queue, &[submits], vk::Fence::null())
-                .unwrap_unchecked();
-            base.device.queue_wait_idle(base.queue).unwrap_unchecked();
-            base.device.free_command_buffers(cmd_pool, &[cmd_buf]);
-        }
+        base.queue.submit(&[submits], vk::Fence::null()).unwrap();
+        base.queue.wait_idle().unwrap();
+        base.device
+            .free_command_buffers(cmd_pool, &[cmd_buf.handle()]);
     }
 
     #[inline]
     pub fn end_debug(base: &VkBase, cmd_pool: vk::CommandPool, cmd_buf: vk::CommandBuffer) {
-        unsafe { base.device.end_command_buffer(cmd_buf).unwrap_unchecked() }
+        cmd_buf.end().unwrap();
 
         let submits = vk::SubmitInfo {
             command_buffer_count: 1,
-            p_command_buffers: &cmd_buf,
+            command_buffers: &cmd_buf.handle(),
             ..Default::default()
         };
 
-        unsafe {
-            base.device
-                .queue_submit(base.queue, &[submits], vk::Fence::null())
-                .unwrap_unchecked();
-            let start_time = std::time::Instant::now();
-            base.device.queue_wait_idle(base.queue).unwrap_unchecked();
-            println!("time: {:?}", start_time.elapsed());
-            base.device.free_command_buffers(cmd_pool, &[cmd_buf]);
-        }
+        base.queue.submit(&[submits], vk::Fence::null()).unwrap();
+        let start_time = std::time::Instant::now();
+        base.queue.wait_idle().unwrap();
+        println!("time: {:?}", start_time.elapsed());
+        base.device
+            .free_command_buffers(cmd_pool, &[cmd_buf.handle()]);
     }
 
     #[inline]
     pub fn submit(base: &VkBase, cmd_buf: vk::CommandBuffer) {
-        unsafe { base.device.end_command_buffer(cmd_buf).unwrap_unchecked() }
+        cmd_buf.end().unwrap();
 
         let submits = vk::SubmitInfo {
             command_buffer_count: 1,
-            p_command_buffers: &cmd_buf,
+            command_buffers: &cmd_buf.handle(),
             ..Default::default()
         };
 
-        unsafe {
-            base.device
-                .queue_submit(base.queue, &[submits], vk::Fence::null())
-                .unwrap_unchecked();
-        }
+        base.queue.submit(&[submits], vk::Fence::null()).unwrap();
     }
 
     #[inline]
     pub fn end_after_submit(base: &VkBase, cmd_pool: vk::CommandPool, cmd_buf: vk::CommandBuffer) {
-        unsafe {
-            base.device.queue_wait_idle(base.queue).unwrap_unchecked();
-            base.device.free_command_buffers(cmd_pool, &[cmd_buf]);
-        }
+        base.queue.wait_idle().unwrap();
+        base.device
+            .free_command_buffers(cmd_pool, &[cmd_buf.handle()]);
     }
 
     #[inline]
     pub fn free(base: &VkBase, cmd_pool: vk::CommandPool, cmd_buf: vk::CommandBuffer) {
-        unsafe {
-            base.device.free_command_buffers(cmd_pool, &[cmd_buf]);
-        }
+        base.device
+            .free_command_buffers(cmd_pool, &[cmd_buf.handle()]);
     }
 
     #[inline]
     pub fn reset(base: &VkBase, cmd_buf: vk::CommandBuffer) {
-        unsafe { base.device.end_command_buffer(cmd_buf).unwrap_unchecked() }
+        cmd_buf.end().unwrap();
 
         let submits = vk::SubmitInfo {
             command_buffer_count: 1,
-            p_command_buffers: &cmd_buf,
+            command_buffers: &cmd_buf.handle(),
             ..Default::default()
         };
 
-        unsafe {
-            base.device
-                .queue_submit(base.queue, &[submits], vk::Fence::null())
-                .unwrap_unchecked();
-            base.device.queue_wait_idle(base.queue).unwrap_unchecked();
-            base.device
-                .reset_command_buffer(cmd_buf, vk::CommandBufferResetFlags::empty())
-                .unwrap_unchecked();
-        }
+        base.queue.submit(&[submits], vk::Fence::null()).unwrap();
+
+        base.queue.wait_idle().unwrap();
+        cmd_buf.reset(vk::CommandBufferResetFlags::empty()).unwrap();
     }
 
     pub fn end_no_wait(base: &VkBase, cmd_pool: vk::CommandPool, cmd_buf: vk::CommandBuffer) {
-        unsafe { base.device.end_command_buffer(cmd_buf).unwrap_unchecked() }
+        cmd_buf.end().unwrap();
 
         let submits = vk::SubmitInfo {
             command_buffer_count: 1,
-            p_command_buffers: &cmd_buf,
+            command_buffers: &cmd_buf.handle(),
             ..Default::default()
         };
 
-        unsafe {
-            base.device
-                .queue_submit(base.queue, &[submits], vk::Fence::null())
-                .unwrap_unchecked();
-            base.device.free_command_buffers(cmd_pool, &[cmd_buf]);
-        }
+        base.queue.submit(&[submits], vk::Fence::null()).unwrap();
+
+        base.device
+            .free_command_buffers(cmd_pool, &[cmd_buf.handle()]);
     }
 
     pub fn end_fence_wait(
@@ -163,23 +136,21 @@ impl SinlgeTimeCommands {
         cmd_buf: vk::CommandBuffer,
         fence: vk::Fence,
     ) {
-        unsafe { base.device.end_command_buffer(cmd_buf).unwrap() }
+        cmd_buf.end().unwrap();
 
         let submits = vk::SubmitInfo {
             command_buffer_count: 1,
-            p_command_buffers: &cmd_buf,
+            command_buffers: &cmd_buf.handle(),
             ..Default::default()
         };
 
-        unsafe {
-            base.device
-                .queue_submit(base.queue, &[submits], fence)
-                .unwrap();
-            base.device
-                .wait_for_fences(&[fence], true, u64::MAX)
-                .unwrap();
-            base.device.reset_fences(&[fence]).unwrap();
-            base.device.free_command_buffers(cmd_pool, &[cmd_buf]);
-        }
+        base.queue.submit(&[submits], vk::Fence::null()).unwrap();
+
+        base.device
+            .wait_for_fences(&[fence], true, u64::MAX)
+            .unwrap();
+        base.device.reset_fences(&[fence]).unwrap();
+        base.device
+            .free_command_buffers(cmd_pool, &[cmd_buf.handle()]);
     }
 }

@@ -3,7 +3,7 @@ use std::{
     fmt::{self, Debug},
 };
 
-use ash::vk::Rect2D;
+use pyronyx::vk::Rect2D;
 use winit::{event::KeyEvent, window::CursorIcon};
 
 use super::{BuildContext, Text, Ui, UiEvent, system::InputResult};

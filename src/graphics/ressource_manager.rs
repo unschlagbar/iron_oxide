@@ -3,11 +3,11 @@ use std::slice;
 #[cfg(debug_assertions)]
 use std::any::TypeId;
 
-use ash::vk::{
+use pyronyx::vk::{
     BorderColor, Buffer, BufferUsageFlags, CommandBuffer, CompareOp, DescriptorBufferInfo,
     DescriptorImageInfo, DescriptorPool, DescriptorPoolCreateInfo, DescriptorPoolSize,
-    DescriptorSet, DescriptorSetAllocateInfo, DescriptorSetLayout, DescriptorType, FALSE, Filter,
-    ImageLayout, ImageView, PipelineBindPoint, Rect2D, Sampler, SamplerAddressMode,
+    DescriptorSet, DescriptorSetAllocateInfo, DescriptorSetLayout, DescriptorType, Device, FALSE,
+    Filter, ImageLayout, ImageView, PipelineBindPoint, Rect2D, Sampler, SamplerAddressMode,
     SamplerCreateInfo, SamplerMipmapMode, TRUE, WriteDescriptorSet,
 };
 
@@ -43,69 +43,68 @@ impl Resources {
 
         let pool_sizes = [
             DescriptorPoolSize {
-                ty: DescriptorType::UNIFORM_BUFFER,
+                ty: DescriptorType::UniformBuffer,
                 descriptor_count: 1,
             },
             DescriptorPoolSize {
-                ty: DescriptorType::COMBINED_IMAGE_SAMPLER,
+                ty: DescriptorType::CombinedImageSampler,
                 descriptor_count: MAX_IMGS,
             },
         ];
 
         let create_info = DescriptorPoolCreateInfo {
             pool_size_count: pool_sizes.len() as _,
-            p_pool_sizes: pool_sizes.as_ptr(),
+            pool_sizes: pool_sizes.as_ptr(),
             max_sets: MAX_IMGS + 1,
             ..Default::default()
         };
 
-        let desc_pool = unsafe {
-            base.device
-                .create_descriptor_pool(&create_info, None)
-                .unwrap()
-        };
+        let desc_pool = base
+            .device
+            .create_descriptor_pool(&create_info, None)
+            .unwrap();
 
         let create_info = SamplerCreateInfo {
-            mag_filter: Filter::NEAREST,
-            min_filter: Filter::NEAREST,
-            mipmap_mode: SamplerMipmapMode::NEAREST,
-            address_mode_u: SamplerAddressMode::CLAMP_TO_BORDER,
-            address_mode_v: SamplerAddressMode::CLAMP_TO_BORDER,
-            address_mode_w: SamplerAddressMode::CLAMP_TO_BORDER,
+            mag_filter: Filter::Nearest,
+            min_filter: Filter::Nearest,
+            mipmap_mode: SamplerMipmapMode::Nearest,
+            address_mode_u: SamplerAddressMode::ClampToBorder,
+            address_mode_v: SamplerAddressMode::ClampToBorder,
+            address_mode_w: SamplerAddressMode::ClampToBorder,
             mip_lod_bias: 0.0,
             anisotropy_enable: FALSE,
             max_anisotropy: 0.0,
             compare_enable: FALSE,
-            compare_op: CompareOp::ALWAYS,
+            compare_op: CompareOp::Always,
             min_lod: 0.0,
             max_lod: 0.0,
-            border_color: BorderColor::FLOAT_TRANSPARENT_BLACK,
+            border_color: BorderColor::FloatTransparentBlack,
             unnormalized_coordinates: TRUE,
             ..Default::default()
         };
 
-        let sampler = unsafe { base.device.create_sampler(&create_info, None).unwrap() };
+        let sampler = base.device.create_sampler(&create_info, None).unwrap();
 
         let create_info = SamplerCreateInfo {
-            mag_filter: Filter::LINEAR,
-            min_filter: Filter::LINEAR,
-            mipmap_mode: SamplerMipmapMode::NEAREST,
-            address_mode_u: SamplerAddressMode::CLAMP_TO_BORDER,
-            address_mode_v: SamplerAddressMode::CLAMP_TO_BORDER,
-            address_mode_w: SamplerAddressMode::CLAMP_TO_BORDER,
+            mag_filter: Filter::Linear,
+            min_filter: Filter::Linear,
+            mipmap_mode: SamplerMipmapMode::Nearest,
+            address_mode_u: SamplerAddressMode::ClampToBorder,
+            address_mode_v: SamplerAddressMode::ClampToBorder,
+            address_mode_w: SamplerAddressMode::ClampToBorder,
             mip_lod_bias: 0.0,
             anisotropy_enable: FALSE,
             max_anisotropy: 0.0,
             compare_enable: FALSE,
-            compare_op: CompareOp::ALWAYS,
+            compare_op: CompareOp::Always,
             min_lod: 0.0,
             max_lod: 0.0,
-            border_color: BorderColor::FLOAT_TRANSPARENT_BLACK,
+            border_color: BorderColor::FloatTransparentBlack,
             unnormalized_coordinates: TRUE,
             ..Default::default()
         };
 
-        let sampler_smooth = unsafe { base.device.create_sampler(&create_info, None).unwrap() };
+        let sampler_smooth = base.device.create_sampler(&create_info, None).unwrap();
         let texture_atlas = TextureAtlas::new(Vec2::new(256, 256));
 
         Self {
@@ -124,7 +123,7 @@ impl Resources {
 
     pub fn create_desc_sets(
         &mut self,
-        device: &ash::Device,
+        device: &Device,
         layouts: &[DescriptorSetLayout],
         layout_mats: &[usize],
         uniform_buffer: Buffer,
@@ -135,10 +134,14 @@ impl Resources {
         let allocate_info = DescriptorSetAllocateInfo {
             descriptor_pool: self.desc_pool,
             descriptor_set_count: layouts.len() as u32,
-            p_set_layouts: layouts.as_ptr(),
+            set_layouts: layouts.as_ptr(),
             ..Default::default()
         };
-        let sets = unsafe { device.allocate_descriptor_sets(&allocate_info).unwrap() };
+
+        let mut sets = vec![DescriptorSet::null(); layouts.len()];
+        device
+            .allocate_descriptor_sets(&allocate_info, &mut sets)
+            .unwrap();
 
         debug_assert_eq!(sets.len() - 1, layout_mats.len());
 
@@ -157,19 +160,19 @@ impl Resources {
         let image_info = DescriptorImageInfo {
             sampler: self.sampler_smooth,
             image_view,
-            image_layout: ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            image_layout: ImageLayout::ShaderReadOnlyOptimal,
         };
 
         let msdf_info = DescriptorImageInfo {
             sampler: self.sampler_smooth,
             image_view: msdf_view,
-            image_layout: ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            image_layout: ImageLayout::ShaderReadOnlyOptimal,
         };
 
         let atlas_image_info = DescriptorImageInfo {
             sampler: self.sampler_smooth,
             image_view: atlas_view,
-            image_layout: ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            image_layout: ImageLayout::ShaderReadOnlyOptimal,
         };
 
         let descriptor_writes = [
@@ -177,41 +180,41 @@ impl Resources {
                 dst_set: sets[0],
                 dst_binding: 0,
                 dst_array_element: 0,
-                descriptor_type: DescriptorType::UNIFORM_BUFFER,
+                descriptor_type: DescriptorType::UniformBuffer,
                 descriptor_count: 1,
-                p_buffer_info: &buffer_info,
+                buffer_info: &buffer_info,
                 ..Default::default()
             },
             WriteDescriptorSet {
                 dst_set: sets[1],
                 dst_binding: 0,
                 dst_array_element: 0,
-                descriptor_type: DescriptorType::COMBINED_IMAGE_SAMPLER,
+                descriptor_type: DescriptorType::CombinedImageSampler,
                 descriptor_count: 1,
-                p_image_info: &image_info,
+                image_info: &image_info,
                 ..Default::default()
             },
             WriteDescriptorSet {
                 dst_set: sets[2],
                 dst_binding: 0,
                 dst_array_element: 0,
-                descriptor_type: DescriptorType::COMBINED_IMAGE_SAMPLER,
+                descriptor_type: DescriptorType::CombinedImageSampler,
                 descriptor_count: 1,
-                p_image_info: &msdf_info,
+                image_info: &msdf_info,
                 ..Default::default()
             },
             WriteDescriptorSet {
                 dst_set: sets[3],
                 dst_binding: 0,
                 dst_array_element: 0,
-                descriptor_type: DescriptorType::COMBINED_IMAGE_SAMPLER,
+                descriptor_type: DescriptorType::CombinedImageSampler,
                 descriptor_count: 1,
-                p_image_info: &atlas_image_info,
+                image_info: &atlas_image_info,
                 ..Default::default()
             },
         ];
 
-        unsafe { device.update_descriptor_sets(&descriptor_writes, &[]) };
+        device.update_descriptor_sets(&descriptor_writes, &[]);
     }
 
     pub fn add_mat(&mut self, material: Material) {
@@ -304,7 +307,7 @@ impl Resources {
         }
     }
 
-    pub fn draw(&self, device: &ash::Device, cmd: CommandBuffer, clip: Rect2D) {
+    pub fn draw(&self, cmd: CommandBuffer, clip: Rect2D) {
         if self.draw_batches.is_empty() {
             return;
         }
@@ -313,32 +316,32 @@ impl Resources {
         for batch in &self.draw_batches {
             let mat = &self.materials[batch.mat_type as usize];
 
-            unsafe {
-                if mat.desc_set != DescriptorSet::null() {
-                    device.cmd_bind_descriptor_sets(
-                        cmd,
-                        PipelineBindPoint::GRAPHICS,
-                        mat.pipeline.layout,
-                        1,
-                        &[mat.desc_set],
-                        &[],
-                    );
-                }
-                device.cmd_bind_pipeline(cmd, PipelineBindPoint::GRAPHICS, mat.pipeline.this);
-                device.cmd_bind_vertex_buffers(cmd, 0, &[mat.buffer], &[0]);
+            if mat.desc_set != DescriptorSet::null() {
+                cmd.bind_descriptor_sets(
+                    PipelineBindPoint::Graphics,
+                    mat.pipeline.layout,
+                    1,
+                    &[mat.desc_set],
+                    &[],
+                );
+            }
+            if mat.pipeline.this.is_null() {
+                panic!("");
+            }
+            cmd.bind_pipeline(PipelineBindPoint::Graphics, mat.pipeline.this);
+            cmd.bind_vertex_buffers(0, &[mat.buffer], &[0]);
 
-                if let Some(clip) = batch.clip {
-                    device.cmd_set_scissor(cmd, 0, &[clip]);
-                    last_had_clip = true;
-                } else if last_had_clip {
-                    device.cmd_set_scissor(cmd, 0, &[clip]);
-                    last_had_clip = false;
-                }
-                device.cmd_draw(cmd, 4, batch.size, 0, batch.offset);
+            if let Some(clip) = batch.clip {
+                cmd.set_scissor(0, &[clip]);
+                last_had_clip = true;
+            } else if last_had_clip {
+                cmd.set_scissor(0, &[clip]);
+                last_had_clip = false;
+            }
+            cmd.draw(4, batch.size, 0, batch.offset);
 
-                if last_had_clip {
-                    device.cmd_set_scissor(cmd, 0, &[clip]);
-                }
+            if last_had_clip {
+                cmd.set_scissor(0, &[clip]);
             }
         }
     }
@@ -384,7 +387,7 @@ impl Resources {
                 base,
                 0,
                 buf.len() as u64,
-                BufferUsageFlags::VERTEX_BUFFER,
+                BufferUsageFlags::VertexBuffer,
             );
 
             mat.buffer = buffer;
@@ -408,10 +411,8 @@ impl Resources {
         self.texture_atlas.destroy(&base.device);
         self.mem_manager.destroy(base);
 
-        unsafe {
-            base.device.destroy_sampler(self.sampler, None);
-            base.device.destroy_sampler(self.sampler_smooth, None);
-            base.device.destroy_descriptor_pool(self.desc_pool, None);
-        }
+        base.device.destroy_sampler(self.sampler, None);
+        base.device.destroy_sampler(self.sampler_smooth, None);
+        base.device.destroy_descriptor_pool(self.desc_pool, None);
     }
 }

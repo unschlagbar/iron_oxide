@@ -1,12 +1,11 @@
-use std::{fmt::Debug, fs::File, io::BufWriter};
-
-use ash::vk::{
+use png::Encoder;
+use pyronyx::vk::{
     AccessFlags, Buffer, BufferImageCopy, BufferUsageFlags, CommandBuffer, CommandPool,
-    DependencyFlags, Extent3D, Format, Handle, Image, ImageAspectFlags, ImageCreateInfo,
+    DependencyFlags, Device, Extent3D, Format, Image, ImageAspectFlags, ImageCreateInfo,
     ImageLayout, ImageMemoryBarrier, ImageSubresourceLayers, ImageSubresourceRange, ImageView,
     ImageViewCreateInfo, ImageViewType, Offset3D, PipelineStageFlags,
 };
-use png::Encoder;
+use std::{fmt::Debug, fs::File, io::BufWriter};
 
 use crate::graphics::{Resources, SinlgeTimeCommands};
 
@@ -23,7 +22,7 @@ pub struct VulkanImage {
 
 impl VulkanImage {
     pub fn create(base: &VkBase, create_info: &ImageCreateInfo) -> Self {
-        let image = unsafe { base.device.create_image(create_info, None).unwrap() };
+        let image = base.device.create_image(create_info, None).unwrap();
 
         let format = create_info.format;
         let layout = create_info.initial_layout;
@@ -39,33 +38,28 @@ impl VulkanImage {
 
     pub fn aspect_flags(&self) -> ImageAspectFlags {
         match self.format {
-            Format::D16_UNORM
-            | Format::D16_UNORM_S8_UINT
-            | Format::D24_UNORM_S8_UINT
-            | Format::D32_SFLOAT
-            | Format::D32_SFLOAT_S8_UINT => ImageAspectFlags::DEPTH,
-            _ => ImageAspectFlags::COLOR,
+            Format::D16Unorm
+            | Format::D16UnormS8Uint
+            | Format::D24UnormS8Uint
+            | Format::D32Sfloat
+            | Format::D32SfloatS8Uint => ImageAspectFlags::Depth,
+            _ => ImageAspectFlags::Color,
         }
     }
 
-    pub fn trasition_layout(
-        &mut self,
-        base: &VkBase,
-        cmd_buf: CommandBuffer,
-        new_layout: ImageLayout,
-    ) {
+    pub fn trasition_layout(&mut self, cmd_buf: CommandBuffer, new_layout: ImageLayout) {
         let mut barrier = ImageMemoryBarrier {
             old_layout: self.layout,
             new_layout,
             image: self.image,
             subresource_range: ImageSubresourceRange {
                 aspect_mask: {
-                    if self.format == Format::D32_SFLOAT || self.format == Format::D16_UNORM {
-                        ImageAspectFlags::DEPTH
-                    } else if self.format == Format::D24_UNORM_S8_UINT {
-                        ImageAspectFlags::DEPTH | ImageAspectFlags::STENCIL
+                    if self.format == Format::D32Sfloat || self.format == Format::D16Unorm {
+                        ImageAspectFlags::Depth
+                    } else if self.format == Format::D24UnormS8Uint {
+                        ImageAspectFlags::Depth | ImageAspectFlags::Stencil
                     } else {
-                        ImageAspectFlags::COLOR
+                        ImageAspectFlags::Color
                     }
                 },
                 base_mip_level: 0,
@@ -80,51 +74,51 @@ impl VulkanImage {
         let destination_stage;
 
         match (new_layout, self.layout) {
-            (ImageLayout::TRANSFER_DST_OPTIMAL, ImageLayout::UNDEFINED) => {
-                barrier.src_access_mask = AccessFlags::NONE;
-                barrier.dst_access_mask = AccessFlags::TRANSFER_WRITE;
+            (ImageLayout::TransferDstOptimal, ImageLayout::Undefined) => {
+                barrier.src_access_mask = AccessFlags::None;
+                barrier.dst_access_mask = AccessFlags::TransferWrite;
 
-                source_stage = PipelineStageFlags::TOP_OF_PIPE;
-                destination_stage = PipelineStageFlags::TRANSFER;
+                source_stage = PipelineStageFlags::TopOfPipe;
+                destination_stage = PipelineStageFlags::Transfer;
             }
             (
-                ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-                ImageLayout::TRANSFER_DST_OPTIMAL | ImageLayout::TRANSFER_SRC_OPTIMAL,
+                ImageLayout::ShaderReadOnlyOptimal,
+                ImageLayout::TransferDstOptimal | ImageLayout::TransferSrcOptimal,
             ) => {
-                barrier.src_access_mask = AccessFlags::TRANSFER_WRITE;
-                barrier.dst_access_mask = AccessFlags::SHADER_READ;
+                barrier.src_access_mask = AccessFlags::TransferWrite;
+                barrier.dst_access_mask = AccessFlags::ShaderRead;
 
-                source_stage = PipelineStageFlags::TRANSFER;
-                destination_stage = PipelineStageFlags::FRAGMENT_SHADER;
+                source_stage = PipelineStageFlags::Transfer;
+                destination_stage = PipelineStageFlags::FragmentShader;
             }
-            (ImageLayout::GENERAL, ImageLayout::UNDEFINED) => {
-                barrier.src_access_mask = AccessFlags::TRANSFER_WRITE;
-                barrier.dst_access_mask = AccessFlags::SHADER_READ;
+            (ImageLayout::General, ImageLayout::Undefined) => {
+                barrier.src_access_mask = AccessFlags::TransferWrite;
+                barrier.dst_access_mask = AccessFlags::ShaderRead;
 
-                source_stage = PipelineStageFlags::TRANSFER;
-                destination_stage = PipelineStageFlags::FRAGMENT_SHADER;
+                source_stage = PipelineStageFlags::Transfer;
+                destination_stage = PipelineStageFlags::FragmentShader;
             }
-            (ImageLayout::TRANSFER_SRC_OPTIMAL, ImageLayout::UNDEFINED) => {
-                barrier.src_access_mask = AccessFlags::TRANSFER_WRITE;
-                barrier.dst_access_mask = AccessFlags::SHADER_READ;
+            (ImageLayout::TransferSrcOptimal, ImageLayout::Undefined) => {
+                barrier.src_access_mask = AccessFlags::TransferWrite;
+                barrier.dst_access_mask = AccessFlags::ShaderRead;
 
-                source_stage = PipelineStageFlags::TRANSFER;
-                destination_stage = PipelineStageFlags::FRAGMENT_SHADER;
+                source_stage = PipelineStageFlags::Transfer;
+                destination_stage = PipelineStageFlags::FragmentShader;
             }
-            (ImageLayout::TRANSFER_SRC_OPTIMAL, ImageLayout::SHADER_READ_ONLY_OPTIMAL) => {
-                barrier.src_access_mask = AccessFlags::SHADER_READ;
-                barrier.dst_access_mask = AccessFlags::TRANSFER_READ;
+            (ImageLayout::TransferSrcOptimal, ImageLayout::ShaderReadOnlyOptimal) => {
+                barrier.src_access_mask = AccessFlags::ShaderRead;
+                barrier.dst_access_mask = AccessFlags::TransferRead;
 
-                source_stage = PipelineStageFlags::FRAGMENT_SHADER;
-                destination_stage = PipelineStageFlags::TRANSFER;
+                source_stage = PipelineStageFlags::FragmentShader;
+                destination_stage = PipelineStageFlags::Transfer;
             }
-            (ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL, ImageLayout::UNDEFINED) => {
-                barrier.src_access_mask = AccessFlags::NONE;
-                barrier.dst_access_mask = AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
-                    | AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE;
+            (ImageLayout::DepthAttachmentOptimal, ImageLayout::Undefined) => {
+                barrier.src_access_mask = AccessFlags::None;
+                barrier.dst_access_mask = AccessFlags::DepthStencilAttachmentRead
+                    | AccessFlags::DepthStencilAttachmentWrite;
 
-                source_stage = PipelineStageFlags::TOP_OF_PIPE;
-                destination_stage = PipelineStageFlags::EARLY_FRAGMENT_TESTS;
+                source_stage = PipelineStageFlags::TopOfPipe;
+                destination_stage = PipelineStageFlags::EarlyFragmentTests;
             }
             _ => panic!(
                 "From layout: {:?} to layout: {:?} is not implemented!",
@@ -132,20 +126,17 @@ impl VulkanImage {
             ),
         }
         self.layout = new_layout;
-        unsafe {
-            base.device.cmd_pipeline_barrier(
-                cmd_buf,
-                source_stage,
-                destination_stage,
-                DependencyFlags::empty(),
-                &[],
-                &[],
-                &[barrier],
-            )
-        }
+        cmd_buf.pipeline_barrier(
+            source_stage,
+            destination_stage,
+            DependencyFlags::empty(),
+            &[],
+            &[],
+            &[barrier],
+        )
     }
 
-    pub fn copy_from_buffer(&self, base: &VkBase, cmd_buf: CommandBuffer, buffer: Buffer) {
+    pub fn copy_from_buffer(&self, cmd_buf: CommandBuffer, buffer: Buffer) {
         let region = BufferImageCopy {
             buffer_offset: 0,
             buffer_row_length: 0,
@@ -160,21 +151,18 @@ impl VulkanImage {
             image_extent: self.extent,
         };
 
-        unsafe {
-            base.device.cmd_copy_buffer_to_image(
-                cmd_buf,
-                buffer,
-                self.image,
-                ImageLayout::TRANSFER_DST_OPTIMAL,
-                &[region],
-            )
-        };
+        cmd_buf.copy_buffer_to_image(
+            buffer,
+            self.image,
+            ImageLayout::TransferDstOptimal,
+            &[region],
+        )
     }
 
     pub fn create_view(&mut self, base: &VkBase) {
         let create_info = ImageViewCreateInfo {
             image: self.image,
-            view_type: ImageViewType::TYPE_2D,
+            view_type: ImageViewType::Type2d,
             format: self.format,
             subresource_range: ImageSubresourceRange {
                 aspect_mask: self.aspect_flags(),
@@ -185,7 +173,7 @@ impl VulkanImage {
             },
             ..Default::default()
         };
-        self.view = unsafe { base.device.create_image_view(&create_info, None).unwrap() }
+        self.view = base.device.create_image_view(&create_info, None).unwrap()
     }
 
     pub fn save_to_png(
@@ -202,20 +190,20 @@ impl VulkanImage {
             base,
             0,
             size as u64,
-            BufferUsageFlags::TRANSFER_DST,
+            BufferUsageFlags::TransferDst,
         );
         let mut img = self.clone();
 
         let cmd_buf = SinlgeTimeCommands::begin(base, cmd_pool);
 
-        img.trasition_layout(base, cmd_buf, ImageLayout::TRANSFER_SRC_OPTIMAL);
+        img.trasition_layout(cmd_buf, ImageLayout::TransferSrcOptimal);
 
         let region = BufferImageCopy {
             buffer_offset: 0,
             buffer_row_length: 0,
             buffer_image_height: 0,
             image_subresource: ImageSubresourceLayers {
-                aspect_mask: ImageAspectFlags::COLOR,
+                aspect_mask: ImageAspectFlags::Color,
                 mip_level: 0,
                 base_array_layer: 0,
                 layer_count: 1,
@@ -223,17 +211,14 @@ impl VulkanImage {
             image_offset: Offset3D::default(),
             image_extent: extent,
         };
-        unsafe {
-            base.device.cmd_copy_image_to_buffer(
-                cmd_buf,
-                self.image,
-                ImageLayout::TRANSFER_SRC_OPTIMAL,
-                staging_buffer,
-                &[region],
-            );
-        }
+        cmd_buf.copy_image_to_buffer(
+            self.image,
+            ImageLayout::TransferSrcOptimal,
+            staging_buffer,
+            &[region],
+        );
 
-        img.trasition_layout(base, cmd_buf, self.layout);
+        img.trasition_layout(cmd_buf, self.layout);
         SinlgeTimeCommands::end(base, cmd_pool, cmd_buf);
 
         let mut buf: Vec<u8> = Vec::with_capacity(size);
@@ -260,19 +245,17 @@ impl VulkanImage {
         resources.mem_manager.pop_buffer(base);
     }
 
-    pub fn destroy_view(&mut self, device: &ash::Device) {
+    pub fn destroy_view(&mut self, device: &Device) {
         if !self.view.is_null() {
-            unsafe { device.destroy_image_view(self.view, None) };
+            device.destroy_image_view(self.view, None);
             self.view = ImageView::null()
         }
     }
 
-    pub fn destroy(&mut self, device: &ash::Device) {
+    pub fn destroy(&mut self, device: &Device) {
         if !self.view.is_null() {
-            unsafe {
-                device.destroy_image_view(self.view, None);
-                device.destroy_image(self.image, None);
-            };
+            device.destroy_image_view(self.view, None);
+            device.destroy_image(self.image, None);
             self.view = ImageView::null();
             self.image = Image::null();
         }

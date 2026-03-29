@@ -1,4 +1,4 @@
-use ash::vk::{self, Buffer, Rect2D};
+use pyronyx::vk::{self, Buffer, Rect2D};
 use winit::dpi::PhysicalSize;
 
 use crate::{
@@ -23,7 +23,7 @@ pub struct Material {
 }
 
 impl Material {
-    pub fn destroy(&mut self, device: &ash::Device) {
+    pub fn destroy(&mut self, device: &vk::Device) {
         self.pipeline.destroy(device);
     }
 }

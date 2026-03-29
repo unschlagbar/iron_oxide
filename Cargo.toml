@@ -8,10 +8,7 @@ edition = "2024"
 [dependencies]
 sha1_smol = { version = "1.0.1", optional = true }
 base64 = { version = "0.22.0", optional = true }
-ash = { version = "0.38.0", default-features = false, features = [
-    "debug",
-    "std",
-], optional = true }
+pyronyx = { path = "../pyronyx/pyronyx", optional = true }
 png = { version = "0.18.1", optional = true }
 zip = { version = "8.1.0", optional = true }
 rand = "0.10.0"
@@ -33,9 +30,7 @@ winit = { version = "0.30.12", default-features = false, features = [
 winit = { version = "0.30.12", optional = true }
 
 [features]
-default = ["vulkan", "linked"]
-vulkan = ["ash", "winit", "png", "ndk"]
+default = ["vulkan"]
+vulkan = ["pyronyx", "winit", "png", "ndk"]
 x11 = ["winit/x11"]
 net = ["zip", "base64", "sha1_smol"]
-loaded = ["ash/loaded"]
-linked = ["ash/linked"]

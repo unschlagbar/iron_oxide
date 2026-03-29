@@ -1,4 +1,4 @@
-use ash::vk::{self, Format, VertexInputAttributeDescription, VertexInputBindingDescription};
+use pyronyx::vk::{self, Format, VertexInputAttributeDescription, VertexInputBindingDescription};
 use std::mem::offset_of;
 
 use crate::{
@@ -22,56 +22,56 @@ impl VertexDescription for UiInstance {
         &[VertexInputBindingDescription {
             binding: 0,
             stride: size_of::<Self>() as _,
-            input_rate: vk::VertexInputRate::INSTANCE,
+            input_rate: vk::VertexInputRate::Instance,
         }];
 
     const GET_ATTRIBUTE_DESCRIPTIONS: &[VertexInputAttributeDescription] = &[
         VertexInputAttributeDescription {
             binding: 0,
             location: 0,
-            format: Format::R8G8B8A8_UNORM,
+            format: Format::R8G8B8A8Unorm,
             offset: offset_of!(Self, color) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 1,
-            format: Format::R8G8B8A8_UNORM,
+            format: Format::R8G8B8A8Unorm,
             offset: offset_of!(Self, border_color) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 2,
-            format: Format::R8G8B8A8_UINT,
+            format: Format::R8G8B8A8Uint,
             offset: offset_of!(Self, border) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 3,
-            format: Format::R16_SINT,
+            format: Format::R16Sint,
             offset: offset_of!(Self, pos.x) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 4,
-            format: Format::R16_SINT,
+            format: Format::R16Sint,
             offset: offset_of!(Self, pos.y) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 5,
-            format: Format::R16_SINT,
+            format: Format::R16Sint,
             offset: offset_of!(Self, size.x) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 6,
-            format: Format::R16_SINT,
+            format: Format::R16Sint,
             offset: offset_of!(Self, size.y) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 7,
-            format: Format::R16_UINT,
+            format: Format::R16Uint,
             offset: offset_of!(Self, corner) as u32,
         },
     ];
@@ -92,38 +92,38 @@ impl VertexDescription for AtlasInstance {
         &[VertexInputBindingDescription {
             binding: 0,
             stride: size_of::<Self>() as _,
-            input_rate: vk::VertexInputRate::INSTANCE,
+            input_rate: vk::VertexInputRate::Instance,
         }];
 
     const GET_ATTRIBUTE_DESCRIPTIONS: &[VertexInputAttributeDescription] = &[
         VertexInputAttributeDescription {
             binding: 0,
             location: 0,
-            format: Format::R8G8B8A8_UNORM,
+            format: Format::R8G8B8A8Unorm,
             offset: offset_of!(Self, color) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 1,
-            format: Format::R32G32_SFLOAT,
+            format: Format::R32G32Sfloat,
             offset: offset_of!(Self, pos) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 2,
-            format: Format::R32G32_SFLOAT,
+            format: Format::R32G32Sfloat,
             offset: offset_of!(Self, size) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 3,
-            format: Format::R32_UINT,
+            format: Format::R32Uint,
             offset: offset_of!(Self, uv_start) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 4,
-            format: Format::R32_UINT,
+            format: Format::R32Uint,
             offset: offset_of!(Self, uv_size) as u32,
         },
     ];
@@ -144,38 +144,38 @@ impl VertexDescription for MSDFInstance {
         &[VertexInputBindingDescription {
             binding: 0,
             stride: size_of::<Self>() as _,
-            input_rate: vk::VertexInputRate::INSTANCE,
+            input_rate: vk::VertexInputRate::Instance,
         }];
 
     const GET_ATTRIBUTE_DESCRIPTIONS: &[VertexInputAttributeDescription] = &[
         VertexInputAttributeDescription {
             binding: 0,
             location: 0,
-            format: Format::R8G8B8A8_UNORM,
+            format: Format::R8G8B8A8Unorm,
             offset: offset_of!(Self, color) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 1,
-            format: Format::R32G32_SFLOAT,
+            format: Format::R32G32Sfloat,
             offset: offset_of!(Self, pos) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 2,
-            format: Format::R32G32_SFLOAT,
+            format: Format::R32G32Sfloat,
             offset: offset_of!(Self, size) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 3,
-            format: Format::R32G32_SFLOAT,
+            format: Format::R32G32Sfloat,
             offset: offset_of!(Self, uv_start) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 4,
-            format: Format::R32G32_SFLOAT,
+            format: Format::R32G32Sfloat,
             offset: offset_of!(Self, uv_end) as u32,
         },
     ];
@@ -196,50 +196,50 @@ impl VertexDescription for ShadowInstance {
         &[VertexInputBindingDescription {
             binding: 0,
             stride: size_of::<Self>() as _,
-            input_rate: vk::VertexInputRate::INSTANCE,
+            input_rate: vk::VertexInputRate::Instance,
         }];
 
     const GET_ATTRIBUTE_DESCRIPTIONS: &[VertexInputAttributeDescription] = &[
         VertexInputAttributeDescription {
             binding: 0,
             location: 0,
-            format: Format::R8G8B8A8_UNORM,
+            format: Format::R8G8B8A8Unorm,
             offset: offset_of!(Self, color) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 1,
-            format: Format::R16_SINT,
+            format: Format::R16Sint,
             offset: offset_of!(Self, pos.x) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 2,
-            format: Format::R16_SINT,
+            format: Format::R16Sint,
             offset: offset_of!(Self, pos.y) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 3,
-            format: Format::R16_SINT,
+            format: Format::R16Sint,
             offset: offset_of!(Self, size.x) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 4,
-            format: Format::R16_SINT,
+            format: Format::R16Sint,
             offset: offset_of!(Self, size.y) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 5,
-            format: Format::R16_UINT,
+            format: Format::R16Uint,
             offset: offset_of!(Self, blur) as u32,
         },
         VertexInputAttributeDescription {
             binding: 0,
             location: 6,
-            format: Format::R16_UINT,
+            format: Format::R16Uint,
             offset: offset_of!(Self, corner) as u32,
         },
     ];

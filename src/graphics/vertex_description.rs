@@ -1,6 +1,6 @@
 use std::ptr;
 
-use ash::vk;
+use pyronyx::vk;
 
 pub trait VertexDescription: Sized + Copy + 'static {
     const GET_BINDING_DESCRIPTION: &[vk::VertexInputBindingDescription];

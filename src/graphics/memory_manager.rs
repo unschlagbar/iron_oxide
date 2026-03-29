@@ -1,6 +1,6 @@
 use std::ptr;
 
-use ash::vk::{
+use pyronyx::vk::{
     Buffer, BufferCreateInfo, BufferUsageFlags, CommandPool, DeviceMemory, Image, ImageLayout,
     MemoryAllocateInfo, MemoryMapFlags, MemoryPropertyFlags,
 };
@@ -21,10 +21,7 @@ pub struct MemManager {
 
 impl MemManager {
     pub fn new(base: &VkBase) -> Self {
-        let mem_properties = unsafe {
-            base.instance
-                .get_physical_device_memory_properties(base.physical_device)
-        };
+        let mem_properties = base.physical_device.get_memory_properties();
 
         let mut host_visible = u32::MAX;
         let mut device_local = u32::MAX;
@@ -34,22 +31,22 @@ impl MemManager {
             if device_local == u32::MAX
                 && mem
                     .property_flags
-                    .contains(MemoryPropertyFlags::DEVICE_LOCAL)
+                    .contains(MemoryPropertyFlags::DeviceLocal)
             {
                 device_local = i as u32;
             }
 
             if host_visible == u32::MAX
-                && mem.property_flags.contains(
-                    MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
-                )
+                && mem
+                    .property_flags
+                    .contains(MemoryPropertyFlags::HostVisible | MemoryPropertyFlags::HostCoherent)
             {
                 host_visible = i as u32;
             }
 
             if lazy == u32::MAX
                 && mem.property_flags.contains(
-                    MemoryPropertyFlags::DEVICE_LOCAL | MemoryPropertyFlags::LAZILY_ALLOCATED,
+                    MemoryPropertyFlags::DeviceLocal | MemoryPropertyFlags::LazilyAllocated,
                 )
             {
                 lazy = i as u32;
@@ -94,7 +91,7 @@ impl MemManager {
             ..Default::default()
         };
 
-        let mem = unsafe { base.device.allocate_memory(&alloc_info, None).unwrap() };
+        let mem = base.device.allocate_memory(&alloc_info, None).unwrap();
 
         self.memory_pool[slot] = Memory {
             mem_type_idx: memory_type_index,
@@ -109,7 +106,7 @@ impl MemManager {
         let mem = &mut self.memory_pool[slot];
         debug_assert_ne!(mem.memory, DeviceMemory::null());
 
-        unsafe { base.device.free_memory(mem.memory, None) };
+        base.device.free_memory(mem.memory, None);
         mem.memory = DeviceMemory::null();
 
         let memory_type_index = mem.mem_type_idx;
@@ -123,11 +120,10 @@ impl MemManager {
 
         let size = if size == u64::MAX { memory.size } else { size };
 
-        let mapped = unsafe {
-            base.device
-                .map_memory(memory.memory, offset, size, MemoryMapFlags::empty())
-                .unwrap() as *mut u8
-        };
+        let mapped = base
+            .device
+            .map_memory(memory.memory, offset, size, MemoryMapFlags::empty())
+            .unwrap() as *mut u8;
         memory.mapped = mapped;
         mapped
     }
@@ -137,7 +133,7 @@ impl MemManager {
         debug_assert_ne!(memory.memory, DeviceMemory::null());
         debug_assert_ne!(memory.mapped, ptr::null_mut());
 
-        unsafe { base.device.unmap_memory(memory.memory) };
+        base.device.unmap_memory(memory.memory);
     }
 
     pub fn create_buffer(
@@ -155,8 +151,8 @@ impl MemManager {
             ..Default::default()
         };
 
-        let buffer = unsafe { base.device.create_buffer(&buffer_info, None).unwrap() };
-        let requirements = unsafe { base.device.get_buffer_memory_requirements(buffer) };
+        let buffer = base.device.create_buffer(&buffer_info, None).unwrap();
+        let requirements = base.device.get_buffer_memory_requirements(buffer);
 
         let align = requirements.alignment;
         let buffer_size = (requirements.size + align - 1) & !(align - 1);
@@ -179,11 +175,9 @@ impl MemManager {
         } else {
             self.memory_pool[0].used = 0;
         }
-        unsafe {
-            self.buffers
-                .drain(start..)
-                .for_each(|b| base.device.destroy_buffer(b.buffer, None));
-        }
+        self.buffers
+            .drain(start..)
+            .for_each(|b| base.device.destroy_buffer(b.buffer, None));
     }
 
     pub fn destroy_images(&mut self, base: &VkBase, start: usize) {
@@ -193,11 +187,9 @@ impl MemManager {
         } else {
             self.memory_pool[0].used = 0;
         }
-        unsafe {
-            self.images
-                .drain(start..)
-                .for_each(|i| base.device.destroy_image(i.image, None));
-        }
+        self.images
+            .drain(start..)
+            .for_each(|i| base.device.destroy_image(i.image, None));
     }
 
     pub fn upload_image(
@@ -209,11 +201,11 @@ impl MemManager {
         layout: ImageLayout,
         data: &[u8],
     ) {
-        let requirements = unsafe { base.device.get_image_memory_requirements(image.image) };
+        let requirements = base.device.get_image_memory_requirements(image.image);
         debug_assert_ne!(requirements.size, 0, "Size must be larger than 0");
 
         let (buffer, _) =
-            self.create_buffer(base, 0, requirements.size, BufferUsageFlags::TRANSFER_SRC);
+            self.create_buffer(base, 0, requirements.size, BufferUsageFlags::TransferSrc);
 
         let mem = self.memory_pool[0].as_ptr(self.buffers.last().unwrap());
         unsafe {
@@ -231,9 +223,9 @@ impl MemManager {
 
         let cmd_buf = SinlgeTimeCommands::begin(base, cmd_pool);
 
-        image.trasition_layout(base, cmd_buf, ImageLayout::TRANSFER_DST_OPTIMAL);
-        image.copy_from_buffer(base, cmd_buf, buffer);
-        image.trasition_layout(base, cmd_buf, layout);
+        image.trasition_layout(cmd_buf, ImageLayout::TransferDstOptimal);
+        image.copy_from_buffer(cmd_buf, buffer);
+        image.trasition_layout(cmd_buf, layout);
 
         SinlgeTimeCommands::end(base, cmd_pool, cmd_buf);
         self.pop_buffer(base);
@@ -250,7 +242,7 @@ impl MemManager {
         image: &mut VulkanImage,
         layout: ImageLayout,
     ) {
-        let requirements = unsafe { base.device.get_image_memory_requirements(image.image) };
+        let requirements = base.device.get_image_memory_requirements(image.image);
         debug_assert_ne!(requirements.size, 0, "Size must be larger than 0");
 
         let align = requirements.alignment;
@@ -263,13 +255,13 @@ impl MemManager {
         mem.bind_image(base, image.image, size, align);
 
         let cmd_buf = SinlgeTimeCommands::begin(base, cmd_pool);
-        image.trasition_layout(base, cmd_buf, layout);
+        image.trasition_layout(cmd_buf, layout);
         SinlgeTimeCommands::end(base, cmd_pool, cmd_buf);
     }
 
     pub fn destroy_buffer(&mut self, base: &VkBase, buffer: Buffer) {
         if let Some(pos) = self.buffers.iter_mut().position(|b| b.buffer == buffer) {
-            unsafe { base.device.destroy_buffer(self.buffers[pos].buffer, None) };
+            base.device.destroy_buffer(self.buffers[pos].buffer, None);
 
             if pos + 1 == self.buffers.len() {
                 let buffer = self.buffers.pop().unwrap();
@@ -288,7 +280,7 @@ impl MemManager {
 
     pub fn pop_buffer(&mut self, base: &VkBase) {
         let buffer = self.buffers.pop().unwrap();
-        unsafe { base.device.destroy_buffer(buffer.buffer, None) };
+        base.device.destroy_buffer(buffer.buffer, None);
 
         self.memory_pool[buffer.mem_slot].used = buffer.offset;
     }
@@ -296,7 +288,7 @@ impl MemManager {
     pub fn destroy_image(&mut self, base: &VkBase, image: Image) {
         if let Some(pos) = self.images.iter_mut().position(|i| i.image == image) {
             let managed = &self.images[pos];
-            unsafe { base.device.destroy_image(managed.image, None) };
+            base.device.destroy_image(managed.image, None);
 
             if pos + 1 == self.images.len() {
                 let image = self.images.pop().unwrap();
@@ -333,29 +325,23 @@ pub struct Memory {
 
 impl Memory {
     pub fn destroy(self, base: &VkBase) {
-        unsafe {
-            base.device.free_memory(self.memory, None);
-        }
+        base.device.free_memory(self.memory, None);
     }
 
     pub fn bind_buffer(&mut self, base: &VkBase, buffer: Buffer, size: u64, align: u64) -> u64 {
         let offset = (self.used + align - 1) & !(align - 1);
-        unsafe {
-            base.device
-                .bind_buffer_memory(buffer, self.memory, offset)
-                .unwrap()
-        };
+        base.device
+            .bind_buffer_memory(buffer, self.memory, offset)
+            .unwrap();
         self.used = offset + size;
         offset
     }
 
     pub fn bind_image(&mut self, base: &VkBase, image: Image, size: u64, align: u64) -> u64 {
         let offset = (self.used + align - 1) & !(align - 1);
-        unsafe {
-            base.device
-                .bind_image_memory(image, self.memory, offset)
-                .unwrap()
-        };
+        base.device
+            .bind_image_memory(image, self.memory, offset)
+            .unwrap();
         self.used = offset + size;
         offset
     }

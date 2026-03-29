@@ -5,10 +5,10 @@ use std::{
     vec,
 };
 
-use ash::vk::{
+use png::{BitDepth, ColorType, Decoder};
+use pyronyx::vk::{
     self, CommandPool, Extent3D, Format, ImageCreateInfo, ImageLayout, ImageTiling, ImageUsageFlags,
 };
-use png::{BitDepth, ColorType, Decoder};
 
 use crate::{
     graphics::{MemManager, VkBase, VulkanImage},
@@ -147,14 +147,14 @@ impl TextureAtlas {
         };
 
         let create_info = ImageCreateInfo {
-            image_type: vk::ImageType::TYPE_2D,
-            format: Format::R8G8B8A8_UNORM,
+            image_type: vk::ImageType::Type2d,
+            format: Format::R8G8B8A8Unorm,
             extent,
             mip_levels: 1,
             array_layers: 1,
-            samples: vk::SampleCountFlags::TYPE_1,
-            tiling: ImageTiling::OPTIMAL,
-            usage: ImageUsageFlags::TRANSFER_DST | ImageUsageFlags::SAMPLED,
+            samples: vk::SampleCountFlags::Type1,
+            tiling: ImageTiling::Optimal,
+            usage: ImageUsageFlags::TransferDst | ImageUsageFlags::Sampled,
             ..Default::default()
         };
 
@@ -165,7 +165,7 @@ impl TextureAtlas {
             mem_slot,
             cmd_pool,
             &mut image,
-            ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            ImageLayout::ShaderReadOnlyOptimal,
             &image_data,
         );
         image.create_view(base);
@@ -173,9 +173,9 @@ impl TextureAtlas {
         self.atlas = Some(image);
     }
 
-    pub fn destroy(&self, device: &ash::Device) {
+    pub fn destroy(&self, device: &vk::Device) {
         if let Some(image) = &self.atlas {
-            unsafe { device.destroy_image_view(image.view, None) };
+            device.destroy_image_view(image.view, None);
         }
     }
 }

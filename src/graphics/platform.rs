@@ -1,27 +1,28 @@
+use pyronyx::khr;
+use pyronyx::khr::surface;
+use pyronyx::vk::{self, Instance, vkResult};
 use std::ffi::c_char;
-
-use ash::{
-    Entry, Instance,
-    khr::{self, surface},
-    prelude::VkResult,
-    vk,
-};
 use winit::raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
 #[cfg(target_os = "windows")]
 use khr::win32_surface;
 
 #[cfg(all(target_os = "linux", feature = "x11"))]
-use khr::{xcb_surface, xlib_surface};
+use khr::{
+    xcb_surface::{self, XcbSurfaceInstance},
+    xlib_surface::{self, XlibSurfaceInstance},
+};
 
 #[cfg(target_os = "linux")]
 use khr::wayland_surface;
+#[cfg(target_os = "linux")]
+use khr::wayland_surface::WaylandSurfaceInstance;
 
 #[cfg(target_os = "android")]
 use khr::android_surface;
 
 #[cfg(any(target_os = "ios", target_os = "macos"))]
-use ash::ext::metal_surface;
+use ext::metal_surface;
 
 #[cfg(target_os = "macos")]
 use raw_window_metal::{Layer, appkit};
@@ -53,74 +54,68 @@ use raw_window_metal::{Layer, uikit};
 ///
 /// [parent/child relation]: https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#fundamentals-objectmodel-lifetime
 pub fn create_surface(
-    entry: &Entry,
     instance: &Instance,
     display_handle: RawDisplayHandle,
     window_handle: RawWindowHandle,
-) -> VkResult<vk::SurfaceKHR> {
+) -> Result<vk::SurfaceKHR, vkResult> {
     match (display_handle, window_handle) {
         #[cfg(target_os = "windows")]
         (RawDisplayHandle::Windows(_), RawWindowHandle::Win32(window)) => {
-            let surface_desc = vk::Win32SurfaceCreateInfoKHR {
+            let create_info = vk::Win32SurfaceCreateInfoKHR {
                 hwnd: window.hwnd.get(),
                 hinstance: window
                     .hinstance
-                    .ok_or(vk::Result::ERROR_INITIALIZATION_FAILED)?
+                    .ok_or(vk::vkResult::ErrorInitializationFailed)?
                     .get(),
                 ..Default::default()
             };
-            let surface_fn = win32_surface::Instance::new(entry, instance);
-            unsafe { surface_fn.create_win32_surface(&surface_desc, None) }
+            instance.create_win32_surface(&create_info, None)
         }
 
         #[cfg(target_os = "linux")]
         (RawDisplayHandle::Wayland(display), RawWindowHandle::Wayland(window)) => {
-            let surface_desc = vk::WaylandSurfaceCreateInfoKHR {
+            let create_info = vk::WaylandSurfaceCreateInfoKHR {
                 display: display.display.as_ptr(),
                 surface: window.surface.as_ptr(),
                 ..Default::default()
             };
-            let surface_fn = wayland_surface::Instance::new(entry, instance);
-            unsafe { surface_fn.create_wayland_surface(&surface_desc, None) }
+            instance.create_wayland_surface(&create_info, None)
         }
 
         #[cfg(all(target_os = "linux", feature = "x11"))]
         (RawDisplayHandle::Xlib(display), RawWindowHandle::Xlib(window)) => {
-            let surface_desc = vk::XlibSurfaceCreateInfoKHR {
+            let create_info = vk::XlibSurfaceCreateInfoKHR {
                 dpy: display
                     .display
-                    .ok_or(vk::Result::ERROR_INITIALIZATION_FAILED)?
+                    .ok_or(vk::vkResult::ErrorInitializationFailed)?
                     .as_ptr(),
                 window: window.window,
                 ..Default::default()
             };
 
-            let surface_fn = xlib_surface::Instance::new(entry, instance);
-            unsafe { surface_fn.create_xlib_surface(&surface_desc, None) }
+            instance.create_xlib_surface(&create_info, None)
         }
 
         #[cfg(all(target_os = "linux", feature = "x11"))]
         (RawDisplayHandle::Xcb(display), RawWindowHandle::Xcb(window)) => {
-            let surface_desc = vk::XcbSurfaceCreateInfoKHR {
+            let create_info = vk::XcbSurfaceCreateInfoKHR {
                 connection: display
                     .connection
-                    .ok_or(vk::Result::ERROR_INITIALIZATION_FAILED)?
+                    .ok_or(vk::vkResult::ErrorInitializationFailed)?
                     .as_ptr(),
                 window: window.window.get(),
                 ..Default::default()
             };
-            let surface_fn = xcb_surface::Instance::new(entry, instance);
-            unsafe { surface_fn.create_xcb_surface(&surface_desc, None) }
+            instance.create_xcb_surface(&create_info, None)
         }
 
         #[cfg(target_os = "android")]
         (RawDisplayHandle::Android(_), RawWindowHandle::AndroidNdk(window)) => {
-            let surface_desc = vk::AndroidSurfaceCreateInfoKHR {
+            let create_info = vk::AndroidSurfaceCreateInfoKHR {
                 window: window.a_native_window.as_ptr(),
                 ..Default::default()
             };
-            let surface_fn = android_surface::Instance::new(entry, instance);
-            unsafe { surface_fn.create_android_surface(&surface_desc, None) }
+            instance.create_android_surface(&create_info, None)
         }
 
         #[cfg(target_os = "macos")]
@@ -129,9 +124,8 @@ pub fn create_surface(
                 Layer::Existing(layer) | Layer::Allocated(layer) => layer.cast(),
             };
 
-            let surface_desc = vk::MetalSurfaceCreateInfoEXT::default().layer(&*layer);
-            let surface_fn = metal_surface::Instance::new(entry, instance);
-            unsafe { surface_fn.create_metal_surface(&surface_desc, None) }
+            let create_info = vk::MetalSurfaceCreateInfoEXT::default().layer(&*layer);
+            instance.create_metal_surface(&create_info, None)
         }
 
         #[cfg(target_os = "ios")]
@@ -140,12 +134,11 @@ pub fn create_surface(
                 Layer::Existing(layer) | Layer::Allocated(layer) => layer.cast(),
             };
 
-            let surface_desc = vk::MetalSurfaceCreateInfoEXT::default().layer(&*layer);
-            let surface_fn = metal_surface::Instance::new(entry, instance);
-            unsafe { surface_fn.create_metal_surface(&surface_desc, None) }
+            let create_info = vk::MetalSurfaceCreateInfoEXT::default().layer(&*layer);
+            instance.create_metal_surface(&create_info, None)
         }
 
-        _ => Err(vk::Result::ERROR_EXTENSION_NOT_PRESENT),
+        _ => Err(vk::vkResult::ErrorExtensionNotPresent),
     }
 }
 
@@ -158,51 +151,29 @@ pub fn create_surface(
 /// The returned extensions will include all extension dependencies.
 pub fn get_required_extensions(
     display_handle: RawDisplayHandle,
-) -> VkResult<&'static [*const c_char]> {
+) -> Result<[*const c_char; 2], vk::vkResult> {
     let extensions = match display_handle {
         #[cfg(target_os = "windows")]
-        RawDisplayHandle::Windows(_) => {
-            const WINDOWS_EXTS: [*const c_char; 2] =
-                [surface::NAME.as_ptr(), win32_surface::NAME.as_ptr()];
-            &WINDOWS_EXTS
-        }
+        RawDisplayHandle::Windows(_) => [surface::NAME.as_ptr(), win32_surface::NAME.as_ptr()],
 
         #[cfg(target_os = "linux")]
-        RawDisplayHandle::Wayland(_) => {
-            const WAYLAND_EXTS: [*const c_char; 2] =
-                [surface::NAME.as_ptr(), wayland_surface::NAME.as_ptr()];
-            &WAYLAND_EXTS
-        }
+        RawDisplayHandle::Wayland(_) => [surface::NAME.as_ptr(), wayland_surface::NAME.as_ptr()],
 
         #[cfg(all(target_os = "linux", feature = "x11"))]
-        RawDisplayHandle::Xlib(_) => {
-            const XLIB_EXTS: [*const c_char; 2] =
-                [surface::NAME.as_ptr(), xlib_surface::NAME.as_ptr()];
-            &XLIB_EXTS
-        }
+        RawDisplayHandle::Xlib(_) => [surface::NAME.as_ptr(), xlib_surface::NAME.as_ptr()],
 
         #[cfg(all(target_os = "linux", feature = "x11"))]
-        RawDisplayHandle::Xcb(_) => {
-            const XCB_EXTS: [*const c_char; 2] =
-                [surface::NAME.as_ptr(), xcb_surface::NAME.as_ptr()];
-            &XCB_EXTS
-        }
+        RawDisplayHandle::Xcb(_) => [surface::NAME.as_ptr(), xcb_surface::NAME.as_ptr()],
 
         #[cfg(target_os = "android")]
-        RawDisplayHandle::Android(_) => {
-            const ANDROID_EXTS: [*const c_char; 2] =
-                [surface::NAME.as_ptr(), android_surface::NAME.as_ptr()];
-            &ANDROID_EXTS
-        }
+        RawDisplayHandle::Android(_) => [surface::NAME.as_ptr(), android_surface::NAME.as_ptr()],
 
         #[cfg(any(target_os = "ios", target_os = "macos"))]
         RawDisplayHandle::AppKit(_) | RawDisplayHandle::UiKit(_) => {
-            const METAL_EXTS: [*const c_char; 2] =
-                [surface::NAME.as_ptr(), metal_surface::NAME.as_ptr()];
-            &METAL_EXTS
+            [surface::NAME.as_ptr(), metal_surface::NAME.as_ptr()]
         }
 
-        _ => return Err(vk::Result::ERROR_EXTENSION_NOT_PRESENT),
+        _ => return Err(vk::vkResult::ErrorExtensionNotPresent),
     };
 
     Ok(extensions)

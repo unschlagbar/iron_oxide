@@ -232,7 +232,7 @@ impl Vec2<f32> {
 }
 
 #[cfg(feature = "vulkan")]
-use ash::vk::{Extent2D, Offset2D};
+use pyronyx::vk::{Extent2D, Offset2D};
 #[cfg(feature = "vulkan")]
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 #[cfg(feature = "vulkan")]
