@@ -139,12 +139,12 @@ impl VkBase {
             application_info: &app_info,
             enabled_layer_count: active_layers.len() as u32,
             enabled_extension_count: extensions.len() as u32,
-            pp_enabled_layer_names: active_layers.as_ptr(),
-            pp_enabled_extension_names: extensions.as_ptr(),
+            enabled_layer_names: active_layers.as_ptr(),
+            enabled_extension_names: extensions.as_ptr(),
             ..Default::default()
         };
 
-        vk::Instance::create(&create_info, None).unwrap()
+        unsafe { vk::Instance::create(&create_info, None).unwrap() }
     }
 
     fn select_physical_device(
@@ -173,7 +173,7 @@ impl VkBase {
         queue_family_index: u32,
         capabilities: u32,
     ) -> vk::Device {
-        let features11 = vk::PhysicalDeviceVulkan11Features {
+        let mut features11 = vk::PhysicalDeviceVulkan11Features {
             shader_draw_parameters: vk::TRUE,
             ..Default::default()
         };
@@ -197,17 +197,19 @@ impl VkBase {
         let queue_create_infos = [queue_create_info];
 
         let create_info = vk::DeviceCreateInfo {
-            pp_enabled_extension_names: extensions.as_ptr().cast(),
+            enabled_extension_names: extensions.as_ptr().cast(),
             enabled_extension_count: extensions.len() as u32,
             queue_create_info_count: queue_create_infos.len() as u32,
             queue_create_infos: queue_create_infos.as_ptr(),
-            next: &features11 as *const _ as _,
             ..Default::default()
-        };
+        }
+        .next(&mut features11);
 
-        physical_device
-            .create_device(&create_info, None, instance)
-            .unwrap()
+        unsafe {
+            physical_device
+                .create_device(&create_info, None, instance)
+                .unwrap()
+        }
     }
 
     #[allow(unused)]
@@ -249,14 +251,6 @@ impl VkBase {
         }
 
         panic!();
-    }
-
-    pub fn queue_submit(
-        &self,
-        submits: &[vk::SubmitInfo<'_>],
-        fence: vk::Fence,
-    ) -> Result<(), vk::vkResult> {
-        self.queue.submit(submits, fence)
     }
 
     pub fn device_wait_idle(&self) {

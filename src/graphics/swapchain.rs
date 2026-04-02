@@ -153,8 +153,6 @@ impl Swapchain {
             image_array_layers: 1,
             image_usage: vk::ImageUsageFlags::ColorAttachment,
             image_sharing_mode: vk::SharingMode::Exclusive,
-            queue_family_index_count: 1,
-            queue_family_indices: &base.queue_family_index,
             pre_transform: SurfaceTransformFlagsKHR::Identity,
             composite_alpha: self.composite_alpha,
             present_mode: self.present_mode,

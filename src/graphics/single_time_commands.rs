@@ -1,3 +1,5 @@
+use core::slice;
+
 use pyronyx::vk;
 
 use super::VkBase;
@@ -14,10 +16,12 @@ impl SinlgeTimeCommands {
             ..Default::default()
         };
 
-        let command_buffer = unsafe {
+        let mut command_buffer = vk::CommandBuffer::default();
+
+        unsafe {
             base.device
-                .allocate_command_buffers(&allocate_info)
-                .unwrap()[0]
+                .allocate_command_buffers(&allocate_info, slice::from_mut(&mut command_buffer))
+                .unwrap()
         };
 
         let begin_info = vk::CommandBufferBeginInfo {
