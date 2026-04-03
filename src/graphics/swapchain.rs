@@ -6,7 +6,6 @@ use pyronyx::vk::{
     self, Extent2D, Framebuffer, ImageView, PresentModeKHR, RenderPass, SurfaceCapabilitiesKHR,
     SurfaceFormatKHR, SurfaceKHR, SurfaceTransformFlagsKHR, SwapchainKHR,
 };
-use winit::dpi::PhysicalSize;
 
 use crate::graphics::VkBase;
 
@@ -26,7 +25,7 @@ impl Swapchain {
         base: &VkBase,
         present_mode: vk::PresentModeKHR,
         surface: SurfaceKHR,
-        size: PhysicalSize<u32>,
+        size: vk::Extent2D,
     ) -> Self {
         let target_format = if cfg!(target_os = "android") {
             vk::Format::R8G8B8A8Unorm
@@ -67,10 +66,9 @@ impl Swapchain {
             vk::CompositeAlphaFlagsKHR::Inherit
         };
 
-        // Wayland tells with width = u32::MAY that we can decide the size
+        // Wayland tells with width == u32::MAY that we can decide the size
         if capabilities.current_extent.width == u32::MAX {
-            capabilities.current_extent.width = size.width;
-            capabilities.current_extent.height = size.height;
+            capabilities.current_extent = size
         }
 
         Self {
@@ -117,7 +115,7 @@ impl Swapchain {
         }
     }
 
-    pub fn update_caps(&mut self, base: &VkBase, size: PhysicalSize<u32>) {
+    pub fn update_caps(&mut self, base: &VkBase, size: vk::Extent2D) {
         self.capabilities = base
             .physical_device
             .get_surface_capabilities(self.surface)
@@ -125,8 +123,7 @@ impl Swapchain {
 
         // Wayland tells with width = u32::MAY that we can decide the size
         if self.capabilities.current_extent.width == u32::MAX {
-            self.capabilities.current_extent.width = size.width;
-            self.capabilities.current_extent.height = size.height;
+            self.capabilities.current_extent = size;
         }
     }
 
@@ -138,11 +135,7 @@ impl Swapchain {
     ) {
         let image_extent = self.capabilities.current_extent;
 
-        let min_image_count = if self.capabilities.min_image_count > 0 {
-            self.capabilities.min_image_count
-        } else {
-            self.capabilities.max_image_count
-        };
+        let min_image_count = self.capabilities.min_image_count;
 
         let create_info = vk::SwapchainCreateInfoKHR {
             surface: self.surface,

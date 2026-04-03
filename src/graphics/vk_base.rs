@@ -20,21 +20,17 @@ pub struct VkBase {
     #[cfg(debug_assertions)]
     pub utils_messenger: vk::DebugUtilsMessengerEXT,
 
-    pub capabilities: u32,
     pub physical_device: vk::PhysicalDevice,
     pub device: vk::Device,
 
-    pub queue_family_index: u32,
-    pub queue: vk::Queue,
+    pub graphics_family: u32,
+    pub present_family: u32,
+    pub graphics_queue: vk::Queue,
+    pub present_queue: vk::Queue,
 }
 
 impl VkBase {
-    pub fn create(
-        required_capabilities: u32,
-        api_version: u32,
-        app_name: &CStr,
-        window: &Window,
-    ) -> (Self, vk::SurfaceKHR) {
+    pub fn create(api_version: u32, app_name: &CStr, window: &Window) -> (Self, vk::SurfaceKHR) {
         let display_handle = window.display_handle().unwrap().as_raw();
         let window_handle = window.window_handle().unwrap().as_raw();
 
@@ -44,12 +40,11 @@ impl VkBase {
         let create_info = vk::DebugUtilsMessengerCreateInfoEXT {
             message_severity: vk::DebugUtilsMessageSeverityFlagsEXT::Warning
                 | vk::DebugUtilsMessageSeverityFlagsEXT::Error
-                | vk::DebugUtilsMessageSeverityFlagsEXT::Info
                 | vk::DebugUtilsMessageSeverityFlagsEXT::Verbose,
             message_type: vk::DebugUtilsMessageTypeFlagsEXT::General
                 | vk::DebugUtilsMessageTypeFlagsEXT::Performance
                 | vk::DebugUtilsMessageTypeFlagsEXT::Validation,
-            pfn_user_callback: Some(vulkan_debug_utils_callback),
+            pfn_user_callback: Some(debug_callback),
             ..Default::default()
         };
 
@@ -58,32 +53,32 @@ impl VkBase {
             .create_debug_utils_messenger(&create_info, None)
             .unwrap();
 
-        let (physical_device, capabilities) =
-            Self::select_physical_device(&instance, required_capabilities);
-
         let surface = create_surface(&instance, display_handle, window_handle).unwrap();
 
-        let queue_family_index = Self::get_queue_family_index(physical_device, surface);
+        let (physical_device, graphics_family, present_family) =
+            select_physical_device(&instance, surface);
 
         let device = Self::create_logical_device(
             &instance,
             physical_device,
-            queue_family_index,
-            capabilities,
+            graphics_family,
+            present_family,
         );
 
-        let queue = unsafe { device.get_device_queue(queue_family_index, 0) };
+        let graphics_queue = unsafe { device.get_device_queue(graphics_family, 0) };
+        let present_queue = unsafe { device.get_device_queue(present_family, 0) };
 
         (
             Self {
                 instance,
                 #[cfg(debug_assertions)]
                 utils_messenger,
-                capabilities,
                 physical_device,
                 device,
-                queue_family_index,
-                queue,
+                graphics_family,
+                present_family,
+                graphics_queue,
+                present_queue,
             },
             surface,
         )
@@ -109,18 +104,15 @@ impl VkBase {
         #[cfg(debug_assertions)]
         extensions.push(debug_utils::NAME.as_ptr());
 
-        let layer_names: &[&CStr] = {
-            if cfg!(debug_assertions) {
-                &[c"VK_LAYER_KHRONOS_validation"]
-            } else {
-                &[]
-            }
-        };
+        #[cfg(debug_assertions)]
+        let layers: &[&CStr] = &[c"VK_LAYER_KHRONOS_validation"];
+        #[cfg(not(debug_assertions))]
+        let layers: &[&CStr] = &[];
 
         let supported_layers = vk::enumerate_instance_layer_properties().unwrap();
 
         // Layer filtering
-        let active_layers: Vec<*const c_char> = layer_names
+        let active_layers: Vec<*const c_char> = layers
             .iter()
             .filter_map(|&layer_name| {
                 if supported_layers.iter().any(|prop| {
@@ -144,57 +136,60 @@ impl VkBase {
             ..Default::default()
         };
 
-        unsafe { vk::Instance::create(&create_info, None).unwrap() }
-    }
-
-    fn select_physical_device(
-        instance: &vk::Instance,
-        capabilities: u32,
-    ) -> (vk::PhysicalDevice, u32) {
-        let devices = unsafe { instance.enumerate_physical_devices() }
-            .expect("Bro how do you see this without a GPU?");
-
-        let _extension: &[&CStr] = if capabilities != 0 {
-            &[
-                khr::acceleration_structure::NAME,
-                khr::ray_tracing_pipeline::NAME,
-                khr::deferred_host_operations::NAME,
-            ]
-        } else {
-            &[]
+        #[cfg(debug_assertions)]
+        let mut debug = vk::DebugUtilsMessengerCreateInfoEXT {
+            message_severity: vk::DebugUtilsMessageSeverityFlagsEXT::Error
+                | vk::DebugUtilsMessageSeverityFlagsEXT::Warning
+                | vk::DebugUtilsMessageSeverityFlagsEXT::Verbose,
+            message_type: vk::DebugUtilsMessageTypeFlagsEXT::General
+                | vk::DebugUtilsMessageTypeFlagsEXT::Performance
+                | vk::DebugUtilsMessageTypeFlagsEXT::Validation,
+            pfn_user_callback: Some(debug_callback),
+            ..Default::default()
         };
 
-        (devices[0], 0)
+        #[cfg(debug_assertions)]
+        let create_info = create_info.next(&mut debug);
+
+        unsafe { vk::Instance::create(&create_info, None).unwrap() }
     }
 
     fn create_logical_device(
         instance: &vk::Instance,
         physical_device: vk::PhysicalDevice,
-        queue_family_index: u32,
-        capabilities: u32,
+        graphics_family: u32,
+        present_family: u32,
     ) -> vk::Device {
         let mut features11 = vk::PhysicalDeviceVulkan11Features {
             shader_draw_parameters: vk::TRUE,
             ..Default::default()
         };
 
-        let extensions: &[&CStr] = {
-            if capabilities != 0 {
-                &[khr::swapchain::NAME]
-            } else {
-                &[khr::swapchain::NAME]
-            }
-        };
+        let extensions: &[&CStr] = &[khr::swapchain::NAME];
 
-        let queue_priorities = [1.0];
-        let queue_create_info = vk::DeviceQueueCreateInfo {
-            queue_family_index,
-            queue_priorities: queue_priorities.as_ptr(),
-            queue_count: queue_priorities.len() as u32,
-            ..Default::default()
+        let queue_create_infos: &[_] = if graphics_family == present_family {
+            &[vk::DeviceQueueCreateInfo {
+                queue_family_index: graphics_family,
+                queue_priorities: &0.0,
+                queue_count: 1,
+                ..Default::default()
+            }]
+        } else {
+            &[
+                vk::DeviceQueueCreateInfo {
+                    queue_family_index: graphics_family,
+                    queue_priorities: &0.0,
+                    queue_count: 1,
+                    ..Default::default()
+                },
+                vk::DeviceQueueCreateInfo {
+                    queue_family_index: present_family,
+                    queue_priorities: &0.0,
+                    queue_count: 1,
+                    ..Default::default()
+                },
+            ]
         };
-
-        let queue_create_infos = [queue_create_info];
 
         let create_info = vk::DeviceCreateInfo {
             enabled_extension_names: extensions.as_ptr().cast(),
@@ -212,51 +207,6 @@ impl VkBase {
         }
     }
 
-    #[allow(unused)]
-    fn select_queue(&mut self, surface: vk::SurfaceKHR) {
-        let mut queue_family = u32::MAX;
-        unsafe {
-            let family_queue = self.physical_device.get_queue_family_properties();
-
-            for (i, f) in family_queue.into_iter().enumerate() {
-                if f.queue_flags.contains(vk::QueueFlags::Graphics)
-                    && self
-                        .physical_device
-                        .get_surface_support(i as u32, surface)
-                        .unwrap()
-                {
-                    queue_family = i as u32;
-                }
-            }
-
-            if queue_family != u32::MAX {
-                self.queue_family_index = queue_family;
-            } else {
-                panic!("No queue for surface found!");
-            }
-        }
-    }
-
-    fn get_queue_family_index(physical_device: vk::PhysicalDevice, surface: vk::SurfaceKHR) -> u32 {
-        let family_queue = physical_device.get_queue_family_properties();
-
-        for (i, f) in family_queue.into_iter().enumerate() {
-            if f.queue_flags.contains(vk::QueueFlags::Graphics)
-                && physical_device
-                    .get_surface_support(i as u32, surface)
-                    .unwrap()
-            {
-                return i as u32;
-            }
-        }
-
-        panic!();
-    }
-
-    pub fn device_wait_idle(&self) {
-        self.device.device_wait_idle().unwrap()
-    }
-
     pub fn destroy(&mut self) {
         self.device.destroy_device(None);
         #[cfg(debug_assertions)]
@@ -266,8 +216,69 @@ impl VkBase {
     }
 }
 
+fn select_physical_device(
+    instance: &vk::Instance,
+    surface: vk::SurfaceKHR,
+) -> (vk::PhysicalDevice, u32, u32) {
+    let devices = unsafe { instance.enumerate_physical_devices() }
+        .expect("Bro how do you see this without a GPU?");
+
+    let mut candidates: Vec<_> = devices
+        .into_iter()
+        .filter_map(|device| {
+            let (gf, pf) = find_queue_families(device, surface)?;
+            let props = device.get_properties();
+            let score = match props.device_type {
+                vk::PhysicalDeviceType::DiscreteGpu => 2,
+                vk::PhysicalDeviceType::IntegratedGpu => 3,
+                _ => 1,
+            };
+            Some((device, gf, pf, score))
+        })
+        .collect();
+
+    candidates.sort_by_key(|c| std::cmp::Reverse(c.3));
+
+    candidates
+        .first()
+        .map(|&(pd, gf, pf, _)| (pd, gf, pf))
+        .expect("No suitable GPU!")
+}
+
+fn find_queue_families(
+    physical_device: vk::PhysicalDevice,
+    surface: vk::SurfaceKHR,
+) -> Option<(u32, u32)> {
+    let families = physical_device.get_queue_family_properties();
+
+    let mut graphics = None;
+    let mut present = None;
+
+    for (i, family) in families.iter().enumerate() {
+        if family.queue_flags.contains(vk::QueueFlags::Graphics) {
+            graphics = Some(i as u32);
+        }
+
+        if physical_device
+            .get_surface_support(i as u32, surface)
+            .unwrap_or(false)
+        {
+            present = Some(i as u32);
+        }
+
+        if graphics.is_some() && present.is_some() {
+            break;
+        }
+    }
+
+    match (graphics, present) {
+        (Some(g), Some(p)) => Some((g, p)),
+        _ => None,
+    }
+}
+
 #[cfg(debug_assertions)]
-extern "system" fn vulkan_debug_utils_callback(
+extern "system" fn debug_callback(
     message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
     message_type: vk::DebugUtilsMessageTypeFlagsEXT,
     callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,

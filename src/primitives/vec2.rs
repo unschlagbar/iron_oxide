@@ -353,6 +353,15 @@ impl From<PhysicalPosition<i32>> for Vec2<i16> {
         }
     }
 }
+#[cfg(feature = "vulkan")]
+impl From<pyronyx::vk::Extent2D> for Vec2<f32> {
+    fn from(size: pyronyx::vk::Extent2D) -> Self {
+        Self {
+            x: size.width as f32,
+            y: size.height as f32,
+        }
+    }
+}
 impl<T> From<(T, T)> for Vec2<T> {
     fn from(size: (T, T)) -> Self {
         Self {

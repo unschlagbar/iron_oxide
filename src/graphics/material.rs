@@ -1,5 +1,4 @@
 use pyronyx::vk::{self, Buffer, Rect2D};
-use winit::dpi::PhysicalSize;
 
 use crate::{
     graphics::{Pipeline, VertexDescription, VkBase},
@@ -31,7 +30,7 @@ impl Material {
 impl Material {
     pub fn new<T: VertexDescription>(
         base: &VkBase,
-        window_size: PhysicalSize<u32>,
+        window_size: vk::Extent2D,
         render_pass: vk::RenderPass,
         descriptor_set_layouts: &[vk::DescriptorSetLayout],
         shaders: (&[u8], &[u8]),
@@ -54,7 +53,7 @@ impl Material {
     }
     pub fn new_slang<T: VertexDescription>(
         base: &VkBase,
-        window_size: PhysicalSize<u32>,
+        window_size: vk::Extent2D,
         render_pass: vk::RenderPass,
         descriptor_set_layouts: &[vk::DescriptorSetLayout],
         shaders: &[u8],

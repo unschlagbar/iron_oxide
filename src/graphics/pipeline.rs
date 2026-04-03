@@ -2,7 +2,6 @@ use core::slice;
 
 use crate::graphics::{self, VertexDescription, VkBase};
 use pyronyx::vk;
-use winit::dpi::PhysicalSize;
 
 use graphics::create_shader_modul;
 
@@ -15,7 +14,7 @@ pub struct Pipeline {
 impl Pipeline {
     pub fn create_ui<T: VertexDescription>(
         base: &VkBase,
-        window_size: PhysicalSize<u32>,
+        window_size: vk::Extent2D,
         render_pass: vk::RenderPass,
         descriptor_set_layouts: &[vk::DescriptorSetLayout],
         shaders: (&[u8], &[u8]),
@@ -39,10 +38,7 @@ impl Pipeline {
 
         let window_rect = vk::Rect2D {
             offset: vk::Offset2D { x: 0, y: 0 },
-            extent: vk::Extent2D {
-                width: window_size.width,
-                height: window_size.height,
-            },
+            extent: window_size,
         };
 
         let vertex_stage_info = vk::PipelineShaderStageCreateInfo {
@@ -201,7 +197,7 @@ impl Pipeline {
 
     pub fn create_ui_slang<T: VertexDescription>(
         base: &VkBase,
-        window_size: PhysicalSize<u32>,
+        window_size: vk::Extent2D,
         render_pass: vk::RenderPass,
         descriptor_set_layouts: &[vk::DescriptorSetLayout],
         shaders: &[u8],
@@ -219,10 +215,7 @@ impl Pipeline {
 
         let window_rect = vk::Rect2D {
             offset: vk::Offset2D { x: 0, y: 0 },
-            extent: vk::Extent2D {
-                width: window_size.width,
-                height: window_size.height,
-            },
+            extent: window_size,
         };
         let module = create_shader_modul(base, shaders);
 

@@ -53,8 +53,10 @@ impl SinlgeTimeCommands {
             ..Default::default()
         };
 
-        base.queue.submit(&[submits], vk::Fence::null()).unwrap();
-        base.queue.wait_idle().unwrap();
+        base.graphics_queue
+            .submit(&[submits], vk::Fence::null())
+            .unwrap();
+        base.graphics_queue.wait_idle().unwrap();
         base.device
             .free_command_buffers(cmd_pool, &[cmd_buf.handle()]);
     }
@@ -69,9 +71,11 @@ impl SinlgeTimeCommands {
             ..Default::default()
         };
 
-        base.queue.submit(&[submits], vk::Fence::null()).unwrap();
+        base.graphics_queue
+            .submit(&[submits], vk::Fence::null())
+            .unwrap();
         let start_time = std::time::Instant::now();
-        base.queue.wait_idle().unwrap();
+        base.graphics_queue.wait_idle().unwrap();
         println!("time: {:?}", start_time.elapsed());
         base.device
             .free_command_buffers(cmd_pool, &[cmd_buf.handle()]);
@@ -87,12 +91,14 @@ impl SinlgeTimeCommands {
             ..Default::default()
         };
 
-        base.queue.submit(&[submits], vk::Fence::null()).unwrap();
+        base.graphics_queue
+            .submit(&[submits], vk::Fence::null())
+            .unwrap();
     }
 
     #[inline]
     pub fn end_after_submit(base: &VkBase, cmd_pool: vk::CommandPool, cmd_buf: vk::CommandBuffer) {
-        base.queue.wait_idle().unwrap();
+        base.graphics_queue.wait_idle().unwrap();
         base.device
             .free_command_buffers(cmd_pool, &[cmd_buf.handle()]);
     }
@@ -113,9 +119,11 @@ impl SinlgeTimeCommands {
             ..Default::default()
         };
 
-        base.queue.submit(&[submits], vk::Fence::null()).unwrap();
+        base.graphics_queue
+            .submit(&[submits], vk::Fence::null())
+            .unwrap();
 
-        base.queue.wait_idle().unwrap();
+        base.graphics_queue.wait_idle().unwrap();
         cmd_buf.reset(vk::CommandBufferResetFlags::empty()).unwrap();
     }
 
@@ -128,7 +136,9 @@ impl SinlgeTimeCommands {
             ..Default::default()
         };
 
-        base.queue.submit(&[submits], vk::Fence::null()).unwrap();
+        base.graphics_queue
+            .submit(&[submits], vk::Fence::null())
+            .unwrap();
 
         base.device
             .free_command_buffers(cmd_pool, &[cmd_buf.handle()]);
@@ -148,7 +158,9 @@ impl SinlgeTimeCommands {
             ..Default::default()
         };
 
-        base.queue.submit(&[submits], vk::Fence::null()).unwrap();
+        base.graphics_queue
+            .submit(&[submits], vk::Fence::null())
+            .unwrap();
 
         base.device
             .wait_for_fences(&[fence], true, u64::MAX)
