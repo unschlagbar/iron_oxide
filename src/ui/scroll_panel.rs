@@ -52,7 +52,7 @@ impl Widget for ScrollPanel {
         let mut child_ctx = context.child(
             size - padding,
             Vec2::zero(),
-            FlexAxis::Horizontal,
+            FlexAxis::Vertical,
             FlexAlign::Start,
         );
 
