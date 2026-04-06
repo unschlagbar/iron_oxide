@@ -93,11 +93,28 @@ impl Font {
         }
     }
 
-    pub fn get_glyph(&self, char: char) -> RawGlyph {
+    //pub fn get_glyph(&self, char: char) -> RawGlyph {
+    //    if char.is_ascii() {
+    //        self.glyphs.get(char as usize).copied().unwrap_or_default()
+    //    } else {
+    //        self.utf8.get(&char).copied().unwrap_or_default()
+    //    }
+    //}
+
+    pub fn get_glyph(&self, char: char) -> &RawGlyph {
+        const DEFAULT: &RawGlyph = &RawGlyph {
+            left: 0.0,
+            top: 0.0,
+            right: 0.0,
+            bottom: 0.0,
+            atlas_start: Vec2::zero(),
+            atlas_end: Vec2::zero(),
+            advance: 0.0,
+        };
         if char.is_ascii() {
-            self.glyphs.get(char as usize).copied().unwrap_or_default()
+            self.glyphs.get(char as usize).unwrap_or(DEFAULT)
         } else {
-            self.utf8.get(&char).copied().unwrap_or_default()
+            self.utf8.get(&char).unwrap_or(DEFAULT)
         }
     }
 

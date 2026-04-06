@@ -112,15 +112,15 @@ impl UiElement {
     }
 
     pub fn get_draw_data(&mut self, resources: &mut Resources, info: DrawInfo) {
-        if self.flags.contains(ElementFlags::Disabled) {
+        if self.flags.contains(ElementFlags::Disabled)
+            || self.flags.contains(ElementFlags::Invisible)
+        {
             return;
         }
         let mut inner_info = info.inner(self.z_index);
 
-        if !self.flags.contains(ElementFlags::Invisible) {
-            let element = UiRef::new(self);
-            self.widget.draw_data(element, resources, &mut inner_info);
-        }
+        let element = UiRef::new(self);
+        self.widget.draw_data(element, resources, &mut inner_info);
 
         for child in &mut self.childs {
             child.get_draw_data(resources, inner_info);

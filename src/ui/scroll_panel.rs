@@ -45,7 +45,7 @@ impl Widget for ScrollPanel {
 
             let visible = child_end.y > view_start && child_start.y < view_end;
 
-            child.flags.set(ElementFlags::Disabled, !visible);
+            child.flags.set(ElementFlags::Invisible, !visible);
         }
 
         context.apply_pos(pos);
@@ -123,7 +123,7 @@ impl Widget for ScrollPanel {
 
                     let visible = child_end.y > view_start.y && child_start.y < view_end.y;
 
-                    child.flags.set(ElementFlags::Disabled, !visible);
+                    child.flags.set(ElementFlags::Invisible, !visible);
                 }
 
                 ui.handle_input(ui.cursor_pos, UiEvent::Move);
