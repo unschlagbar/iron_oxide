@@ -229,6 +229,12 @@ impl Vec2<f32> {
     pub fn ceil(&self) -> Vec2<f32> {
         Vec2::new(self.x.ceil(), self.y.ceil())
     }
+    pub fn into_i16(&self) -> Vec2<i16> {
+        Vec2 {
+            x: self.x as i16,
+            y: self.y as i16,
+        }
+    }
 }
 
 #[cfg(feature = "vulkan")]
@@ -290,6 +296,27 @@ impl Vec2<i16> {
     }
     pub const fn max(&self) -> i16 {
         if self.x > self.y { self.x } else { self.y }
+    }
+    pub fn into_f32(self) -> Vec2<f32> {
+        Vec2 {
+            x: self.x as f32,
+            y: self.y as f32,
+        }
+    }
+    pub fn into_i32(self) -> Vec2<i32> {
+        Vec2 {
+            x: self.x as i32,
+            y: self.y as i32,
+        }
+    }
+}
+
+impl Vec2<i32> {
+    pub fn into_i16(self) -> Vec2<i16> {
+        Vec2 {
+            x: self.x as i16,
+            y: self.y as i16,
+        }
     }
     pub fn into_f32(self) -> Vec2<f32> {
         Vec2 {

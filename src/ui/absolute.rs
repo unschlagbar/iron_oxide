@@ -90,7 +90,7 @@ impl Widget for Absolute {
         if self.shadow.color != RGBA::ZERO {
             let to_add = ShadowInstance {
                 color: self.shadow.color,
-                pos: element.pos + self.shadow.offset,
+                pos: element.pos.into_i16() + self.shadow.offset,
                 size: element.size,
                 blur: self.shadow.blur,
                 corner,
@@ -102,7 +102,7 @@ impl Widget for Absolute {
             color: self.color,
             border_color: self.border_color,
             border: self.border,
-            pos: element.pos,
+            pos: element.pos.into_i16(),
             size: element.size,
             corner,
         };

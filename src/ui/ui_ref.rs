@@ -2,6 +2,7 @@ use std::{
     fmt::{Debug, Formatter, Result},
     ops::Deref,
     ptr::NonNull,
+    slice::IterMut,
 };
 
 use crate::ui::{Ui, UiElement, widget::Widget};
@@ -52,12 +53,8 @@ impl UiRef {
     }
 
     #[allow(unused)]
-    pub fn childs_mut(mut self, ui: &mut Ui) -> &mut Vec<UiElement> {
-        unsafe {
-            let childs: &Vec<UiElement> = &self.childs;
-            #[allow(invalid_reference_casting)]
-            &mut *(childs as *const Vec<UiElement> as *mut Vec<UiElement>)
-        }
+    pub fn childs_mut(mut self, ui: &mut Ui) -> IterMut<'_, UiElement> {
+        self.get_mut(ui).childs.iter_mut()
     }
 }
 

@@ -211,13 +211,21 @@ macro_rules! hex_rgba {
             let bytes = s.as_bytes();
 
             let offset = if bytes[0] == b'#' { 1 } else { 0 };
+            let len = bytes.len() - offset;
 
-            RGBA {
-                r: (hex_val(bytes[offset]) << 4) | hex_val(bytes[offset + 1]),
-                g: (hex_val(bytes[offset + 2]) << 4) | hex_val(bytes[offset + 3]),
-                b: (hex_val(bytes[offset + 4]) << 4) | hex_val(bytes[offset + 5]),
-                a: 255,
-            }
+            let r = (hex_val(bytes[offset]) << 4) | hex_val(bytes[offset + 1]);
+            let g = (hex_val(bytes[offset + 2]) << 4) | hex_val(bytes[offset + 3]);
+            let b = (hex_val(bytes[offset + 4]) << 4) | hex_val(bytes[offset + 5]);
+
+            let a = if len == 8 {
+                (hex_val(bytes[offset + 6]) << 4) | hex_val(bytes[offset + 7])
+            } else if len == 6 {
+                255
+            } else {
+                panic!("hex must be #RRGGBB or #RRGGBBAA");
+            };
+
+            RGBA { r, g, b, a }
         }
 
         parse(S)

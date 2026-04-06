@@ -13,7 +13,7 @@ use crate::{
     ui::{
         Align, BuildContext, DrawInfo, InputResult, QueuedEvent, Text, TextInputContext, Ui,
         UiElement, UiEvent, UiRef,
-        callback::TextExitContext,
+        callback::StateChangeCtx,
         materials::{MSDFInstance, MatType, UiInstance},
         system::KeyModifiers,
         text_layout::TextLayout,
@@ -38,7 +38,7 @@ pub struct TextInput {
 
     pub message: u16,
     pub on_input: Option<fn(&mut TextInputContext)>,
-    pub on_blur: Option<fn(TextExitContext)>,
+    pub state_change: Option<fn(StateChangeCtx)>,
 
     pub dirty: bool,
 }
@@ -60,7 +60,7 @@ impl TextInput {
 
             message: 0,
             on_input: Some(default_on_input),
-            on_blur: None,
+            state_change: None,
             dirty: false,
         }
     }
@@ -74,7 +74,11 @@ impl TextInput {
         self.dirty = true;
     }
 
-    pub fn focus(ui: &mut Ui, element: UiRef) {
+    pub fn focus(&mut self, ui: &mut Ui, element: UiRef) {
+        if let Some(state_change) = self.state_change {
+            let cxt = StateChangeCtx::new(ui, element, StateChange::Focus);
+            state_change(cxt);
+        }
         ui.set_focus(element);
         ui.set_ticking(element);
     }
@@ -87,7 +91,7 @@ impl TextInput {
         });
     }
 
-    pub fn unfocus(ui: &mut Ui, mut element: UiRef, reason: ExitReason) {
+    pub fn unfocus(ui: &mut Ui, mut element: UiRef, change: StateChange) {
         let this: &mut Self = unsafe { element.as_mut().downcast_mut() };
 
         if let Some(cursor) = &this.cursor
@@ -100,19 +104,19 @@ impl TextInput {
         this.cursor = None;
         this.selection = None;
 
-        if let Some(on_blur) = this.on_blur {
-            let cxt = TextExitContext::new(ui, element, reason);
-            on_blur(cxt);
+        if let Some(state_change) = this.state_change {
+            let cxt = StateChangeCtx::new(ui, element, change);
+            state_change(cxt);
         }
 
         ui.remove_tick(element.id);
-        let event = if matches!(reason, ExitReason::Submit) {
+        let event = if matches!(change, StateChange::Submit) {
             UiEvent::Submit
         } else {
             UiEvent::UnFocus
         };
 
-        ui.set_event(QueuedEvent::new(&element, event, reason as u16));
+        ui.set_event(QueuedEvent::new(&element, event, this.message));
     }
 
     pub fn move_cursor(&mut self, offset: isize) {
@@ -346,10 +350,10 @@ impl Widget for TextInput {
                 .ceil();
 
                 let to_add = UiInstance {
-                    color: hex_rgba!("#ff6b35"),
+                    color: hex_rgba!("#ff6b35a1"),
                     border_color: RGBA::ZERO,
                     border: [0; 4],
-                    pos: Vec2::new(start_pos as i16, element.pos.y),
+                    pos: Vec2::new(start_pos as i16, element.pos.y as i16),
                     size: Vec2::new(
                         (end_pos - start_pos) as i16,
                         (self.layout.font_size * info.scale_factor * font.line_height) as i16,
@@ -375,7 +379,7 @@ impl Widget for TextInput {
                 color: self.color,
                 border_color: RGBA::ZERO,
                 border: [0; 4],
-                pos: Vec2::new(posx, element.pos.y),
+                pos: Vec2::new(posx, element.pos.y as i16),
                 size: Vec2::new(((height as i16) / 12).max(1), height as i16),
                 corner: 0,
             };
@@ -404,14 +408,14 @@ impl Widget for TextInput {
     fn interaction(&mut self, element: UiRef, ui: &mut Ui, event: UiEvent) -> InputResult {
         match event {
             UiEvent::End if self.cursor.is_some() => {
-                Self::unfocus(ui, element, ExitReason::Submit);
+                Self::unfocus(ui, element, StateChange::Submit);
                 println!("unfocus submit");
                 return InputResult::None;
             }
-            UiEvent::Press => {
+            UiEvent::Press if self.selectable => {
                 ui.selection.set_capture(element);
                 if self.focus_on_click && self.cursor.is_none() {
-                    Self::focus(ui, element);
+                    self.focus(ui, element);
                     self.set_cursor();
                     ui.color_changed();
                 }
@@ -426,7 +430,10 @@ impl Widget for TextInput {
             _ => (),
         };
 
-        ui.cursor_icon = CursorIcon::Text;
+        if self.selectable {
+            ui.cursor_icon = CursorIcon::Text;
+        }
+
         InputResult::New
     }
 
@@ -439,7 +446,7 @@ impl Widget for TextInput {
             let mut context = TextInputContext::new(ui, element, event);
             call(&mut context);
 
-            if !matches!(context.submit, ExitReason::None) {
+            if !matches!(context.submit, StateChange::None) {
                 let reason = context.submit;
                 Self::unfocus(ui, element, reason);
                 ui.selection.focused = None;
@@ -531,7 +538,7 @@ impl Default for TextInput {
 
             message: 0,
             on_input: Some(default_on_input),
-            on_blur: None,
+            state_change: None,
 
             dirty: true,
         }
@@ -555,9 +562,9 @@ fn char_to_byte(s: &str, char_idx: usize) -> usize {
 
 fn default_on_input(ctx: &mut TextInputContext) {
     if ctx.event.logical_key == Key::Named(NamedKey::Enter) {
-        ctx.submit = ExitReason::Submit;
+        ctx.submit = StateChange::Submit;
     } else if ctx.event.logical_key == Key::Named(NamedKey::Escape) {
-        ctx.submit = ExitReason::Escape
+        ctx.submit = StateChange::Escape
     }
 }
 
@@ -589,7 +596,8 @@ impl Selection {
 }
 
 #[derive(Clone, Copy)]
-pub enum ExitReason {
+pub enum StateChange {
+    Focus,
     Submit,
     ClickOutside,
     Escape,

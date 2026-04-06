@@ -1,5 +1,5 @@
 use std::{
-    any::TypeId,
+    any::{Any, TypeId},
     fmt::{self, Debug},
 };
 
@@ -18,10 +18,11 @@ pub struct UiElement {
     pub name: &'static str,
     pub flags: ElementFlags,
     pub size: Vec2<i16>,
-    pub pos: Vec2<i16>,
+    pub pos: Vec2<f32>,
     pub z_index: i16,
     pub parent: Option<UiRef>,
     pub childs: Vec<Self>,
+    pub id_ptr: *mut Option<UiRef>,
     pub(crate) widget: Box<dyn Widget>,
 }
 
@@ -35,12 +36,7 @@ impl UiElement {
     }
 
     pub fn downcast_ref<T: Widget>(&self) -> Option<&T> {
-        if self.type_of::<T>() {
-            let gg = unsafe { &*(&*self.widget as *const dyn Widget as *const T) };
-            Some(gg)
-        } else {
-            None
-        }
+        (self.widget.as_ref() as &dyn Any).downcast_ref::<T>()
     }
 
     pub fn downcast<T: Widget>(self) -> Option<T> {
@@ -54,17 +50,13 @@ impl UiElement {
     }
 
     pub fn try_downcast_mut<T: Widget>(&mut self) -> Option<&mut T> {
-        if self.type_of::<T>() {
-            let gg = unsafe { &mut *(&mut *self.widget as *mut dyn Widget as *mut T) };
-            Some(gg)
-        } else {
-            None
-        }
+        (self.widget.as_mut() as &mut dyn Any).downcast_mut::<T>()
     }
 
     pub fn downcast_mut<T: Widget>(&mut self) -> &mut T {
-        debug_assert!(self.type_of::<T>());
-        unsafe { &mut *(&mut *self.widget as *mut dyn Widget as *mut T) }
+        (self.widget.as_mut() as &mut dyn Any)
+            .downcast_mut::<T>()
+            .unwrap()
     }
 
     pub fn build(&mut self, context: &mut BuildContext) {
@@ -79,7 +71,7 @@ impl UiElement {
         let (widget, childs) = (&mut self.widget, &mut self.childs);
         widget.build_layout(childs, context);
 
-        self.pos = Vec2::new(context.element_pos.x as i16, context.element_pos.y as i16);
+        self.pos = context.element_pos;
     }
 
     #[track_caller]
@@ -149,7 +141,7 @@ impl UiElement {
     }
 
     pub fn offset_element(&mut self, offset: Vec2<f32>) {
-        self.pos += Vec2::new(offset.x as i16, offset.y as i16);
+        self.pos += offset;
 
         if let Some(text) = self.try_downcast_mut::<Text>() {
             for glyph in &mut text.layout.glyphs {
@@ -167,7 +159,9 @@ impl UiElement {
     }
 
     pub fn is_in(&self, pos: Vec2<i16>) -> bool {
-        self.pos <= pos && self.pos.x + self.size.x >= pos.x && self.pos.y + self.size.y >= pos.y
+        let pos = Vec2::new(pos.x as f32, pos.y as f32);
+        let self_size = self.size.into_f32();
+        self.pos <= pos && self.pos.x + self_size.x >= pos.x && self.pos.y + self_size.y >= pos.y
     }
 
     pub fn get_text(&self) -> Option<&str> {
@@ -243,7 +237,11 @@ impl UiElement {
                 child.update_ptrs(ui);
             }
         }
-        Some(UiRef::new(childs.last_mut().unwrap()))
+        let child = childs.last_mut().unwrap();
+        if !child.id_ptr.is_null() {
+            unsafe { *child.id_ptr = Some(UiRef::new(child)) };
+        }
+        Some(UiRef::new(child))
     }
 
     /// Inserts a child to self and returns a weak reference to it
@@ -300,8 +298,13 @@ impl UiElement {
         let parent = Some(UiRef::new(self));
         let z_index = self.z_index + 10;
         for child in &mut self.childs {
+            if !child.id_ptr.is_null() {
+                unsafe { *child.id_ptr = Some(UiRef::new(child)) };
+            }
+
+            let id = ui.get_id();
             child.parent = parent;
-            child.id = ui.get_id();
+            child.id = id;
             child.z_index = z_index;
             child.init(ui);
         }
@@ -339,6 +342,7 @@ impl UiElement {
     pub fn from_raw<T: Widget>(
         name: &'static str,
         flags: ElementFlags,
+        id_ptr: *mut Option<UiRef>,
         childs: Vec<Self>,
         widget: T,
     ) -> Self {
@@ -351,6 +355,7 @@ impl UiElement {
             parent: None,
             childs,
             widget: Box::new(widget),
+            id_ptr,
             z_index: 0,
         }
     }

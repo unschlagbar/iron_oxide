@@ -47,6 +47,7 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
             parent: None,
             childs,
             widget: Box::new(self),
+            id_ptr: std::ptr::null_mut(),
             z_index: 0,
         }
     }
@@ -61,6 +62,7 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
             parent: None,
             childs,
             widget: Box::new(self),
+            id_ptr: std::ptr::null_mut(),
             z_index: 0,
         }
     }
@@ -83,6 +85,7 @@ pub trait ElementBuilder: Default + Widget + Sized + 'static {
             parent: None,
             childs: Vec::new(),
             widget: Box::new(self),
+            id_ptr: std::ptr::null_mut(),
             z_index: 0,
         }
     }
@@ -99,75 +102,196 @@ macro_rules! node {
     // --- Einstieg ---
     ($widget:expr $(, $($rest:tt)*)?) => {
         node!(@parse
-            widget = $widget,
-            name = "",
-            flags = iron_oxide::ui::ElementFlags::default(),
+            widget  = $widget,
+            name    = "",
+            flags   = iron_oxide::ui::ElementFlags::default(),
+            id_ptr  = std::ptr::null_mut(),
             children = [],
             $($($rest)*, )?
         )
     };
 
-    // --- Basisregel ---
+    // --- Basisregel (rohe Kinder) ---
     (@parse
-        widget = $widget:expr,
-        name = $name:expr,
-        flags = $flags:expr,
+        widget   = $widget:expr,
+        name     = $name:expr,
+        flags    = $flags:expr,
+        id_ptr   = $id_ptr:expr,
         children = [$($children:expr),*],
     ) => {
         iron_oxide::ui::UiElement::from_raw(
             $name,
             $flags,
+            $id_ptr,
             vec![$($children),*],
-            $widget
+            $widget,
         )
     };
 
-    // --- String-Literal → name ---
-    (@parse
+    // --- Basisregel (Vec-Modus) ---
+    (@vec
         widget = $widget:expr,
-        name = $_old_name:expr,
-        flags = $flags:expr,
+        name   = $name:expr,
+        flags  = $flags:expr,
+        id_ptr = $id_ptr:expr,
+        vec    = $vec:expr,
+    ) => {
+        iron_oxide::ui::UiElement::from_raw(
+            $name,
+            $flags,
+            $id_ptr,
+            $vec,
+            $widget,
+        )
+    };
+
+    // --- out(&mut ref) → id_ptr setzen (parse-Modus) ---
+    (@parse
+        widget   = $widget:expr,
+        name     = $name:expr,
+        flags    = $flags:expr,
+        id_ptr   = $_old:expr,
+        children = [$($children:expr),*],
+        out($ptr:expr), $($rest:tt)*
+    ) => {
+        node!(@parse
+            widget   = $widget,
+            name     = $name,
+            flags    = $flags,
+            id_ptr   = $ptr,
+            children = [$($children),*],
+            $($rest)*
+        )
+    };
+
+    // --- out(&mut ref) → id_ptr setzen (vec-Modus) ---
+    (@vec
+        widget = $widget:expr,
+        name   = $name:expr,
+        flags  = $flags:expr,
+        id_ptr = $_old:expr,
+        vec    = $vec:expr,
+        out($ptr:expr), $($rest:tt)*
+    ) => {
+        node!(@vec
+            widget = $widget,
+            name   = $name,
+            flags  = $flags,
+            id_ptr = $ptr,
+            vec    = $vec,
+            $($rest)*
+        )
+    };
+
+    // --- vec(n) → Vec::with_capacity(n) ---
+    (@parse
+        widget   = $widget:expr,
+        name     = $name:expr,
+        flags    = $flags:expr,
+        id_ptr   = $id_ptr:expr,
+        children = [],
+        vec($vec:expr), $($rest:tt)*
+    ) => {
+        node!(@vec
+            widget = $widget,
+            name   = $name,
+            flags  = $flags,
+            id_ptr = $id_ptr,
+            vec    = $vec,
+            $($rest)*
+        )
+    };
+
+    // --- String-Literal → name (parse-Modus) ---
+    (@parse
+        widget   = $widget:expr,
+        name     = $_old_name:expr,
+        flags    = $flags:expr,
+        id_ptr   = $id_ptr:expr,
         children = [$($children:expr),*],
         $name:literal, $($rest:tt)*
     ) => {
         node!(@parse
-            widget = $widget,
-            name = $name,
-            flags = $flags,
+            widget   = $widget,
+            name     = $name,
+            flags    = $flags,
+            id_ptr   = $id_ptr,
             children = [$($children),*],
             $($rest)*
         )
     };
 
-    // --- flags(...) → flags ---
-    (@parse
+    // --- String-Literal → name (vec-Modus) ---
+    (@vec
         widget = $widget:expr,
-        name = $name:expr,
-        flags = $_old_flags:expr,
+        name   = $_old_name:expr,
+        flags  = $flags:expr,
+        id_ptr = $id_ptr:expr,
+        vec    = $vec:expr,
+        $name:literal, $($rest:tt)*
+    ) => {
+        node!(@vec
+            widget = $widget,
+            name   = $name,
+            flags  = $flags,
+            id_ptr = $id_ptr,
+            vec    = $vec,
+            $($rest)*
+        )
+    };
+
+    // --- flags(...) → flags (parse-Modus) ---
+    (@parse
+        widget   = $widget:expr,
+        name     = $name:expr,
+        flags    = $_old_flags:expr,
+        id_ptr   = $id_ptr:expr,
         children = [$($children:expr),*],
         flags($new_flags:expr), $($rest:tt)*
     ) => {
         node!(@parse
-            widget = $widget,
-            name = $name,
-            flags = $new_flags,
+            widget   = $widget,
+            name     = $name,
+            flags    = $new_flags,
+            id_ptr   = $id_ptr,
             children = [$($children),*],
             $($rest)*
         )
     };
 
-    // --- Ausdruck → Kind-Element ---
-    (@parse
+    // --- flags(...) → flags (vec-Modus) ---
+    (@vec
         widget = $widget:expr,
-        name = $name:expr,
-        flags = $flags:expr,
+        name   = $name:expr,
+        flags  = $_old_flags:expr,
+        id_ptr = $id_ptr:expr,
+        vec    = $vec:expr,
+        flags($new_flags:expr), $($rest:tt)*
+    ) => {
+        node!(@vec
+            widget = $widget,
+            name   = $name,
+            flags  = $new_flags,
+            id_ptr = $id_ptr,
+            vec    = $vec,
+            $($rest)*
+        )
+    };
+
+    // --- Ausdruck → Kind-Element (parse-Modus) ---
+    (@parse
+        widget   = $widget:expr,
+        name     = $name:expr,
+        flags    = $flags:expr,
+        id_ptr   = $id_ptr:expr,
         children = [$($children:expr),*],
         $child:expr, $($rest:tt)*
     ) => {
         node!(@parse
-            widget = $widget,
-            name = $name,
-            flags = $flags,
+            widget   = $widget,
+            name     = $name,
+            flags    = $flags,
+            id_ptr   = $id_ptr,
             children = [$($children,)* $child],
             $($rest)*
         )

@@ -4,8 +4,8 @@ use crate::{
     graphics::{Resources, formats::RGBA},
     primitives::Vec2,
     ui::{
-        Align, BuildContext, DrawInfo, TextInput, UiElement, UiRef, materials::MSDFInstance,
-        text_layout::TextLayout, units::FlexAlign, widget::Widget,
+        Align, BuildContext, DrawInfo, TextInput, UiElement, UiRect, UiRef,
+        materials::MSDFInstance, text_layout::TextLayout, units::FlexAlign, widget::Widget,
     },
 };
 
@@ -14,6 +14,7 @@ pub struct Text {
     pub color: RGBA,
     pub layout: TextLayout,
     pub align: Align,
+    pub margin: UiRect,
 
     pub selectable: bool,
 
@@ -27,6 +28,7 @@ impl Text {
             color: text_input.color,
             layout: text_input.layout,
             align: text_input.align,
+            margin: UiRect::default(),
             selectable: text_input.selectable,
             dirty: false,
         }
@@ -45,7 +47,8 @@ impl Text {
 
 impl Widget for Text {
     fn build_layout(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
-        let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
+        let mut offset =
+            context.pos_child(FlexAlign::default(), Vec2::zero()) + self.margin.start(context);
         let align_size = context.space();
 
         context.place(context.element_size);
@@ -66,8 +69,9 @@ impl Widget for Text {
     }
 
     fn build_size(&mut self, _: &mut [UiElement], ctx: &mut BuildContext) {
-        ctx.place(self.layout.size);
-        ctx.apply_size(self.layout.size);
+        let size = self.layout.size + self.margin.size(ctx);
+        ctx.place(size);
+        ctx.apply_size(size);
     }
 
     fn predict_size(&mut self, ctx: &mut BuildContext) {
@@ -80,7 +84,7 @@ impl Widget for Text {
         };
 
         self.layout.build(text, ctx);
-        ctx.predict(self.layout.size);
+        ctx.predict(self.layout.size + self.margin.size(ctx));
     }
 
     fn draw_data(&mut self, _element: UiRef, resources: &mut Resources, info: &mut DrawInfo) {
@@ -120,6 +124,7 @@ impl Default for Text {
             color: RGBA::WHITE,
             layout: TextLayout::default(),
             align: Align::default(),
+            margin: UiRect::default(),
 
             selectable: true,
 

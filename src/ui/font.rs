@@ -1,9 +1,10 @@
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 use crate::{primitives::Vec2, ui::materials::MatType};
 
 pub struct Font {
-    glyphs: [RawGlyph; 256],
+    glyphs: [RawGlyph; 127],
+    utf8: HashMap<char, RawGlyph>,
     /// Distance between two lines
     pub line_height: f32,
     pub ascender: f32,
@@ -13,36 +14,6 @@ pub struct Font {
 }
 
 impl Font {
-    //pub fn parse_bitmap_from_bytes(data: &[u8]) -> Self {
-    //    assert!(data.len() >= 256 * 6);
-
-    //   let mut glyphs = [RawGlyph::default(); 256];
-
-    //    for i in 0..256 {
-    //       let base = i * 6;
-
-    //       let u = u16::from_le_bytes([data[base], data[base + 1]]);
-    //        let v = u16::from_le_bytes([data[base + 2], data[base + 3]]);
-    //        let w = u16::from_le_bytes([data[base + 4], data[base + 5]]);
-    //
-    //       glyphs[i] = RawGlyph {
-    //            size: Vec2::new(w, 8),
-    //            offset: Vec2::new(0.0, 0.0),
-    //            pos: Vec2::new(u, v),
-    //            advance: w as f32,
-    //        };
-    //    }
-
-    //    Self {
-    //        data: Box::new(glyphs),
-    //       line_height: 8.0,
-    //        ascender: 8.0,
-    //        descender: 0.0,
-    //        //distance_range: 0,
-    //         bitmap: true,
-    //     }
-    // }
-
     pub fn parse_msdf_from_bytes(data: &[u8]) -> Self {
         let text = std::str::from_utf8(data).unwrap();
 
@@ -50,7 +21,8 @@ impl Font {
         let ascender = extract_float(text, "\"ascender\"");
         let descender = extract_float(text, "\"descender\"");
 
-        let mut glyphs = [RawGlyph::default(); 256];
+        let mut glyphs = [RawGlyph::default(); 127];
+        let mut utf8 = HashMap::new();
 
         let glyphs_start = text.find("\"glyphs\"").unwrap();
         let mut rest = &text[glyphs_start..];
@@ -60,7 +32,8 @@ impl Font {
             let start = rest[..pos].rfind('{').unwrap();
             let obj = try_extract_block(&rest[start..], "{").unwrap();
 
-            let unicode = extract_number(obj, "\"unicode\"") as usize;
+            let unicode = extract_number(obj, "\"unicode\"") as u32;
+            let unicode = char::from_u32(unicode).unwrap();
             let advance = extract_float(obj, "\"advance\"");
 
             let plane_block = try_extract_block(obj, "\"planeBounds\"");
@@ -89,16 +62,20 @@ impl Font {
                 (Vec2::zero(), Vec2::zero())
             };
 
-            if unicode < 256 {
-                glyphs[unicode] = RawGlyph {
-                    left,
-                    right,
-                    bottom,
-                    top,
-                    atlas_start,
-                    atlas_end,
-                    advance,
-                };
+            let glyph = RawGlyph {
+                left,
+                right,
+                bottom,
+                top,
+                atlas_start,
+                atlas_end,
+                advance,
+            };
+
+            if unicode.is_ascii() {
+                glyphs[unicode as usize] = glyph;
+            } else {
+                utf8.insert(unicode, glyph);
             }
 
             // nach diesem Objekt weitermachen
@@ -108,6 +85,7 @@ impl Font {
 
         Self {
             glyphs,
+            utf8,
             line_height,
             ascender,
             descender,
@@ -116,30 +94,32 @@ impl Font {
     }
 
     pub fn get_glyph(&self, char: char) -> RawGlyph {
-        let char = Self::char_index(char);
-        let i = char as usize;
-        self.glyphs.get(i).copied().unwrap_or_default()
-    }
-
-    pub fn char_index(char: char) -> u32 {
-        let mut index = char as u32;
-        if index < 32 {
-            index = 64;
-        }
-        match char {
-            'ü' => 8 * 16 + 1,
-            'ä' => 8 * 16 + 4,
-            'ö' => 9 * 16 + 4,
-
-            'Ü' => 9 * 16 + 10,
-            'Ä' => 8 * 16 + 14,
-            'Ö' => 9 * 16 + 9,
-
-            'ß' => 11,
-
-            _ => index,
+        if char.is_ascii() {
+            self.glyphs.get(char as usize).copied().unwrap_or_default()
+        } else {
+            self.utf8.get(&char).copied().unwrap_or_default()
         }
     }
+
+    //pub fn char_index(char: char) -> u32 {
+    //    let mut index = char as u32;
+    //     if index < 32 {
+    //        index = 64;
+    //   }
+    //    match char {
+    //        'ü' => 8 * 16 + 1,
+    //        'ä' => 8 * 16 + 4,
+    //        'ö' => 9 * 16 + 4,
+
+    //        'Ü' => 9 * 16 + 10,
+    //         'Ä' => 8 * 16 + 14,
+    //         'Ö' => 9 * 16 + 9,
+    //
+    //         'ß' => 11,
+    //
+    //        _ => index,
+    //    }
+    // }
 
     pub fn material(&self) -> MatType {
         if self.bitmap {

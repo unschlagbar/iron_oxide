@@ -1,5 +1,3 @@
-use core::f32;
-
 use winit::event::MouseScrollDelta;
 
 use super::{BuildContext, UiElement};
@@ -7,7 +5,7 @@ use crate::{
     graphics::Resources,
     primitives::Vec2,
     ui::{
-        DrawInfo, FlexAxis, Ui, UiEvent, UiRect, UiRef, UiUnit, system::InputResult,
+        DrawInfo, ElementFlags, FlexAxis, Ui, UiEvent, UiRect, UiRef, UiUnit, system::InputResult,
         units::FlexAlign, widget::Widget,
     },
 };
@@ -34,8 +32,20 @@ impl Widget for ScrollPanel {
             FlexAlign::Start,
         );
 
-        for child in childs {
+        for child in &mut *childs {
             child.build(&mut child_context);
+        }
+
+        let view_start = pos.y;
+        let view_end = view_start + context.element_size.y;
+
+        for child in childs {
+            let child_start = child.pos;
+            let child_end = child_start + child.size.into_f32();
+
+            let visible = child_end.y > view_start && child_start.y < view_end;
+
+            child.flags.set(ElementFlags::Disabled, !visible);
         }
 
         context.apply_pos(pos);
@@ -91,6 +101,7 @@ impl Widget for ScrollPanel {
                 MouseScrollDelta::LineDelta(_, y) => y * 50.0,
                 MouseScrollDelta::PixelDelta(pos) => pos.y as f32,
             };
+
             let old_offset = self.scroll_offset.y;
             self.scroll_offset.y += delta;
 
@@ -100,8 +111,19 @@ impl Widget for ScrollPanel {
             if old_offset != self.scroll_offset.y {
                 ui.color_changed();
 
-                for element in element.childs_mut(ui) {
-                    element.offset_element(Vec2::new(0.0, self.scroll_offset.y - old_offset));
+                let view_start = element.pos;
+                let view_end = view_start + element.size.into_f32();
+                let delta = self.scroll_offset.y - old_offset;
+
+                for child in element.childs_mut(ui) {
+                    child.offset_element(Vec2::new(0.0, delta));
+
+                    let child_start = child.pos;
+                    let child_end = child_start + child.size.into_f32();
+
+                    let visible = child_end.y > view_start.y && child_start.y < view_end.y;
+
+                    child.flags.set(ElementFlags::Disabled, !visible);
                 }
 
                 ui.handle_input(ui.cursor_pos, UiEvent::Move);
@@ -116,7 +138,7 @@ impl Widget for ScrollPanel {
 
     fn draw_data(&mut self, element: UiRef, _: &mut Resources, info: &mut DrawInfo) {
         if element.size.y < self.size.y as i16 {
-            info.clip(element.pos.into_f32(), element.size.into_f32());
+            info.clip(element.pos, element.size.into_f32());
         }
     }
 }

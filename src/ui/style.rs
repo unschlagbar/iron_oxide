@@ -11,18 +11,18 @@ pub struct UiRect<T = UiUnit> {
 
 // Methoden die nur UiUnit brauchen
 impl UiRect<UiUnit> {
-    pub fn start(&self, context: &BuildContext) -> Vec2<f32> {
-        Vec2::new(self.left.autox(context), self.top.autoy(context))
+    pub fn start(&self, ctx: &BuildContext) -> Vec2<f32> {
+        Vec2::new(self.left.autox(ctx), self.top.autoy(ctx))
     }
 
-    pub fn end(&self, context: &BuildContext) -> Vec2<f32> {
-        Vec2::new(self.right.pixelx(context), self.bottom.pixely(context))
+    pub fn end(&self, ctx: &BuildContext) -> Vec2<f32> {
+        Vec2::new(self.right.pixelx(ctx), self.bottom.pixely(ctx))
     }
 
-    pub fn size(&self, context: &BuildContext) -> Vec2<f32> {
+    pub fn size(&self, ctx: &BuildContext) -> Vec2<f32> {
         Vec2::new(
-            self.left.pixelx(context) + self.right.pixelx(context),
-            self.top.pixely(context) + self.bottom.pixely(context),
+            self.left.pixelx(ctx) + self.right.pixelx(ctx),
+            self.top.pixely(ctx) + self.bottom.pixely(ctx),
         )
     }
 

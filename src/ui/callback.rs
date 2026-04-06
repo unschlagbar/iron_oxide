@@ -1,6 +1,6 @@
 use winit::event::KeyEvent;
 
-use crate::ui::{Ui, UiRef, text_input::ExitReason};
+use crate::ui::{Ui, UiRef, text_input::StateChange};
 
 use super::UiEvent;
 
@@ -39,7 +39,7 @@ pub struct TextInputContext<'a> {
     pub element: UiRef,
     pub event: &'a KeyEvent,
     pub ingore: bool,
-    pub submit: ExitReason,
+    pub submit: StateChange,
 }
 
 impl<'a> TextInputContext<'a> {
@@ -49,23 +49,23 @@ impl<'a> TextInputContext<'a> {
             element,
             event,
             ingore: false,
-            submit: ExitReason::None,
+            submit: StateChange::None,
         }
     }
 }
 
-pub struct TextExitContext<'a> {
+pub struct StateChangeCtx<'a> {
     pub ui: &'a mut Ui,
     pub element: UiRef,
-    pub reason: ExitReason,
+    pub change: StateChange,
 }
 
-impl<'a> TextExitContext<'a> {
-    pub fn new(ui: &'a mut Ui, element: UiRef, reason: ExitReason) -> Self {
+impl<'a> StateChangeCtx<'a> {
+    pub fn new(ui: &'a mut Ui, element: UiRef, reason: StateChange) -> Self {
         Self {
             ui,
             element,
-            reason,
+            change: reason,
         }
     }
 }
