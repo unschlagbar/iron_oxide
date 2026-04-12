@@ -176,7 +176,7 @@ impl Swapchain {
         for (image, image_view) in present_images.into_iter().zip(&mut self.image_views) {
             let create_info = vk::ImageViewCreateInfo {
                 image,
-                view_type: vk::ImageViewType::Type2d,
+                view_type: vk::ImageViewType::Type2D,
                 format: self.format.format,
                 subresource_range: vk::ImageSubresourceRange {
                     aspect_mask: vk::ImageAspectFlags::Color,

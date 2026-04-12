@@ -1155,7 +1155,9 @@ dependencies = [
 
 [[package]]
 name = "pyronyx"
-version = "0.1.0+1.4.341"
+version = "0.1.5+1.4.341"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9f047b118330ed00d0be9346a7ea00ca40af21fb3899a844e7995df333ab259"
 dependencies = [
  "raw-window-handle",
 ]

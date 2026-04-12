@@ -343,6 +343,15 @@ impl Matrix {
     }
 
     #[track_caller]
+    pub fn add_outer(&mut self, a: &[f32], b: &[f32]) {
+        for (x, &a) in a.iter().enumerate() {
+            for (y, &b) in b.iter().enumerate() {
+                self[x][y] += a * b;
+            }
+        }
+    }
+
+    #[track_caller]
     pub fn sub_inplace(&mut self, other: &Self) {
         debug_assert_eq!(
             self.rows, other.rows,

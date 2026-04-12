@@ -162,7 +162,7 @@ impl VulkanImage {
     pub fn create_view(&mut self, base: &VkBase) {
         let create_info = ImageViewCreateInfo {
             image: self.image,
-            view_type: ImageViewType::Type2d,
+            view_type: ImageViewType::Type2D,
             format: self.format,
             subresource_range: ImageSubresourceRange {
                 aspect_mask: self.aspect_flags(),

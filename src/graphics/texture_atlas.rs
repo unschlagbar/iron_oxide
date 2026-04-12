@@ -147,7 +147,7 @@ impl TextureAtlas {
         };
 
         let create_info = ImageCreateInfo {
-            image_type: vk::ImageType::Type2d,
+            image_type: vk::ImageType::Type2D,
             format: Format::R8G8B8A8Unorm,
             extent,
             mip_levels: 1,
