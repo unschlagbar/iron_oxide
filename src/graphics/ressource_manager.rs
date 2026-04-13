@@ -229,7 +229,7 @@ impl Resources {
         &'a mut self,
         mat_type: MatType,
         info: &DrawInfo,
-    ) -> &'a mut Vec<u8> {
+    ) -> Batch<'a> {
         #[cfg(debug_assertions)]
         assert_eq!(
             self.materials[mat_type as usize].instance_type,
@@ -246,7 +246,9 @@ impl Resources {
             b.mat_type == mat_type && b.clip == info.clip && (b.z_end >= info.z_index || !b.done)
         }) {
             self.draw_batches[idx].z_end = self.draw_batches[idx].z_end.max(info.z_index);
-            &mut self.draw_batches[idx].data
+            Batch {
+                data: &mut self.draw_batches[idx].data,
+            }
         } else {
             self.draw_batches.push(DrawBatch {
                 clip: info.clip,
@@ -259,7 +261,9 @@ impl Resources {
 
                 done: false,
             });
-            &mut self.draw_batches.last_mut().unwrap().data
+            Batch {
+                data: &mut self.draw_batches.last_mut().unwrap().data,
+            }
         }
     }
 
@@ -414,5 +418,20 @@ impl Resources {
         base.device.destroy_sampler(self.sampler, None);
         base.device.destroy_sampler(self.sampler_smooth, None);
         base.device.destroy_descriptor_pool(self.desc_pool, None);
+    }
+}
+
+pub struct Batch<'a> {
+    data: &'a mut Vec<u8>,
+}
+
+impl<'a> Batch<'a> {
+    pub fn reserve(&mut self, additional: usize) {
+        self.data.reserve(additional);
+    }
+    pub fn push<T: VertexDescription>(&mut self, value: &T) {
+        let slice =
+            unsafe { slice::from_raw_parts(value as *const T as *const u8, size_of_val(value)) };
+        self.data.extend_from_slice(slice);
     }
 }

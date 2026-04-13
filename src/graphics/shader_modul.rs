@@ -6,7 +6,7 @@ use super::VkBase;
 pub fn create_shader_modul(base: &VkBase, raw_code: &[u8]) -> vk::ShaderModule {
     let create_info = vk::ShaderModuleCreateInfo {
         code_size: raw_code.len(),
-        code: raw_code.as_ptr() as *const u32,
+        code: raw_code.as_ptr().cast(),
         ..Default::default()
     };
 

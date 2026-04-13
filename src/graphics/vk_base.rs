@@ -208,7 +208,7 @@ impl VkBase {
     }
 
     pub fn destroy(&mut self) {
-        self.device.destroy_device(None);
+        self.device.destroy(None);
         #[cfg(debug_assertions)]
         self.instance
             .destroy_debug_utils_messenger(self.utils_messenger, None);

@@ -1,5 +1,3 @@
-use std::slice;
-
 use crate::{
     graphics::{Resources, formats::RGBA},
     primitives::Vec2,
@@ -91,8 +89,8 @@ impl Widget for Text {
         let font = self.layout.font(info.font);
         let mat = font.material();
 
-        let batch = resources.batch_data::<MSDFInstance>(mat, info);
-        batch.reserve(self.layout.glyphs.len() * size_of::<MSDFInstance>());
+        let mut batch = resources.batch_data::<MSDFInstance>(mat, info);
+        batch.reserve(size_of_val(&self.layout.glyphs));
 
         for glyph in &self.layout.glyphs {
             if glyph.size.x == 0.0 {
@@ -106,13 +104,7 @@ impl Widget for Text {
                 uv_start: glyph.uv_start,
                 uv_end: glyph.uv_end,
             };
-            let slice = unsafe {
-                slice::from_raw_parts(
-                    &to_add as *const MSDFInstance as *const u8,
-                    size_of_val(&to_add),
-                )
-            };
-            batch.extend_from_slice(slice);
+            batch.push(&to_add);
         }
     }
 }

@@ -1,4 +1,4 @@
-use std::{slice, time::Instant};
+use std::time::Instant;
 
 use winit::{
     event::{ElementState, KeyEvent},
@@ -306,8 +306,8 @@ impl Widget for TextInput {
     fn draw_data(&mut self, element: UiRef, resources: &mut Resources, info: &mut DrawInfo) {
         let font = self.layout.font(info.font);
         let mat = font.material();
-        let batch = resources.batch_data::<MSDFInstance>(mat, info);
-        batch.reserve(self.layout.glyphs.len() * size_of::<MSDFInstance>());
+        let mut batch = resources.batch_data::<MSDFInstance>(mat, info);
+        batch.reserve(size_of_val(&self.layout.glyphs));
 
         let color = if self.text.is_empty() {
             self.placeholder_color
@@ -327,13 +327,7 @@ impl Widget for TextInput {
                 uv_start: glyph.uv_start,
                 uv_end: glyph.uv_end,
             };
-            let slice = unsafe {
-                slice::from_raw_parts(
-                    &to_add as *const MSDFInstance as *const u8,
-                    size_of_val(&to_add),
-                )
-            };
-            batch.extend_from_slice(slice);
+            batch.push(&to_add);
         }
 
         if let Some(selection) = &self.selection {
