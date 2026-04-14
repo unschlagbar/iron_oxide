@@ -12,13 +12,17 @@ use std::any::TypeId;
 
 #[derive(Debug)]
 pub struct Material {
-    pub buffer: Buffer,
+    pub instance_buffer: Buffer,
+    pub vertex_buffer: Buffer,
+    pub index_buffer: Buffer,
+
     pub pipeline: Pipeline,
-    #[cfg(debug_assertions)]
-    pub instance_type: TypeId,
     // In u32
     pub stride: usize,
     pub desc_set: vk::DescriptorSet,
+
+    #[cfg(debug_assertions)]
+    pub instance_type: TypeId,
 }
 
 impl Material {
@@ -37,7 +41,10 @@ impl Material {
     ) -> Self {
         debug_assert!(align_of::<T>() >= 4);
         Self {
-            buffer: Buffer::null(),
+            instance_buffer: Buffer::null(),
+            vertex_buffer: Buffer::null(),
+            index_buffer: Buffer::null(),
+
             pipeline: Pipeline::create_ui::<T>(
                 base,
                 window_size,
@@ -45,10 +52,11 @@ impl Material {
                 descriptor_set_layouts,
                 shaders,
             ),
-            #[cfg(debug_assertions)]
-            instance_type: TypeId::of::<T>(),
             stride: size_of::<T>(),
             desc_set: vk::DescriptorSet::null(),
+
+            #[cfg(debug_assertions)]
+            instance_type: TypeId::of::<T>(),
         }
     }
     pub fn new_slang<T: VertexDescription>(
@@ -60,7 +68,10 @@ impl Material {
     ) -> Self {
         debug_assert!(align_of::<T>() >= 4);
         Self {
-            buffer: Buffer::null(),
+            instance_buffer: Buffer::null(),
+            vertex_buffer: Buffer::null(),
+            index_buffer: Buffer::null(),
+
             pipeline: Pipeline::create_ui_slang::<T>(
                 base,
                 window_size,
@@ -68,23 +79,28 @@ impl Material {
                 descriptor_set_layouts,
                 shaders,
             ),
-            #[cfg(debug_assertions)]
-            instance_type: TypeId::of::<T>(),
             stride: size_of::<T>(),
             desc_set: vk::DescriptorSet::null(),
+
+            #[cfg(debug_assertions)]
+            instance_type: TypeId::of::<T>(),
         }
     }
 }
 
 pub struct DrawBatch {
     pub clip: Option<Rect2D>,
-    pub data: Vec<u8>,
+    pub instance_data: Vec<u8>,
+    pub vertex_data: Vec<u8>,
+    pub index_data: Vec<u32>,
     pub mat_type: MatType,
     pub size: u32,
     pub offset: u32,
     pub z_index: i16,
     pub z_end: i16,
     pub done: bool,
+    pub first_index: u32,
+    pub index_count: u32,
 }
 
 impl fmt::Debug for DrawBatch {
@@ -94,6 +110,7 @@ impl fmt::Debug for DrawBatch {
             .field("material", &self.mat_type)
             .field("size", &self.size)
             .field("offset", &self.offset)
+            .field("index_count", &self.index_count)
             .field("Z_end", &self.z_end)
             .finish()
     }

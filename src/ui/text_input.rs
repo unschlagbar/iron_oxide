@@ -14,7 +14,7 @@ use crate::{
         Align, BuildContext, DrawInfo, InputResult, QueuedEvent, Text, TextInputContext, Ui,
         UiElement, UiEvent, UiRef,
         callback::StateChangeCtx,
-        materials::{MSDFInstance, MatType, UiInstance},
+        materials::{MSDFInstance, MSDFVertex, MatType, UiInstance},
         system::KeyModifiers,
         text_layout::TextLayout,
         units::FlexAlign,
@@ -306,28 +306,43 @@ impl Widget for TextInput {
     fn draw_data(&mut self, element: UiRef, resources: &mut Resources, info: &mut DrawInfo) {
         let font = self.layout.font(info.font);
         let mat = font.material();
-        let mut batch = resources.batch_data::<MSDFInstance>(mat, info);
-        batch.reserve(size_of_val(&self.layout.glyphs));
-
-        let color = if self.text.is_empty() {
-            self.placeholder_color
-        } else {
-            self.color
-        };
+        let mut batch = resources.batch_data::<MSDFVertex>(mat, info);
 
         for glyph in &self.layout.glyphs {
             if glyph.size.x == 0.0 {
                 continue;
             }
 
-            let to_add = MSDFInstance {
-                color,
-                pos: glyph.pos,
-                size: glyph.size,
-                uv_start: glyph.uv_start,
-                uv_end: glyph.uv_end,
-            };
-            batch.push(&to_add);
+            let px_range = 1.0;
+
+            let to_add = [
+                MSDFVertex {
+                    color: self.color,
+                    pos: glyph.pos,
+                    uv_pos: glyph.uv_start,
+                    px_range,
+                },
+                MSDFVertex {
+                    color: self.color,
+                    pos: Vec2::new(glyph.pos.x + glyph.size.x, glyph.pos.y),
+                    uv_pos: Vec2::new(glyph.uv_end.x, glyph.uv_start.y),
+                    px_range,
+                },
+                MSDFVertex {
+                    color: self.color,
+                    pos: Vec2::new(glyph.pos.x, glyph.pos.y + glyph.size.y),
+                    uv_pos: Vec2::new(glyph.uv_start.x, glyph.uv_end.y),
+                    px_range,
+                },
+                MSDFVertex {
+                    color: self.color,
+                    pos: glyph.pos + glyph.size,
+                    uv_pos: glyph.uv_end,
+                    px_range,
+                },
+            ];
+
+            batch.push_rect(&to_add);
         }
 
         if let Some(selection) = &self.selection {
@@ -589,7 +604,7 @@ impl Selection {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum StateChange {
     Focus,
     Submit,

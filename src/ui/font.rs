@@ -142,7 +142,7 @@ impl Font {
         if self.bitmap {
             MatType::Bitmap
         } else {
-            MatType::MSDF
+            MatType::MSDFVertex
         }
     }
 }
