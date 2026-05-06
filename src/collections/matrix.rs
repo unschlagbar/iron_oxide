@@ -6,7 +6,7 @@ use std::{
     mem::forget,
     ops::{Index, IndexMut},
     ptr::NonNull,
-    slice,
+    slice::{self, Iter, IterMut},
 };
 
 use rand;
@@ -116,6 +116,14 @@ impl Matrix {
 
     pub fn as_slice_mut(&mut self) -> &mut [f32] {
         unsafe { slice::from_raw_parts_mut(self.data.as_ptr(), self.flat_len()) }
+    }
+
+    pub fn iter(&mut self) -> Iter<'_, f32> {
+        self.as_slice().iter()
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<'_, f32> {
+        self.as_slice_mut().iter_mut()
     }
 
     pub fn copy_from(&mut self, other: &Self) {
@@ -530,3 +538,5 @@ impl Debug for Matrix {
         Ok(())
     }
 }
+
+unsafe impl Send for Matrix {}
