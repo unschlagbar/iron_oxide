@@ -278,15 +278,22 @@ impl Matrix {
     pub fn mul(&self, other: &Self) -> Self {
         debug_assert_eq!(self.cols, other.rows);
 
-        let mut result = Self::uninit(self.rows, other.cols);
+        // i-k-j loop order: the inner loop streams contiguously over row k of
+        // `other` and row i of the result (both row-major), instead of walking a
+        // column of `other` with stride `cols`. That keeps all three operands
+        // cache-friendly and lets the compiler auto-vectorize the axpy into FMA.
+        // Result is zero-initialized because the inner loop accumulates into it.
+        let mut result = Self::zeros(self.rows, other.cols);
 
         for i in 0..self.rows {
-            for j in 0..other.cols {
-                let mut sum = 0.0;
-                for k in 0..self.cols {
-                    sum += self[(i, k)] * other[(k, j)];
+            let a_row = &self[i];
+            let c_row = &mut result[i];
+            for k in 0..self.cols {
+                let a_ik = a_row[k];
+                // c_row += a_ik · other[k];  zip elides the inner bounds checks.
+                for (c, &b) in c_row.iter_mut().zip(&other[k]) {
+                    *c += a_ik * b;
                 }
-                result.set(i, j, sum);
             }
         }
 
@@ -540,3 +547,4 @@ impl Debug for Matrix {
 }
 
 unsafe impl Send for Matrix {}
+unsafe impl Sync for Matrix {}
