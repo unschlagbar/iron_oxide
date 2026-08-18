@@ -1,6 +1,7 @@
 use std::{
     any::{Any, TypeId},
     fmt::{self, Debug},
+    ops::Index,
 };
 
 use pyronyx::vk::Rect2D;
@@ -13,6 +14,7 @@ use crate::{
     ui::{Font, TextInput, UiRef, build_context::BuildPass, widget::Widget},
 };
 
+/// A node in the UI tree. Owns its children and the boxed widget that drives behavior.
 pub struct UiElement {
     pub(crate) id: usize,
     pub name: &'static str,
@@ -22,6 +24,7 @@ pub struct UiElement {
     pub z_index: i16,
     pub parent: Option<UiRef>,
     pub childs: Vec<Self>,
+    /// Written once after the element is placed in the tree; null if the caller does not need a ref.
     pub id_ptr: *mut Option<UiRef>,
     pub(crate) widget: Box<dyn Widget>,
 }
@@ -59,13 +62,22 @@ impl UiElement {
             .unwrap()
     }
 
+    pub fn as_ui_ref(&self) -> UiRef {
+        UiRef::new_ref(self)
+    }
+
+    #[allow(unused)]
+    pub fn get_mut<'a>(&self, ui: &'a mut Ui) -> &'a mut UiElement {
+        self.as_ui_ref().get_mut(ui)
+    }
+
     pub fn build(&mut self, context: &mut BuildContext) {
         if self.flags.contains(ElementFlags::Disabled) {
             return;
         }
 
         context.z_index = self.z_index;
-        context.element_pos = Vec2::new(self.pos.x as f32, self.pos.y as f32);
+        context.element_pos = self.pos;
         context.element_size = Vec2::new(self.size.x as f32, self.size.y as f32);
 
         let (widget, childs) = (&mut self.widget, &mut self.childs);
@@ -127,6 +139,8 @@ impl UiElement {
         }
     }
 
+    /// Forwards the event to the widget. Disabled elements still receive `End`/`HoverEnd`
+    /// so widgets can clean up hover/pressed state even when disabled mid-interaction.
     pub fn interaction(&mut self, ui: &mut Ui, event: UiEvent) -> InputResult {
         let element = UiRef::new(self);
 
@@ -202,6 +216,8 @@ impl UiElement {
         }
     }
 
+    /// Handles a hover-related event and bubbles it up the parent chain.
+    /// `Move` and `HoverEnd` are not bubbled — only click-like events propagate.
     pub fn handle_hover(&mut self, ui: &mut Ui, event: UiEvent) -> InputResult {
         let element = UiRef::new(self);
 
@@ -229,7 +245,11 @@ impl UiElement {
         let childs = &mut self.childs;
         let ptr = childs.as_ptr();
 
-        childs.push(child);
+        let child = childs.push_mut(child);
+        if !child.id_ptr.is_null() {
+            unsafe { *child.id_ptr = Some(UiRef::new(child)) };
+        }
+        let child = UiRef::new(child);
 
         // if a realloc happens we need to update the child pointers
         if ptr != childs.as_ptr() {
@@ -237,11 +257,7 @@ impl UiElement {
                 child.update_ptrs(ui);
             }
         }
-        let child = childs.last_mut().unwrap();
-        if !child.id_ptr.is_null() {
-            unsafe { *child.id_ptr = Some(UiRef::new(child)) };
-        }
-        Some(UiRef::new(child))
+        Some(child)
     }
 
     /// Inserts a child to self and returns a weak reference to it
@@ -315,7 +331,7 @@ impl UiElement {
     pub fn get_child(&self, id: usize) -> Option<UiRef> {
         for child in &self.childs {
             if child.id == id {
-                return Some(UiRef::new_ref(child));
+                return Some(child.as_ui_ref());
             } else if let Some(child) = child.get_child(id) {
                 return Some(child);
             }
@@ -333,6 +349,17 @@ impl UiElement {
             if child.id == id {
                 return Some(child);
             } else if let Some(child) = child.get_child_mut(id) {
+                return Some(child);
+            }
+        }
+        None
+    }
+
+    pub fn get_child_by_name(&mut self, name: &str) -> Option<&mut UiElement> {
+        for child in &mut self.childs {
+            if child.name == name {
+                return Some(child);
+            } else if let Some(child) = child.get_child_by_name(name) {
                 return Some(child);
             }
         }
@@ -359,6 +386,22 @@ impl UiElement {
             z_index: 0,
         }
     }
+
+    pub fn disable(&mut self) {
+        self.flags.set(ElementFlags::Disabled, true);
+    }
+
+    pub fn enable(&mut self) {
+        self.flags.remove(ElementFlags::Disabled);
+    }
+}
+
+impl Index<usize> for UiElement {
+    type Output = UiElement;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.childs[index]
+    }
 }
 
 impl Debug for UiElement {
@@ -376,14 +419,18 @@ impl Debug for UiElement {
 bitflags::bitflags! {
     #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
     pub struct ElementFlags: u8 {
+        /// Skipped during draw; still participates in layout and input.
         const Invisible = 0b00000001;
+        /// Skipped during draw, layout, and input (except End/HoverEnd cleanup).
         const Disabled = 0b00000010;
+        /// Does not capture hover; events fall through to children or siblings.
         const Transparent = 0b00000100;
-
+        /// Set during size prediction when the widget requested fill sizing; cleared after `build_size`.
         const IsFill = 0b00001000;
     }
 }
 
+/// Passed down the draw tree; carries clipping, z-range, and global render state.
 #[derive(Clone, Copy)]
 pub struct DrawInfo<'a> {
     pub clip: Option<Rect2D>,
@@ -406,10 +453,10 @@ impl<'a> DrawInfo<'a> {
         }
     }
 
-    pub fn clip(&mut self, offset: Vec2<f32>, extend: Vec2<f32>) {
+    pub fn clip(&mut self, offset: Vec2<f32>, extent: Vec2<f32>) {
         self.clip = Some(Rect2D {
             offset: offset.into(),
-            extent: extend.into(),
+            extent: extent.into(),
         });
     }
 }

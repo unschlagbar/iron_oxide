@@ -98,7 +98,6 @@ impl TextLayout {
         self.glyphs.clear();
         self.glyphs.reserve(text.len());
         self.lines.clear();
-        self.lines.push(TextLine::default());
 
         let font = if let Some(font) = &self.font {
             font
@@ -113,6 +112,7 @@ impl TextLayout {
         let mut cursor = Vec2::new(0.0, -font.ascender * font_size);
         let mut last_whitespace = true;
         let mut split_point = usize::MAX;
+        let mut line = self.lines.push_mut(TextLine::default());
 
         for mut char in text.chars() {
             let whitespace = char.is_whitespace();
@@ -120,8 +120,7 @@ impl TextLayout {
 
             if char == '\n' {
                 if self.white_space.newlines() {
-                    //layout.lines.push(TextLine::default());
-                    self.lines.push(TextLine {
+                    line = self.lines.push_mut(TextLine {
                         start: self.glyphs.len(),
                         end: self.glyphs.len(),
                         width: 0.0,
@@ -154,8 +153,7 @@ impl TextLayout {
                 if self.white_space.wrap() && !overflowed {
                     // Try to split between words
                     if split_point != usize::MAX {
-                        let current_line = self.lines.last_mut().unwrap();
-                        current_line.end = split_point;
+                        line.end = split_point;
 
                         // remove leading spaces in split line (CSS behavior)
                         if self.white_space.collapses_spaces()
@@ -182,9 +180,9 @@ impl TextLayout {
                             g.pos.y += line_height;
                         }
 
-                        current_line.width -= first_width;
+                        line.width -= first_width;
 
-                        self.lines.push(TextLine {
+                        line = self.lines.push_mut(TextLine {
                             start: range.start,
                             end: range.end,
                             width: new_width,
@@ -198,7 +196,7 @@ impl TextLayout {
 
                     // Try split in words
                     } else if matches!(self.overflow_wrap, OverflowWrap::BreakWord) {
-                        self.lines.push(TextLine {
+                        line = self.lines.push_mut(TextLine {
                             start: self.glyphs.len(),
                             end: self.glyphs.len(),
                             width: 0.0,
@@ -223,8 +221,6 @@ impl TextLayout {
                 split_point = self.glyphs.len();
             }
 
-            let line = self.lines.last_mut().unwrap();
-
             if overflowed {
                 match self.overflow {
                     TextOverflow::Allow => (),
@@ -234,7 +230,7 @@ impl TextLayout {
             } else {
                 let right = glyph.right * font_size;
                 let left = glyph.left * font_size;
-                // this just happend to be the exact number to add to make both '_' and '-' the right size with my testet font_size
+                // this just happend to be the exact number to add to make both '_' and '-' the right size with my tested font_sizes
                 let top = (glyph.top * font_size + 0.4).floor();
                 let bottom = (glyph.bottom * font_size).floor();
 

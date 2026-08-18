@@ -160,11 +160,6 @@ impl VkBase {
         graphics_family: u32,
         present_family: u32,
     ) -> vk::Device {
-        let mut features11 = vk::PhysicalDeviceVulkan11Features {
-            shader_draw_parameters: vk::TRUE,
-            ..Default::default()
-        };
-
         let extensions: &[&CStr] = &[khr::swapchain::NAME];
 
         let queue_create_infos: &[_] = if graphics_family == present_family {
@@ -197,8 +192,7 @@ impl VkBase {
             queue_create_info_count: queue_create_infos.len() as u32,
             queue_create_infos: queue_create_infos.as_ptr(),
             ..Default::default()
-        }
-        .next(&mut features11);
+        };
 
         unsafe {
             physical_device

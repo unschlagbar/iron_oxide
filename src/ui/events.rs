@@ -77,7 +77,7 @@ impl QueuedEvent {
     pub fn new(element: &UiElement, event: UiEvent, message: u16) -> Self {
         Self {
             element_id: element.id,
-            element_ref: UiRef::new_ref(element),
+            element_ref: element.as_ui_ref(),
             element_name: element.name,
             event,
             message,

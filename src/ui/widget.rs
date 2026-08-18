@@ -240,6 +240,44 @@ macro_rules! node {
         )
     };
 
+    // --- name(expr) → name (parse-Modus) ---
+    (@parse
+        widget   = $widget:expr,
+        name     = $_old_name:expr,
+        flags    = $flags:expr,
+        id_ptr   = $id_ptr:expr,
+        children = [$($children:expr),*],
+        name($name:expr), $($rest:tt)*
+    ) => {
+        node!(@parse
+            widget   = $widget,
+            name     = $name,
+            flags    = $flags,
+            id_ptr   = $id_ptr,
+            children = [$($children),*],
+            $($rest)*
+        )
+    };
+
+    // --- name(expr) → name (vec-Modus) ---
+    (@vec
+        widget = $widget:expr,
+        name   = $_old_name:expr,
+        flags  = $flags:expr,
+        id_ptr = $id_ptr:expr,
+        vec    = $vec:expr,
+        name($name:expr), $($rest:tt)*
+    ) => {
+        node!(@vec
+            widget = $widget,
+            name   = $name,
+            flags  = $flags,
+            id_ptr = $id_ptr,
+            vec    = $vec,
+            $($rest)*
+        )
+    };
+
     // --- flags(...) → flags (parse-Modus) ---
     (@parse
         widget   = $widget:expr,

@@ -143,12 +143,14 @@ impl Resources {
             .allocate_descriptor_sets(&allocate_info, &mut sets)
             .unwrap();
 
-        debug_assert_eq!(sets.len() - 1, layout_mats.len());
-
         self.ubo_set = sets[0];
 
-        for (&mat_i, set) in layout_mats.iter().zip(&sets[1..]) {
-            self.materials[mat_i].desc_set = *set;
+        debug_assert_eq!(self.materials.len(), layout_mats.len());
+
+        for (mat, &set) in self.materials.iter_mut().zip(layout_mats) {
+            if set != 0 {
+                mat.desc_set = sets[set - 1];
+            }
         }
 
         let buffer_info = DescriptorBufferInfo {
@@ -251,9 +253,10 @@ impl Resources {
                 instance_data: &mut batch.instance_data,
                 vertex_data: &mut batch.vertex_data,
                 index_data: &mut batch.index_data,
+                index_count: &mut batch.index_count,
             }
         } else {
-            self.draw_batches.push(DrawBatch {
+            let batch = self.draw_batches.push_mut(DrawBatch {
                 clip: info.clip,
                 mat_type,
                 instance_data: Vec::new(),
@@ -268,11 +271,11 @@ impl Resources {
 
                 done: false,
             });
-            let batch = self.draw_batches.last_mut().unwrap();
             Batch {
                 instance_data: &mut batch.instance_data,
                 vertex_data: &mut batch.vertex_data,
                 index_data: &mut batch.index_data,
+                index_count: &mut batch.index_count,
             }
         }
     }
@@ -515,6 +518,7 @@ pub struct Batch<'a> {
     instance_data: &'a mut Vec<u8>,
     vertex_data: &'a mut Vec<u8>,
     index_data: &'a mut Vec<u32>,
+    index_count: &'a mut u32,
 }
 
 impl<'a> Batch<'a> {
@@ -536,10 +540,12 @@ impl<'a> Batch<'a> {
             unsafe { slice::from_raw_parts(value.as_ptr() as *const u8, size_of_val(value)) };
         self.vertex_data.extend_from_slice(slice);
 
-        let len = self.index_data.len() as u32 / 3;
+        let len = *self.index_count;
         self.index_data.extend_from_slice(&[len, len + 1, len + 2]);
 
-        let len = len + 1;
-        self.index_data.extend_from_slice(&[len, len + 1, len + 2]);
+        self.index_data
+            .extend_from_slice(&[len + 1, len + 2, len + 3]);
+
+        *self.index_count += 4;
     }
 }

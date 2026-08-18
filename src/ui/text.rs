@@ -2,11 +2,8 @@ use crate::{
     graphics::{Resources, formats::RGBA},
     primitives::Vec2,
     ui::{
-        Align, BuildContext, DrawInfo, TextInput, UiElement, UiRect, UiRef,
-        materials::{MSDFInstance, MSDFVertex},
-        text_layout::TextLayout,
-        units::FlexAlign,
-        widget::Widget,
+        Align, BuildContext, DrawInfo, TextInput, UiElement, UiRect, UiRef, materials::MSDFVertex,
+        text_layout::TextLayout, units::FlexAlign, widget::Widget,
     },
 };
 
@@ -99,7 +96,7 @@ impl Widget for Text {
                 continue;
             }
 
-            let px_range = 1.0;
+            let px_range = (glyph.size.y / (glyph.uv_end.y - glyph.uv_start.y)) * 4.0;
 
             let to_add = [
                 MSDFVertex {
@@ -122,7 +119,7 @@ impl Widget for Text {
                 },
                 MSDFVertex {
                     color: self.color,
-                    pos: glyph.pos + glyph.size,
+                    pos: Vec2::new(glyph.pos.x + glyph.size.x, glyph.pos.y + glyph.size.y),
                     uv_pos: glyph.uv_end,
                     px_range,
                 },

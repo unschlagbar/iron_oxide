@@ -1,6 +1,6 @@
 use winit::event::KeyEvent;
 
-use crate::ui::{Ui, UiRef, text_input::StateChange};
+use crate::ui::{Button, Ui, UiRef, text_input::StateChange};
 
 use super::UiEvent;
 
@@ -31,6 +31,10 @@ pub struct ButtonContext<'a> {
 impl<'a> ButtonContext<'a> {
     pub fn new(ui: &'a mut Ui, element: UiRef, event: UiEvent) -> Self {
         Self { ui, element, event }
+    }
+
+    pub fn get_button(&mut self) -> &mut Button {
+        self.element.get_mut(self.ui).downcast_mut()
     }
 }
 

@@ -89,8 +89,7 @@ impl Ui {
         element.z_index = z_index;
         element.parent = None;
 
-        self.elements.push(element);
-        let mut element = UiRef::new(self.elements.last_mut().unwrap());
+        let mut element = UiRef::new(self.elements.push_mut(element));
         unsafe { element.as_mut().init(self) };
 
         if ticking {
@@ -288,6 +287,19 @@ impl Ui {
                 return Some(UiRef::new(element));
             } else if let Some(result) = element.get_child(id) {
                 return Some(result);
+            }
+        }
+        None
+    }
+
+    /// UiRef
+    #[track_caller]
+    pub fn get_element_by_name(&mut self, name: &str) -> Option<UiRef> {
+        for element in &mut self.elements {
+            if element.name == name {
+                return Some(UiRef::new(element));
+            } else if let Some(result) = element.get_child_by_name(name) {
+                return Some(UiRef::new(result));
             }
         }
         None
