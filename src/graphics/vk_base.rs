@@ -217,12 +217,19 @@ fn select_physical_device(
     let devices = unsafe { instance.enumerate_physical_devices() }
         .expect("Bro how do you see this without a GPU?");
 
+    // The integrated gpu is preferred: on a hybrid machine it is usually the one
+    // the compositor imports buffers from, so presenting off it needs no
+    // cross-device copy. `IRON_OXIDE_GPU=discrete` flips that.
+    let prefer_discrete = std::env::var_os("IRON_OXIDE_GPU").is_some_and(|v| v == "discrete");
+
     let mut candidates: Vec<_> = devices
         .into_iter()
         .filter_map(|device| {
             let (gf, pf) = find_queue_families(device, surface)?;
             let props = device.get_properties();
             let score = match props.device_type {
+                vk::PhysicalDeviceType::DiscreteGpu if prefer_discrete => 3,
+                vk::PhysicalDeviceType::IntegratedGpu if prefer_discrete => 2,
                 vk::PhysicalDeviceType::DiscreteGpu => 2,
                 vk::PhysicalDeviceType::IntegratedGpu => 3,
                 _ => 1,

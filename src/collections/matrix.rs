@@ -360,8 +360,10 @@ impl Matrix {
     #[track_caller]
     pub fn add_outer(&mut self, a: &[f32], b: &[f32]) {
         for (x, &a) in a.iter().enumerate() {
-            for (y, &b) in b.iter().enumerate() {
-                self[x][y] += a * b;
+            // Row-hoisted zip: no per-element index math or bounds checks,
+            // the inner loop vectorizes to FMA.
+            for (c, &b) in self[x].iter_mut().zip(b) {
+                *c += a * b;
             }
         }
     }
