@@ -118,6 +118,9 @@ impl Material {
 
 pub struct DrawBatch {
     pub clip: Option<Rect2D>,
+    /// Set on a batch that draws nothing itself and stands for a rectangle the
+    /// application fills with its own pipeline. See `Resources::draw_with`.
+    pub custom: Option<CustomDraw>,
     pub instance_data: Vec<u8>,
     pub vertex_data: Vec<u8>,
     pub index_data: Vec<u32>,
@@ -129,6 +132,19 @@ pub struct DrawBatch {
     pub done: bool,
     pub first_index: u32,
     pub index_count: u32,
+}
+
+/// A rectangle the ui has laid out but does not draw: what the application is
+/// handed when the draw order reaches it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CustomDraw {
+    /// Which drawing this is, from the `Canvas` that reserved the space.
+    pub id: u16,
+    /// The element's box in physical pixels.
+    pub area: Rect2D,
+    /// What the element is clipped to — a scroll panel it sits in, or the whole
+    /// window. Painting outside this leaks over whatever scrolled it away.
+    pub clip: Rect2D,
 }
 
 impl fmt::Debug for DrawBatch {

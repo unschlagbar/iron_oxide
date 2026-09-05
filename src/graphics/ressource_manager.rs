@@ -12,7 +12,9 @@ use pyronyx::vk::{
 };
 
 use crate::{
-    graphics::{DrawBatch, Material, MemManager, TextureAtlas, VertexDescription, VkBase},
+    graphics::{
+        CustomDraw, DrawBatch, Material, MemManager, TextureAtlas, VertexDescription, VkBase,
+    },
     primitives::{Matrix4, Vec2},
     ui::{DrawInfo, materials::MatType},
 };
@@ -258,6 +260,7 @@ impl Resources {
         } else {
             let batch = self.draw_batches.push_mut(DrawBatch {
                 clip: info.clip,
+                custom: None,
                 mat_type,
                 instance_data: Vec::new(),
                 vertex_data: Vec::new(),
@@ -312,6 +315,7 @@ impl Resources {
 
             self.draw_batches.push(DrawBatch {
                 clip: info.clip,
+                custom: None,
                 mat_type,
                 instance_data,
                 vertex_data: Vec::new(),
@@ -326,6 +330,38 @@ impl Resources {
                 index_count: 0,
             });
         }
+    }
+
+    /// Reserves a place in the draw order for something the application draws
+    /// itself. Nothing is batched: the marker only records where in the order
+    /// the callback runs, so a canvas is painted over what the ui drew before
+    /// it and under what it draws after.
+    pub fn mark(&mut self, id: u16, area: Rect2D, info: &DrawInfo) {
+        // Nothing may be merged across the marker, or geometry queued later
+        // would land in a batch that draws before it.
+        for batch in &mut self.draw_batches {
+            batch.done = true;
+        }
+
+        self.draw_batches.push(DrawBatch {
+            clip: info.clip,
+            custom: Some(CustomDraw {
+                id,
+                area,
+                clip: info.clip.unwrap_or(area),
+            }),
+            mat_type: MatType::Basic,
+            instance_data: Vec::new(),
+            vertex_data: Vec::new(),
+            index_data: Vec::new(),
+            size: 0,
+            offset: 0,
+            z_index: 0,
+            z_end: info.z_index,
+            done: true,
+            first_index: 0,
+            index_count: 0,
+        });
     }
 
     pub fn upload(&mut self, base: &VkBase, start: usize) {
@@ -448,6 +484,14 @@ impl Resources {
     }
 
     pub fn draw(&self, cmd: CommandBuffer, clip: Rect2D) {
+        self.draw_with(cmd, clip, &mut |_| {});
+    }
+
+    /// The same, with a callback for every rectangle a `Canvas` reserved. The
+    /// callback owns the command buffer while it runs and may bind whatever it
+    /// likes; the scissor and the shared descriptor set are put back afterwards,
+    /// so it does not have to clean up after itself.
+    pub fn draw_with(&self, cmd: CommandBuffer, clip: Rect2D, custom: &mut dyn FnMut(CustomDraw)) {
         if self.draw_batches.is_empty() {
             return;
         }
@@ -455,6 +499,23 @@ impl Resources {
         let mut current_scissor: Option<Rect2D> = None;
 
         for batch in &self.draw_batches {
+            if let Some(area) = batch.custom {
+                custom(area);
+
+                // The callback bound its own pipeline and set its own scissor,
+                // and a pipeline layout it does not share invalidates set 0.
+                cmd.bind_descriptor_sets(
+                    PipelineBindPoint::Graphics,
+                    self.materials[0].pipeline.layout,
+                    0,
+                    &[self.ubo_set],
+                    &[],
+                );
+                current_scissor = None;
+                cmd.set_scissor(0, &[clip]);
+                continue;
+            }
+
             let mat = &self.materials[batch.mat_type as usize];
 
             if mat.desc_set != DescriptorSet::null() {

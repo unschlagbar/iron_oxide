@@ -5,7 +5,10 @@ use winit::{
 
 use crate::{
     primitives::Vec2,
-    ui::{Ui, UiEvent, system::InputResult},
+    ui::{
+        Ui, UiEvent,
+        system::{InputResult, KeyModifiers},
+    },
 };
 
 impl Ui {
@@ -77,6 +80,17 @@ impl Ui {
                 } else {
                     InputResult::None
                 }
+            }
+            // Tracked on their own event rather than read off a key press:
+            // winit reports a modifier's state, not a keystroke, and a shortcut
+            // needs to know what is held while an unrelated key is pressed.
+            WindowEvent::ModifiersChanged(modifiers) => {
+                let state = modifiers.state();
+                self.modifiers = KeyModifiers::empty();
+                self.modifiers.set(KeyModifiers::Shift, state.shift_key());
+                self.modifiers.set(KeyModifiers::Ctrg, state.control_key());
+                self.modifiers.set(KeyModifiers::Alt, state.alt_key());
+                InputResult::None
             }
             WindowEvent::ScaleFactorChanged {
                 scale_factor,

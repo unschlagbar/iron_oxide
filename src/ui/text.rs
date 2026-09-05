@@ -10,6 +10,12 @@ use crate::{
 pub struct Text {
     pub text: String,
     pub color: RGBA,
+    /// Colour changes inside the run, as `(first character, colour)` sorted by
+    /// position — everything from one entry to the next is drawn in its colour,
+    /// and anything before the first entry in `color`. This is what lets one
+    /// wrapped paragraph say different things about different words instead of
+    /// being cut into a stack of one-colour boxes.
+    pub runs: Vec<(usize, RGBA)>,
     pub layout: TextLayout,
     pub align: Align,
     pub margin: UiRect,
@@ -24,6 +30,7 @@ impl Text {
         Self {
             text: text_input.text,
             color: text_input.color,
+            runs: Vec::new(),
             layout: text_input.layout,
             align: text_input.align,
             margin: UiRect::default(),
@@ -56,14 +63,7 @@ impl Widget for Text {
         context.apply_pos(offset);
         offset.y = offset.y.floor();
 
-        for line in &self.layout.lines {
-            let mut offset = offset;
-            offset.x = self.align.get_x(align_size.x, line.width, offset.x);
-
-            for c in &mut self.layout.glyphs[line.range()] {
-                c.pos += offset;
-            }
-        }
+        self.layout.place(self.align, align_size, offset);
     }
 
     fn build_size(&mut self, _: &mut [UiElement], ctx: &mut BuildContext) {
@@ -73,15 +73,19 @@ impl Widget for Text {
     }
 
     fn predict_size(&mut self, ctx: &mut BuildContext) {
-        self.dirty = false;
-
         let text = if self.text.is_empty() {
             "\u{200B}"
         } else {
             &self.text
         };
 
-        self.layout.build(text, ctx);
+        // Nothing about this run has changed in most passes, and laying it out
+        // again would produce the glyphs already standing.
+        if self.dirty || !self.layout.is_current(text, ctx) {
+            self.layout.build(text, ctx);
+        }
+        self.dirty = false;
+
         ctx.predict(self.layout.size + self.margin.size(ctx));
     }
 
@@ -91,7 +95,18 @@ impl Widget for Text {
 
         let mut batch = resources.batch_data::<MSDFVertex>(mat, info);
 
+        // Walked in step with the glyphs rather than searched per glyph: both
+        // are in character order, so the colour of the next glyph is never
+        // further than one entry away.
+        let mut run = 0;
+        let mut color = self.color;
+
         for glyph in &self.layout.glyphs {
+            while run < self.runs.len() && self.runs[run].0 <= glyph.index as usize {
+                color = self.runs[run].1;
+                run += 1;
+            }
+
             if glyph.size.x == 0.0 {
                 continue;
             }
@@ -100,25 +115,25 @@ impl Widget for Text {
 
             let to_add = [
                 MSDFVertex {
-                    color: self.color,
+                    color,
                     pos: glyph.pos,
                     uv_pos: glyph.uv_start,
                     px_range,
                 },
                 MSDFVertex {
-                    color: self.color,
+                    color,
                     pos: Vec2::new(glyph.pos.x + glyph.size.x, glyph.pos.y),
                     uv_pos: Vec2::new(glyph.uv_end.x, glyph.uv_start.y),
                     px_range,
                 },
                 MSDFVertex {
-                    color: self.color,
+                    color,
                     pos: Vec2::new(glyph.pos.x, glyph.pos.y + glyph.size.y),
                     uv_pos: Vec2::new(glyph.uv_start.x, glyph.uv_end.y),
                     px_range,
                 },
                 MSDFVertex {
-                    color: self.color,
+                    color,
                     pos: Vec2::new(glyph.pos.x + glyph.size.x, glyph.pos.y + glyph.size.y),
                     uv_pos: glyph.uv_end,
                     px_range,
@@ -135,6 +150,7 @@ impl Default for Text {
         Self {
             text: "Text".to_string(),
             color: RGBA::WHITE,
+            runs: Vec::new(),
             layout: TextLayout::default(),
             align: Align::default(),
             margin: UiRect::default(),

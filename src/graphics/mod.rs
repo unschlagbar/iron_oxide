@@ -26,5 +26,5 @@ pub use texture_atlas::TextureAtlas;
 pub use vertex_description::VertexDescription;
 pub use vk_base::VkBase;
 
-pub use material::DrawBatch;
 pub use material::Material;
+pub use material::{CustomDraw, DrawBatch};

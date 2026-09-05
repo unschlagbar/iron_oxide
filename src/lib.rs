@@ -1,3 +1,5 @@
+#[cfg(feature = "clipboard")]
+pub mod clipboard;
 pub mod collections;
 pub mod net;
 pub mod physics;

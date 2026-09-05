@@ -1,5 +1,6 @@
 use std::{ops::Range, rc::Rc};
 
+use crate::ui::Align;
 use crate::{
     primitives::Vec2,
     ui::{BuildContext, Font},
@@ -89,11 +90,40 @@ pub struct TextLayout {
     pub lines: Vec<TextLine>,
     pub glyphs: Vec<Glyph>,
     pub size: Vec2<f32>,
+    /// Bookkeeping, written by [`TextLayout::build`] and [`TextLayout::place`]
+    /// and not meant to be set from outside.
+    ///
+    /// What the glyphs standing in `glyphs` were built from: the width they
+    /// were wrapped to and the byte length of the text. A layout pass asks
+    /// every element to lay itself out again, and for almost all of them
+    /// nothing has changed — [`TextLayout::is_current`] is what makes that
+    /// question free instead of a full rebuild.
+    ///
+    /// NaN until the first build, which is what makes that first one happen.
+    pub built_width: f32,
+    pub built_len: usize,
+    /// Where the glyphs were last moved to, and the space that placed them.
+    /// Glyph positions are absolute — drawing, hit testing and the selection
+    /// rects all read them straight — so an element that moves has to move its
+    /// glyphs with it. Keeping what was applied is what lets that be a
+    /// difference instead of a second full offset on top of the first.
+    pub applied: Option<(Vec2<f32>, Vec2<f32>)>,
 }
 
 impl TextLayout {
+    /// Whether the glyphs standing are the ones `build` would produce. The
+    /// text is compared by length, not content: every path that edits a text
+    /// marks its widget dirty, and this is the second half of that check.
+    pub fn is_current(&self, text: &str, ctx: &BuildContext) -> bool {
+        self.built_width == ctx.available_space.x && self.built_len == text.len()
+    }
+
     pub fn build(&mut self, text: &str, ctx: &mut BuildContext) {
         let container_size = ctx.available_space;
+        self.built_width = container_size.x;
+        self.built_len = text.len();
+        // Fresh glyphs are positioned relative to the run itself.
+        self.applied = None;
 
         self.glyphs.clear();
         self.glyphs.reserve(text.len());
@@ -112,9 +142,12 @@ impl TextLayout {
         let mut cursor = Vec2::new(0.0, -font.ascender * font_size);
         let mut last_whitespace = true;
         let mut split_point = usize::MAX;
+        // Where the pen stood after the break character, so a wrapped run can be
+        // moved without reconstructing it from glyph bounds.
+        let mut split_x = 0.0;
         let mut line = self.lines.push_mut(TextLine::default());
 
-        for mut char in text.chars() {
+        for (index, mut char) in text.chars().enumerate() {
             let whitespace = char.is_whitespace();
             let mut overflowed = false;
 
@@ -153,8 +186,6 @@ impl TextLayout {
                 if self.white_space.wrap() && !overflowed {
                     // Try to split between words
                     if split_point != usize::MAX {
-                        line.end = split_point;
-
                         // remove leading spaces in split line (CSS behavior)
                         if self.white_space.collapses_spaces()
                             && let Some(g) = self.glyphs.last()
@@ -163,34 +194,34 @@ impl TextLayout {
                             self.glyphs.pop();
                         }
 
-                        let range = split_point..self.glyphs.len();
+                        // The space or hyphen the break was taken at closes the
+                        // line it sits on; what moves down starts after it.
+                        let run_start = (split_point + 1).min(self.glyphs.len());
+                        line.end = run_start;
 
-                        let first_char = &self.glyphs[(split_point - 1).max(0)];
-                        let first_pos = first_char.pos.x;
-                        let first_width = first_pos + first_char.size.x;
+                        // Both the glyphs and the pen move by the pen position the
+                        // run began at. Measuring that on ink instead leaves the
+                        // two in different frames, which is an overlap of one glyph
+                        // right after every break.
+                        let moved = cursor.x - split_x;
 
-                        let last_char = self.glyphs.last().unwrap();
-                        let last_width = last_char.pos.x + last_char.size.x;
-
-                        let new_width = last_width - first_width;
-                        next_width = new_width + advance;
-
-                        for g in &mut self.glyphs[range.clone()] {
-                            g.pos.x -= first_pos;
+                        for g in &mut self.glyphs[run_start..] {
+                            g.pos.x -= split_x;
                             g.pos.y += line_height;
                         }
 
-                        line.width -= first_width;
+                        line.width -= moved;
 
                         line = self.lines.push_mut(TextLine {
-                            start: range.start,
-                            end: range.end,
-                            width: new_width,
+                            start: run_start,
+                            end: self.glyphs.len(),
+                            width: moved,
                         });
 
-                        width = width.max(cursor.x);
+                        width = width.max(split_x);
 
-                        cursor.x = new_width;
+                        next_width = moved + advance;
+                        cursor.x = moved;
                         cursor.y += line_height;
                         split_point = usize::MAX;
 
@@ -219,6 +250,7 @@ impl TextLayout {
 
             if whitespace || char == '-' {
                 split_point = self.glyphs.len();
+                split_x = next_width;
             }
 
             if overflowed {
@@ -239,6 +271,7 @@ impl TextLayout {
 
                 self.glyphs.push(Glyph {
                     char,
+                    index: index as u32,
                     pos,
                     size,
                     uv_start: glyph.atlas_start,
@@ -255,6 +288,54 @@ impl TextLayout {
 
         width = width.max(cursor.x);
         self.size = Vec2::new(width, self.lines.len() as f32 * line_height);
+    }
+
+    /// Moves the laid-out glyphs so the run sits at `offset` inside `space`.
+    /// Safe to call on a layout that was not rebuilt: what was applied last
+    /// time is subtracted, so the glyphs land in the same place a rebuild would
+    /// have put them.
+    pub fn place(&mut self, align: Align, space: Vec2<f32>, offset: Vec2<f32>) {
+        let previous = self.applied;
+        self.applied = Some((offset, space));
+
+        for line in &self.lines {
+            let new_x = align.get_x(space.x, line.width, offset.x);
+            let (dx, dy) = match previous {
+                Some((old_offset, old_space)) => (
+                    new_x - align.get_x(old_space.x, line.width, old_offset.x),
+                    offset.y - old_offset.y,
+                ),
+                None => (new_x, offset.y),
+            };
+            if dx == 0.0 && dy == 0.0 {
+                continue;
+            }
+            for glyph in &mut self.glyphs[line.range()] {
+                glyph.pos.x += dx;
+                glyph.pos.y += dy;
+            }
+        }
+    }
+
+    /// Moves the glyphs *without* a layout pass — what scrolling does, through
+    /// [`UiElement::offset_element`](crate::ui::UiElement::offset_element).
+    ///
+    /// The record of where they were placed moves with them, which is what
+    /// makes this exact rather than merely close: the next layout pass asks for
+    /// the same position it now holds, computes a difference of zero from the
+    /// same inputs, and writes nothing at all. A scrolled field therefore
+    /// carries exactly one addition per scroll — no rebuild, and no error that
+    /// could accumulate over a long scroll.
+    pub fn shift(&mut self, by: Vec2<f32>) {
+        let Some((offset, _)) = &mut self.applied else {
+            // Never placed: there is no absolute position to move yet, and the
+            // pass that places it will use the position it finds then.
+            return;
+        };
+        *offset += by;
+        for glyph in &mut self.glyphs {
+            glyph.pos += by;
+        }
     }
 
     pub fn font<'a>(&'a self, font: &'a Font) -> &'a Font {
@@ -274,6 +355,9 @@ impl Default for TextLayout {
             lines: Vec::default(),
             glyphs: Vec::default(),
             size: Vec2::default(),
+            built_width: f32::NAN,
+            built_len: 0,
+            applied: None,
         }
     }
 }
@@ -295,6 +379,14 @@ impl TextLine {
 #[derive(Debug)]
 pub struct Glyph {
     pub char: char,
+    /// Which character of the source string this is. Not the same as the
+    /// glyph's own index: a line break and a collapsed space lay out without
+    /// producing a glyph, so anything that colours or marks a *range of the
+    /// text* has to count in this rather than in glyphs.
+    ///
+    /// 32 bits: a `Glyph` is the memory a laid-out field costs — one per
+    /// character — and no field holds four billion of them.
+    pub index: u32,
     pub pos: Vec2<f32>,
     pub size: Vec2<f32>,
     pub uv_start: Vec2<f32>,

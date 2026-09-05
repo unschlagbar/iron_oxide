@@ -35,7 +35,10 @@ impl UiElement {
     }
 
     pub fn type_of<T: Widget>(&self) -> bool {
-        self.widget.type_id() == TypeId::of::<T>()
+        // Through the trait object, never off the box: `Box<dyn Widget>` is
+        // itself `Any`, so `self.widget.type_id()` answers with the type id of
+        // the *box* and matches nothing anyone can name.
+        (self.widget.as_ref() as &dyn Any).type_id() == TypeId::of::<T>()
     }
 
     pub fn downcast_ref<T: Widget>(&self) -> Option<&T> {
@@ -158,13 +161,9 @@ impl UiElement {
         self.pos += offset;
 
         if let Some(text) = self.try_downcast_mut::<Text>() {
-            for glyph in &mut text.layout.glyphs {
-                glyph.pos += offset;
-            }
-        } else if let Some(text) = self.try_downcast_mut::<TextInput>() {
-            for glyph in &mut text.layout.glyphs {
-                glyph.pos += offset;
-            }
+            text.layout.shift(offset);
+        } else if let Some(input) = self.try_downcast_mut::<TextInput>() {
+            input.layout.shift(offset);
         }
 
         for child in &mut self.childs {

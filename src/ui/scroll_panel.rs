@@ -15,7 +15,6 @@ pub struct ScrollPanel {
     pub scroll_offset: Vec2<f32>,
     pub size: Vec2<f32>,
     pub padding: UiRect,
-    pub child_hash: usize,
 }
 
 impl Widget for ScrollPanel {
@@ -78,12 +77,12 @@ impl Widget for ScrollPanel {
 
         self.size = child_ctx.final_size() + padding;
 
-        let child_hash = childs.first().map(|c| c.id).unwrap_or_default();
-
-        if child_hash != self.child_hash {
-            self.scroll_offset.y = 0.0;
-            self.child_hash = child_hash;
-        }
+        // Rebuilding the children does not move the view: an id is handed out
+        // fresh every time an element is added, so nothing about them can say
+        // whether this is the same content laid out again or different content
+        // altogether. Only the owner knows that, and it zeroes `scroll_offset`
+        // itself. What is left here is the clamp, which is what keeps the view
+        // inside content that shrank.
         let min = (size.y - self.size.y).min(0.0);
         self.scroll_offset.y = self.scroll_offset.y.clamp(min, 0.0);
 
