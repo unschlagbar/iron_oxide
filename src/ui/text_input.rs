@@ -42,6 +42,10 @@ pub struct TextInput {
     pub keep_selection: bool,
     pub cursor: Option<InputCursor>,
     pub selection: Option<Selection>,
+    /// The column a run of up/down keeps, in the pen's own units. Held across
+    /// the run and dropped by every other cursor move, so crossing a short line
+    /// does not pull the cursor left for the rest of the run.
+    goal_x: Option<f32>,
     /// Ranges tinted behind the text, drawn like a selection but owned by the
     /// caller: what the field says *about* its content, not what the pointer is
     /// doing to it.
@@ -58,8 +62,8 @@ pub struct TextInput {
 /// highlight — counts **characters of `text`**. Glyphs are not the same count:
 /// a line break and a collapsed space lay out none, so a glyph index is one
 /// character short per break before it. Glyph indices live inside drawing and
-/// hit testing only, and [`TextInput::char_of_glyph`] /
-/// [`TextInput::glyph_of_char`] are the only way across.
+/// hit testing only, and a glyph's own `index` and [`TextInput::glyph_of_char`]
+/// are the only way across.
 impl TextInput {
     pub fn from(text: Text) -> Self {
         Self {
@@ -76,6 +80,7 @@ impl TextInput {
             keep_selection: false,
             cursor: None,
             selection: None,
+            goal_x: None,
             highlights: Vec::new(),
 
             message: 0,
@@ -96,35 +101,30 @@ impl TextInput {
         resources: &mut Resources,
         info: &mut DrawInfo,
     ) {
-        let glyphs = &self.layout.glyphs;
-        let gl_len = glyphs.len();
+        let gl_len = self.layout.glyphs.len();
         if range.start >= range.end || gl_len == 0 {
             return;
         }
 
         for (line_idx, line) in self.layout.lines.iter().enumerate() {
-            let line_start = self.char_of_glyph(line.start);
+            let line_start = line.start_char;
             let line_end = self.line_char_end(line);
             if line_end <= range.start || line_start >= range.end {
                 continue;
             }
 
-            let from = self.glyph_of_char(range.start.max(line_start));
-            let x_start = glyphs[from.min(gl_len - 1)].pos.x as i16;
+            let x_start = self.caret_x(line, range.start.max(line_start)) as i16;
 
             // A run that carries on past this line fills to the field's right
             // edge, so a wrapped range reads as one block and not as pieces.
             let x_end = if range.end >= line_end && line.end < gl_len {
                 (element.pos.x as i16 + element.size.x) as f32
-            } else if range.end >= line_end {
-                let g = &glyphs[(line.end - 1).min(gl_len - 1)];
-                g.pos.x + g.size.x
             } else {
-                glyphs[self.glyph_of_char(range.end).min(gl_len - 1)].pos.x
+                self.caret_x(line, range.end.min(line_end))
             }
             .ceil() as i16;
 
-            let y = element.pos.y as i16 + line_idx as i16 * line_height;
+            let y = self.line_y(line_idx) as i16;
             resources.add(
                 MatType::Basic,
                 UiInstance {
@@ -140,15 +140,6 @@ impl TextInput {
         }
     }
 
-    /// The character a glyph was laid out from; the end of the text for a
-    /// glyph index past the last one.
-    fn char_of_glyph(&self, glyph: usize) -> usize {
-        match self.layout.glyphs.get(glyph) {
-            Some(glyph) => glyph.index as usize,
-            None => self.char_len(),
-        }
-    }
-
     /// The first glyph at or after character `at`. The layout is built in
     /// character order, so this is a binary search rather than a scan.
     fn glyph_of_char(&self, at: usize) -> usize {
@@ -161,9 +152,81 @@ impl TextInput {
     /// that line lands, which is the break itself rather than the first
     /// character of the next line.
     fn line_char_end(&self, line: &TextLine) -> usize {
-        match line.end.checked_sub(1).and_then(|i| self.layout.glyphs.get(i)) {
+        match line
+            .end
+            .checked_sub(1)
+            .filter(|i| *i >= line.start)
+            .and_then(|i| self.layout.glyphs.get(i))
+        {
             Some(glyph) => glyph.index as usize + 1,
-            None => self.char_of_glyph(line.start),
+            // A line that laid out nothing begins and ends at the same
+            // character: the break that opened it is the one that closes it.
+            None => line.start_char,
+        }
+    }
+
+    /// The top left corner of the caret for character `ci`, in the same screen
+    /// space the glyphs are placed in. What a field has to know to scroll the
+    /// caret into view, and the one place the line a character sits on and the
+    /// column it sits at are answered together.
+    pub fn caret_pos(&self, ci: usize) -> Vec2<f32> {
+        let line_idx = self.cursor_line_idx(ci);
+        let y = self.line_y(line_idx);
+        match self.layout.lines.get(line_idx) {
+            Some(line) => Vec2::new(self.caret_x(line, ci), y),
+            None => Vec2::new(0.0, y),
+        }
+    }
+
+    /// Where the pen starts on `line`: the sum [`TextLayout::place`] moved its
+    /// glyphs by, read back instead of stored — a line that laid out no glyph
+    /// at all has none to read it off.
+    fn line_x(&self, line: &TextLine) -> f32 {
+        let (offset, space) = self.layout.applied.unwrap_or_default();
+        self.align.get_x(space.x, line.width, offset.x)
+    }
+
+    /// The top of line `line_idx`. Lines are one box high and tile from the
+    /// offset the glyphs were placed at.
+    fn line_y(&self, line_idx: usize) -> f32 {
+        let offset_y = self.layout.applied.map_or(0.0, |(offset, _)| offset.y);
+        offset_y + line_idx as f32 * self.layout.line_height
+    }
+
+    /// The character a click at `x` on `line` lands before, snapping at the
+    /// midpoints between glyphs — the same borders the caret is drawn on.
+    fn char_at_x(&self, line: &TextLine, x: f32) -> usize {
+        let glyphs = &self.layout.glyphs;
+        let end = line.end.min(glyphs.len());
+        let origin = self.line_x(line);
+        let mut left = origin;
+
+        for i in line.start..end {
+            let right = if i + 1 < end {
+                glyphs[i + 1].pos.x
+            } else {
+                origin + line.width
+            };
+            if x < (left + right) * 0.5 {
+                return glyphs[i].index as usize;
+            }
+            left = right;
+        }
+        self.line_char_end(line)
+    }
+
+    /// Where the caret stands for character `ci` on `line`: the pen before the
+    /// glyph it points at, or the end of the line when it points past the last
+    /// one. An empty line has no glyph to measure at all, and its caret would
+    /// otherwise be left standing where the line above ended.
+    fn caret_x(&self, line: &TextLine, ci: usize) -> f32 {
+        let gi = self.glyph_of_char(ci);
+        if gi > line.start && gi < line.end {
+            self.layout.glyphs[gi].pos.x
+        } else if gi <= line.start {
+            self.line_x(line)
+        } else {
+            self.line_x(line) + line.width
         }
     }
 
@@ -191,6 +254,8 @@ impl TextInput {
     }
 
     fn set_cursor(&mut self, index: usize) {
+        // Every move but up/down sets the column afresh.
+        self.goal_x = None;
         self.cursor = Some(InputCursor {
             index,
             start_time: Instant::now(),
@@ -257,18 +322,25 @@ impl TextInput {
 
         let cursor_pos = ui.cursor_pos.into_f32();
         let new_range = self.hit_test(cursor_pos);
-        let anchor = self
+        let Some(anchor) = self
             .selection
             .map(|s| s.anchor)
-            .unwrap_or_else(|| self.cursor.as_ref().unwrap().index);
+            .or_else(|| self.cursor.as_ref().map(|c| c.index))
+        else {
+            return;
+        };
 
-        if let Some(sel) = &mut self.selection {
-            sel.range = new_range;
-        } else if anchor != new_range {
-            self.selection = Some(Selection {
-                anchor,
-                range: new_range,
-            });
+        // Dragged back onto the anchor is no selection at all — leaving an
+        // empty one standing would swallow the next arrow key, which reads a
+        // selection as something to step out of.
+        self.selection = (anchor != new_range).then_some(Selection {
+            anchor,
+            range: new_range,
+        });
+        // The cursor follows the dragging end, so shift-arrow carries on from
+        // where the drag stopped rather than from where it started.
+        if self.cursor.is_some() {
+            self.set_cursor(new_range);
         }
 
         ui.color_changed();
@@ -278,72 +350,36 @@ impl TextInput {
         let cursor_pos: Vec2<f32> = ui.cursor_pos.into_f32();
         let new_i = self.hit_test(cursor_pos);
 
-        let cursor_i = self.cursor.as_ref().unwrap().index as isize;
-
-        if new_i as isize != cursor_i {
-            self.move_cursor(new_i as isize - cursor_i);
+        // A field with no cursor is not being edited: a click must not leave a
+        // caret standing in one that nothing blinks and nothing clears.
+        if self.cursor.as_ref().is_some_and(|c| c.index != new_i) {
+            self.set_cursor(new_i);
             ui.color_changed();
         }
     }
 
-    /// Returns the character index closest to `cursor_pos` in screen space.
-    /// Uses glyph bounding boxes: finds the line whose y-range contains the cursor (or
-    /// the nearest line), then snaps to line.end/start when the cursor is in a gap between
-    /// lines, and finally picks the insertion point by x-midpoint within the line.
+    /// Returns the character index closest to `cursor_pos` in screen space:
+    /// the line whose box the click falls in — clamped to the first and the
+    /// last, so a click above or below the run still lands in it — and then the
+    /// insertion point by pen midpoint within that line. Lines are found by
+    /// their box and not by glyph ink, which is the only thing an empty line
+    /// between two breaks has.
     pub fn hit_test(&self, cursor_pos: Vec2<f32>) -> usize {
-        let glyphs = &self.layout.glyphs;
-        if glyphs.is_empty() || self.layout.lines.is_empty() || self.text.is_empty() {
+        if self.layout.lines.is_empty() {
+            return 0;
+        }
+        if self.text.is_empty() {
+            // What is laid out is the placeholder, not the text.
             return 0;
         }
 
-        let mut best_line = 0;
-        let mut best_dist = f32::MAX;
+        let height = self.layout.line_height.max(1.0);
+        let top = self.line_y(0);
+        let line_idx = ((cursor_pos.y - top) / height)
+            .max(0.0)
+            .min(self.layout.lines.len() as f32 - 1.0) as usize;
 
-        for (i, line) in self.layout.lines.iter().enumerate() {
-            if line.start >= glyphs.len() {
-                continue;
-            }
-            let g = &glyphs[line.start];
-            let top = g.pos.y;
-            let bottom = g.pos.y + g.size.y;
-
-            if cursor_pos.y >= top && cursor_pos.y <= bottom {
-                best_line = i;
-                break;
-            }
-            let dist = if cursor_pos.y < top {
-                top - cursor_pos.y
-            } else {
-                cursor_pos.y - bottom
-            };
-            if dist < best_dist {
-                best_dist = dist;
-                best_line = i;
-            }
-        }
-
-        let line = &self.layout.lines[best_line];
-        let line_end = line.end.min(glyphs.len());
-
-        if line.start >= glyphs.len() {
-            return self.char_len();
-        }
-        let g = &glyphs[line.start];
-
-        // Snap to line boundaries when cursor is in a vertical gap
-        if cursor_pos.y > g.pos.y + g.size.y {
-            return self.line_char_end(line);
-        }
-        if cursor_pos.y < g.pos.y {
-            return self.char_of_glyph(line.start);
-        }
-
-        for i in line.start..line_end {
-            if cursor_pos.x < glyphs[i].pos.x + glyphs[i].size.x * 0.5 {
-                return self.char_of_glyph(i);
-            }
-        }
-        self.line_char_end(line)
+        self.char_at_x(&self.layout.lines[line_idx], cursor_pos.x)
     }
 
     /// Extends or starts a selection by `offset` chars from the current cursor position.
@@ -386,7 +422,7 @@ impl TextInput {
     fn line_start_for(&self, cursor_i: usize) -> usize {
         for line in &self.layout.lines {
             if cursor_i <= self.line_char_end(line) {
-                return self.char_of_glyph(line.start);
+                return line.start_char;
             }
         }
         0
@@ -573,7 +609,7 @@ impl Widget for TextInput {
             batch.push_rect(&to_add);
         }
 
-        let line_height = (self.layout.font_size * info.scale_factor * font.line_height) as i16;
+        let line_height = self.layout.line_height as i16;
 
         // Behind the pointer's own selection: a highlight says something about
         // the text that outlives the click, so the selection has to stay
@@ -598,29 +634,9 @@ impl Widget for TextInput {
         } else if let Some(cursor) = &self.cursor
             && cursor.is_on
         {
-            let ci = cursor.index;
-            // The caret sits after the glyph before it, which is the glyph the
-            // cursor's character maps back to.
-            let gi = self.glyph_of_char(ci);
-            let posx = if gi == 0 {
-                if self.layout.glyphs.is_empty() {
-                    return;
-                }
-                self.layout.glyphs[0].pos.x
-            } else if let Some(g) = self.layout.glyphs.get(gi - 1) {
-                // A glyph with no ink, a space above all, still moved the pen.
-                if g.size.x == 0.0 {
-                    g.pos.x
-                        + font.get_glyph(g.char).advance * self.layout.font_size * info.scale_factor
-                } else {
-                    g.pos.x + g.size.x
-                }
-            } else {
-                return;
-            } as i16;
-
-            let line_idx = self.cursor_line_idx(ci);
-            let y = element.pos.y as i16 + line_idx as i16 * line_height;
+            let caret = self.caret_pos(cursor.index);
+            let posx = caret.x as i16;
+            let y = caret.y as i16;
 
             resources.add(
                 MatType::Basic,
@@ -670,9 +686,16 @@ impl Widget for TextInput {
                     self.set_new_cursor();
                     ui.color_changed();
                 }
-                self.point_cursor(ui);
-                if self.selection.is_some() && !ui.modifiers.contains(KeyModifiers::Shift) {
+                // Shift-clicking extends what is already selected to the click,
+                // so the anchor stays where the selection was started and the
+                // drag that may follow carries on from there.
+                if ui.modifiers.contains(KeyModifiers::Shift) && self.cursor.is_some() {
+                    let target = self.hit_test(ui.cursor_pos.into_f32());
+                    self.extend_selection_to(target);
+                    ui.color_changed();
+                } else {
                     self.selection = None;
+                    self.point_cursor(ui);
                 }
             }
             UiEvent::Move if ui.selection.is_captured(element) => {
@@ -813,6 +836,42 @@ impl Widget for TextInput {
                     }
                     ui.color_changed();
                 }
+                NamedKey::ArrowUp | NamedKey::ArrowDown => {
+                    let up = name == NamedKey::ArrowUp;
+                    let cursor_i = self.cursor.as_ref().unwrap().index;
+                    let line_idx = self.cursor_line_idx(cursor_i);
+                    let goal = match self.goal_x {
+                        Some(x) => x,
+                        None => match self.layout.lines.get(line_idx) {
+                            Some(line) => self.caret_x(line, cursor_i),
+                            None => 0.0,
+                        },
+                    };
+
+                    // Off either end of the text the cursor goes to that end,
+                    // which is what a single-line field does with up and down.
+                    let target = if up {
+                        match line_idx.checked_sub(1) {
+                            Some(above) => self.char_at_x(&self.layout.lines[above], goal),
+                            None => 0,
+                        }
+                    } else {
+                        match self.layout.lines.get(line_idx + 1) {
+                            Some(below) => self.char_at_x(below, goal),
+                            None => self.char_len(),
+                        }
+                    };
+
+                    if shift {
+                        self.extend_selection_to(target);
+                    } else {
+                        self.selection = None;
+                        self.set_cursor(target);
+                    }
+                    self.goal_x = Some(goal);
+                    ui.color_changed();
+                    return InputResult::New;
+                }
                 NamedKey::Home => {
                     let cursor_i = self.cursor.as_ref().unwrap().index;
                     let target = self.line_start_for(cursor_i);
@@ -914,6 +973,7 @@ impl Default for TextInput {
             keep_selection: false,
             cursor: None,
             selection: None,
+            goal_x: None,
             highlights: Vec::new(),
 
             message: 0,

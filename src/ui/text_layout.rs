@@ -90,6 +90,10 @@ pub struct TextLayout {
     pub lines: Vec<TextLine>,
     pub glyphs: Vec<Glyph>,
     pub size: Vec2<f32>,
+    /// The height of one line box, `build`'s own product: everything that has
+    /// to sit on a line rather than on ink — the caret, a selection rect, the
+    /// line a click lands on — measures in this and not in glyph bounds.
+    pub line_height: f32,
     /// Bookkeeping, written by [`TextLayout::build`] and [`TextLayout::place`]
     /// and not meant to be set from outside.
     ///
@@ -136,6 +140,7 @@ impl TextLayout {
         };
         let font_size = self.font_size * ctx.scale_factor;
         let line_height = font.line_height * self.line_spacing * font_size;
+        self.line_height = line_height;
 
         let mut width: f32 = 0.0;
 
@@ -156,6 +161,7 @@ impl TextLayout {
                     line = self.lines.push_mut(TextLine {
                         start: self.glyphs.len(),
                         end: self.glyphs.len(),
+                        start_char: index + 1,
                         width: 0.0,
                     });
 
@@ -215,6 +221,10 @@ impl TextLayout {
                         line = self.lines.push_mut(TextLine {
                             start: run_start,
                             end: self.glyphs.len(),
+                            start_char: self
+                                .glyphs
+                                .get(run_start)
+                                .map_or(index, |g| g.index as usize),
                             width: moved,
                         });
 
@@ -230,6 +240,7 @@ impl TextLayout {
                         line = self.lines.push_mut(TextLine {
                             start: self.glyphs.len(),
                             end: self.glyphs.len(),
+                            start_char: index,
                             width: 0.0,
                         });
 
@@ -355,6 +366,7 @@ impl Default for TextLayout {
             lines: Vec::default(),
             glyphs: Vec::default(),
             size: Vec2::default(),
+            line_height: 0.0,
             built_width: f32::NAN,
             built_len: 0,
             applied: None,
@@ -367,6 +379,10 @@ impl Default for TextLayout {
 pub struct TextLine {
     pub start: usize,
     pub end: usize,
+    /// The first character of the line. A line that laid out no glyph at all —
+    /// an empty line between two breaks — is only findable through this: its
+    /// glyph range is empty and points at the next line's first glyph.
+    pub start_char: usize,
     pub width: f32,
 }
 
