@@ -8,8 +8,9 @@ edition = "2024"
 [dependencies]
 sha1_smol = { version = "1.0", optional = true }
 base64 = { version = "0.23", optional = true }
-pyronyx = { version = "0.4", optional = true, features = ["rwh_06"] }
+pyronyx = { version = "0.5", optional = true, features = ["rwh_06"] }
 png = { version = "0.18", optional = true }
+crc32fast = { version = "1.5", optional = true }
 zip = { version = "8.6", optional = true }
 rand = "0.10"
 bitflags = "2.13"
@@ -35,7 +36,7 @@ default = ["vulkan"]
 # Reading the system clipboard, which on wayland means speaking the protocol.
 # Separable because it is linux-only and nothing else in the crate needs it.
 clipboard = []
-vulkan = ["pyronyx", "winit", "png", "ndk"]
+vulkan = ["pyronyx", "winit", "png", "ndk", "crc32fast"]
 x11 = ["winit/x11"]
 # TLS comes along by default: an http client without https is barely useful.
 # It stays separable because `ring` compiles C, which is worth avoiding on

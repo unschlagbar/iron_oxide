@@ -21,6 +21,12 @@ use crate::{
 
 pub const MAX_IMGS: u32 = 3;
 
+/// Host-visible memory every buffer is sub-allocated from: the per-frame
+/// draw data, and while an image uploads, its staging copy.
+const HOST_VISIBLE_POOL: u64 = 16 << 20;
+/// Device-local memory every texture is sub-allocated from.
+const DEVICE_LOCAL_POOL: u64 = 32 << 20;
+
 #[derive(Debug)]
 pub struct Resources {
     pub mem_manager: MemManager,
@@ -38,8 +44,8 @@ pub struct Resources {
 impl Resources {
     pub fn new(base: &VkBase) -> Self {
         let mut mem_manager = MemManager::new(base);
-        mem_manager.allocate_memory(base, mem_manager.host_visible, 5_000_000, 0);
-        mem_manager.allocate_memory(base, mem_manager.device_local, 5_000_000, 1);
+        mem_manager.allocate_memory(base, mem_manager.host_visible, HOST_VISIBLE_POOL, 0);
+        mem_manager.allocate_memory(base, mem_manager.device_local, DEVICE_LOCAL_POOL, 1);
 
         mem_manager.map_memory(base, 0, 0, u64::MAX);
 

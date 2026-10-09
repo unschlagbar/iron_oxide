@@ -38,7 +38,7 @@ pub use element::ElementFlags;
 pub use element::UiElement;
 pub use events::QueuedEvent;
 pub use events::UiEvent;
-pub use font::Font;
+pub use font::{ArteryFont, Font, FontError, FontImage, ImageEncoding};
 pub use style::FlexAxis;
 pub use style::Shadow;
 pub use style::UiRect;

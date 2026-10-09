@@ -1,6 +1,6 @@
 use std::{
     io::{Cursor, Read, Result},
-    mem::{self, MaybeUninit},
+    mem::MaybeUninit,
 };
 
 use crate::serial::ReadFrom;
@@ -104,13 +104,25 @@ impl<T: ReadFrom> ReadFrom for Option<T> {
 
 impl<T: ReadFrom, const N: usize> ReadFrom for [T; N] {
     fn read(data: &mut Cursor<&[u8]>) -> Result<Self> {
-        #[allow(clippy::uninit_assumed_init)]
-        let mut buf: [T; N] = unsafe { MaybeUninit::uninit().assume_init() };
+        let mut buf = [const { MaybeUninit::<T>::uninit() }; N];
 
-        for i in &mut buf {
-            mem::forget(mem::replace(i, T::read(data)?));
+        for i in 0..N {
+            match T::read(data) {
+                Ok(value) => {
+                    buf[i].write(value);
+                }
+                Err(e) => {
+                    for slot in &mut buf[..i] {
+                        // SAFETY: the elements before `i` were written above.
+                        unsafe { slot.assume_init_drop() };
+                    }
+                    return Err(e);
+                }
+            }
         }
 
-        Ok(buf)
+        // SAFETY: every element is written, and `[MaybeUninit<T>; N]` has the
+        // layout of `[T; N]`.
+        Ok(unsafe { buf.as_ptr().cast::<[T; N]>().read() })
     }
 }

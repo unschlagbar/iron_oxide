@@ -319,6 +319,11 @@ impl Ui {
         None
     }
 
+    /// Whether an element — a text field — holds the keyboard focus.
+    pub fn has_focus(&self) -> bool {
+        self.selection.focused.is_some()
+    }
+
     pub fn set_focus(&mut self, element: UiRef) {
         if let Some(input) = &mut self.selection.focused {
             input.as_mut().interaction(self, UiEvent::End);

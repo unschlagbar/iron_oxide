@@ -330,6 +330,12 @@ impl Memory {
 
     pub fn bind_buffer(&mut self, base: &VkBase, buffer: Buffer, size: u64, align: u64) -> u64 {
         let offset = (self.used + align - 1) & !(align - 1);
+        assert!(
+            offset + size <= self.size,
+            "memory slot too small: {} bytes needed, {} allocated",
+            offset + size,
+            self.size
+        );
         base.device
             .bind_buffer_memory(buffer, self.memory, offset)
             .unwrap();
@@ -339,6 +345,12 @@ impl Memory {
 
     pub fn bind_image(&mut self, base: &VkBase, image: Image, size: u64, align: u64) -> u64 {
         let offset = (self.used + align - 1) & !(align - 1);
+        assert!(
+            offset + size <= self.size,
+            "memory slot too small: {} bytes needed, {} allocated",
+            offset + size,
+            self.size
+        );
         base.device
             .bind_image_memory(image, self.memory, offset)
             .unwrap();

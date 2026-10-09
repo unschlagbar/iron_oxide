@@ -146,6 +146,7 @@ impl TextLayout {
 
         let mut cursor = Vec2::new(0.0, -font.ascender * font_size);
         let mut last_whitespace = true;
+        let mut prev = None;
         let mut split_point = usize::MAX;
         // Where the pen stood after the break character, so a wrapped run can be
         // moved without reconstructing it from glyph bounds.
@@ -170,6 +171,7 @@ impl TextLayout {
                     cursor.x = 0.0;
                     cursor.y += line_height;
                     split_point = usize::MAX;
+                    prev = None;
                     continue;
                 } else {
                     char = ' '
@@ -183,7 +185,8 @@ impl TextLayout {
 
             // Handle normal text flow
             let glyph = font.get_glyph(char);
-            let advance = glyph.advance * font_size;
+            let kern = prev.map_or(0.0, |prev| font.kerning(prev, char)) * font_size;
+            let advance = glyph.advance * font_size + kern;
             let mut next_width = cursor.x + advance;
 
             let would_overflow = next_width > container_size.x;
@@ -278,7 +281,7 @@ impl TextLayout {
                 let bottom = (glyph.bottom * font_size).floor();
 
                 let size = Vec2::new(right - left, (bottom - top).max(2.0));
-                let pos = Vec2::new(left + cursor.x, top + cursor.y.floor() + 0.5);
+                let pos = Vec2::new(left + cursor.x + kern, top + cursor.y.floor() + 0.5);
 
                 self.glyphs.push(Glyph {
                     char,
@@ -295,6 +298,7 @@ impl TextLayout {
             line.width += advance;
             cursor.x = next_width;
             last_whitespace = whitespace;
+            prev = Some(char);
         }
 
         width = width.max(cursor.x);

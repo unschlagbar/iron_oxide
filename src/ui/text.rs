@@ -111,7 +111,8 @@ impl Widget for Text {
                 continue;
             }
 
-            let px_range = (glyph.size.y / (glyph.uv_end.y - glyph.uv_start.y)) * 4.0;
+            let px_range =
+                (glyph.size.y / (glyph.uv_end.y - glyph.uv_start.y)) * font.distance_range;
 
             let to_add = [
                 MSDFVertex {

@@ -1,5 +1,7 @@
 use std::io::{Cursor, Result, Write};
 
+/// A module for reading data of a given length.
+mod len_read;
 /// A module for reading prefixed data.
 mod prefixed_read;
 /// A module for writing prefixed data.
@@ -15,6 +17,13 @@ const DEFAULT_BOUND: usize = i16::MAX as _;
 pub trait ReadFrom: Sized {
     /// Reads data from a cursor.
     fn read(data: &mut Cursor<&[u8]>) -> Result<Self>;
+}
+
+/// A trait for reading data whose length is stored elsewhere. What is read
+/// borrows from the cursor's slice instead of being copied out of it.
+pub trait ReadLen<'a>: Sized {
+    /// Reads `len` bytes from a cursor.
+    fn read_len(data: &mut Cursor<&'a [u8]>, len: usize) -> Result<Self>;
 }
 
 /// A trait for writing data to a writer.
