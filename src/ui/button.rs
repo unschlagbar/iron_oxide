@@ -53,7 +53,7 @@ impl Widget for Button {
             child.build(&mut child_ctx);
         }
 
-        context.place(size + margin);
+        context.place(size, margin);
         context.apply_pos(pos);
     }
 
@@ -93,7 +93,7 @@ impl Widget for Button {
             size.y = child_ctx.final_size().y + padding.y;
         }
 
-        context.place(size + margin);
+        context.place(size, margin);
         context.apply_size(size);
     }
 

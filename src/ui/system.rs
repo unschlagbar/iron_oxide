@@ -378,17 +378,15 @@ impl Ui {
             self.new_absolute = false;
         }
 
-        if let Some(mut last) = last_hovered {
-            if let Some(mut new) = self.selection.hovered
-                && last != new
-            {
+        match (last_hovered, self.selection.hovered) {
+            (Some(mut last), Some(mut new)) if last != new => {
                 last.as_mut().interaction(self, UiEvent::HoverEnd);
                 new.as_mut().handle_hover(ui, UiEvent::Move)
-            } else {
-                last.as_mut().handle_hover(ui, event)
             }
-        } else {
-            InputResult::None
+            // The last hovered element was removed, e.g. by a rebuild under the cursor.
+            (None, Some(mut new)) => new.as_mut().handle_hover(ui, UiEvent::Move),
+            (Some(mut last), _) => last.as_mut().handle_hover(ui, event),
+            (None, None) => InputResult::None,
         }
     }
 

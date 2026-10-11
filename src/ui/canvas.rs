@@ -29,7 +29,7 @@ impl Widget for Canvas {
         let size = context.element_size;
         let pos = context.pos_child(Default::default(), size) + self.margin.start(context);
 
-        context.place(size + margin);
+        context.place(size, margin);
         context.apply_pos(pos);
     }
 
@@ -40,7 +40,7 @@ impl Widget for Canvas {
             self.height.size_y(context, margin.y),
         );
 
-        context.place(size + margin);
+        context.place(size, margin);
         context.apply_size(size);
     }
 

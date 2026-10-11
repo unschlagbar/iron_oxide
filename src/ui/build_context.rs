@@ -140,8 +140,10 @@ impl<'a> BuildContext<'a> {
         }
     }
 
-    /// Places an element in the flow layout (similar to CSS block-level flex positioning)
-    pub fn place(&mut self, outer_size: Vec2<f32>) {
+    /// Places an element in the flow layout. `size` is floored like the stored
+    /// size, so the size and layout passes add up the same.
+    pub fn place(&mut self, size: Vec2<f32>, margin: Vec2<f32>) {
+        let outer_size = size.floor() + margin;
         match self.flex_axis {
             FlexAxis::Horizontal => {
                 self.used_main += outer_size.x;
@@ -174,25 +176,29 @@ impl<'a> BuildContext<'a> {
             FlexAxis::Horizontal => match self.flex_start {
                 FlexAlign::Start => {
                     let x = self.child_start_pos.x + self.used_main;
-                    let y = self.child_start_pos.y - flex_align.get_pos(self.used_cross, size.y);
+                    let y = self.child_start_pos.y
+                        + flex_align.get_pos(self.available_space.y, size.y);
                     Vec2::new(x, y)
                 }
                 FlexAlign::End => {
                     let x =
                         self.child_start_pos.x + self.available_space.x - self.used_main - size.y;
-                    let y = self.child_start_pos.y - flex_align.get_pos(self.used_cross, size.y);
+                    let y = self.child_start_pos.y
+                        + flex_align.get_pos(self.available_space.y, size.y);
                     Vec2::new(x, y)
                 }
                 _ => unreachable!(),
             },
             FlexAxis::Vertical => match self.flex_start {
                 FlexAlign::Start => {
-                    let x = self.child_start_pos.x - flex_align.get_pos(self.used_cross, size.x);
+                    let x = self.child_start_pos.x
+                        + flex_align.get_pos(self.available_space.x, size.x);
                     let y = self.child_start_pos.y + self.used_main;
                     Vec2::new(x, y)
                 }
                 FlexAlign::End => {
-                    let x = self.child_start_pos.x - flex_align.get_pos(self.used_cross, size.x);
+                    let x = self.child_start_pos.x
+                        + flex_align.get_pos(self.available_space.x, size.x);
                     let y = self.child_start_pos.y + self.used_main + size.y;
                     Vec2::new(x, y)
                 }
@@ -202,7 +208,7 @@ impl<'a> BuildContext<'a> {
     }
 
     pub fn apply_size(&mut self, size: Vec2<f32>) {
-        self.element_size = size;
+        self.element_size = size.floor();
     }
 
     pub fn apply_pos(&mut self, pos: Vec2<f32>) {

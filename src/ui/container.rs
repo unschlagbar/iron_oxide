@@ -18,8 +18,8 @@ pub struct Container {
     pub color: RGBA,
     pub border_color: RGBA,
     pub flex_axis: FlexAxis,
-    /// The cross axis alignment
-    pub align_items: FlexAlign,
+    /// Where this container sits on its parent's cross axis.
+    pub align_self: FlexAlign,
     pub flex_start: FlexAlign,
     pub border: [u8; 4],
     pub corner: [UiUnit; 4],
@@ -33,7 +33,7 @@ impl Widget for Container {
 
         let size = context.element_size;
 
-        let pos = context.pos_child(self.align_items, size) + self.margin.start(context);
+        let pos = context.pos_child(self.align_self, size) + self.margin.start(context);
         let child_start = pos + self.padding.start(context);
 
         let mut child_ctx =
@@ -43,7 +43,7 @@ impl Widget for Container {
             child.build(&mut child_ctx);
         }
 
-        context.place(size + margin);
+        context.place(size, margin);
         context.apply_pos(pos);
     }
 
@@ -81,7 +81,7 @@ impl Widget for Container {
             size.y = child_ctx.final_size().y + padding.y;
         }
 
-        context.place(size + margin);
+        context.place(size, margin);
         context.apply_size(size);
     }
 
@@ -131,7 +131,7 @@ impl Default for Container {
             color: RGBA::ZERO,
             border_color: RGBA::WHITE,
             flex_axis: FlexAxis::default(),
-            align_items: FlexAlign::default(),
+            align_self: FlexAlign::default(),
             flex_start: FlexAlign::default(),
             border: [0; 4],
             corner: [UiUnit::Zero; 4],

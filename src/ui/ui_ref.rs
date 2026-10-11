@@ -7,7 +7,8 @@ use std::{
 
 use crate::ui::{Ui, UiElement, widget::Widget};
 
-/// Handles immutable elements that can only be mutated by involving a &mut Uistate
+/// A raw pointer to an element; it dangles once a sibling insert reallocates the parent's childs.
+/// Keep a `UiRef` only into parents built once; for parents that change, use the element id.
 #[derive(Clone, Copy)]
 pub struct UiRef {
     inner: NonNull<UiElement>,

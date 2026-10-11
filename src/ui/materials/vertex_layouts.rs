@@ -75,6 +75,10 @@ impl VertexDescription for UiInstance {
             offset: offset_of!(Self, corner) as u32,
         },
     ];
+
+    fn is_visible(&self) -> bool {
+        self.color.a != 0 || (self.border != [0; 4] && self.border_color.a != 0)
+    }
 }
 
 #[repr(align(4))]

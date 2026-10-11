@@ -56,19 +56,20 @@ impl Widget for Text {
             context.pos_child(FlexAlign::default(), Vec2::zero()) + self.margin.start(context);
         let align_size = context.space();
 
-        context.place(context.element_size);
+        context.place(context.element_size, Vec2::zero());
 
         offset.y = self.align.get_y(align_size.y, self.layout.size.y, offset.y);
 
         context.apply_pos(offset);
-        offset.y = offset.y.floor();
+        // A fitted box is slightly shorter than the line, so this can be just below 0.
+        offset.y = offset.y.round();
 
         self.layout.place(self.align, align_size, offset);
     }
 
     fn build_size(&mut self, _: &mut [UiElement], ctx: &mut BuildContext) {
         let size = self.layout.size + self.margin.size(ctx);
-        ctx.place(size);
+        ctx.place(size, Vec2::zero());
         ctx.apply_size(size);
     }
 

@@ -127,9 +127,9 @@ pub struct DrawBatch {
     pub mat_type: MatType,
     pub size: u32,
     pub offset: u32,
+    /// Lowest z in the batch.
     pub z_index: i16,
     pub z_end: i16,
-    pub done: bool,
     pub first_index: u32,
     pub index_count: u32,
 }

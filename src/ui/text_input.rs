@@ -522,19 +522,20 @@ impl Widget for TextInput {
         let mut offset = context.pos_child(FlexAlign::default(), Vec2::zero());
         let align_size = context.space();
 
-        context.place(context.element_size);
+        context.place(context.element_size, Vec2::zero());
 
         offset.y = self.align.get_y(align_size.y, self.layout.size.y, offset.y);
 
         context.apply_pos(offset);
-        offset.y = offset.y.floor();
+        // A fitted box is slightly shorter than the line, so this can be just below 0.
+        offset.y = offset.y.round();
 
         self.layout.place(self.align, align_size, offset);
     }
 
     fn build_size(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
         let size = Vec2::new(context.fill_size_x(1.0), self.layout.size.y);
-        context.place(size);
+        context.place(size, Vec2::zero());
         context.apply_size(size);
     }
 

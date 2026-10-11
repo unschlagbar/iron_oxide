@@ -232,7 +232,24 @@ impl Resources {
     }
 
     pub fn add<T: VertexDescription>(&mut self, mat_type: MatType, to_add: T, info: &DrawInfo) {
-        self.add_slice(mat_type, &[to_add], info);
+        if to_add.is_visible() {
+            self.add_slice(mat_type, &[to_add], info);
+        }
+    }
+
+    /// The earliest batch an item at `info.z_index` can join: every batch drawn
+    /// after it must lie strictly above the item, or it would cover the item.
+    fn find_batch(&self, mat_type: MatType, info: &DrawInfo) -> Option<usize> {
+        let mut found = None;
+        for (i, b) in self.draw_batches.iter().enumerate().rev() {
+            if b.mat_type == mat_type && b.clip == info.clip && b.custom.is_none() {
+                found = Some(i);
+            }
+            if b.z_index <= info.z_index {
+                break;
+            }
+        }
+        found
     }
 
     pub fn batch_data<'a, T: VertexDescription>(
@@ -246,17 +263,10 @@ impl Resources {
             TypeId::of::<T>()
         );
 
-        for batch in &mut self.draw_batches {
-            if batch.mat_type != mat_type {
-                batch.done = true;
-            }
-        }
-
-        if let Some(idx) = self.draw_batches.iter_mut().position(|b| {
-            b.mat_type == mat_type && b.clip == info.clip && (b.z_end >= info.z_index || !b.done)
-        }) {
-            self.draw_batches[idx].z_end = self.draw_batches[idx].z_end.max(info.z_index);
+        if let Some(idx) = self.find_batch(mat_type, info) {
             let batch = &mut self.draw_batches[idx];
+            batch.z_index = batch.z_index.min(info.z_index);
+            batch.z_end = batch.z_end.max(info.z_index);
             Batch {
                 instance_data: &mut batch.instance_data,
                 vertex_data: &mut batch.vertex_data,
@@ -273,12 +283,10 @@ impl Resources {
                 index_data: Vec::new(),
                 size: 0,
                 offset: 0,
-                z_index: 0,
+                z_index: info.z_index,
                 z_end: info.z_index,
                 first_index: 0,
                 index_count: 0,
-
-                done: false,
             });
             Batch {
                 instance_data: &mut batch.instance_data,
@@ -301,18 +309,12 @@ impl Resources {
             TypeId::of::<T>()
         );
 
-        for batch in &mut self.draw_batches {
-            if batch.mat_type != mat_type {
-                batch.done = true;
-            }
-        }
-
         let to_add = slice.as_ptr() as *const u8;
         let other = unsafe { slice::from_raw_parts(to_add, size_of_val(slice)) };
 
-        if let Some(batch) = self.draw_batches.iter_mut().find(|b| {
-            b.mat_type == mat_type && b.clip == info.clip && (b.z_end >= info.z_index || !b.done)
-        }) {
+        if let Some(idx) = self.find_batch(mat_type, info) {
+            let batch = &mut self.draw_batches[idx];
+            batch.z_index = batch.z_index.min(info.z_index);
             batch.z_end = batch.z_end.max(info.z_index);
             batch.instance_data.extend_from_slice(other);
         } else {
@@ -328,10 +330,8 @@ impl Resources {
                 index_data: Vec::new(),
                 size: 0,
                 offset: 0,
-                z_index: 0,
+                z_index: info.z_index,
                 z_end: info.z_index,
-
-                done: false,
                 first_index: 0,
                 index_count: 0,
             });
@@ -343,12 +343,6 @@ impl Resources {
     /// the callback runs, so a canvas is painted over what the ui drew before
     /// it and under what it draws after.
     pub fn mark(&mut self, id: u16, area: Rect2D, info: &DrawInfo) {
-        // Nothing may be merged across the marker, or geometry queued later
-        // would land in a batch that draws before it.
-        for batch in &mut self.draw_batches {
-            batch.done = true;
-        }
-
         self.draw_batches.push(DrawBatch {
             clip: info.clip,
             custom: Some(CustomDraw {
@@ -362,9 +356,9 @@ impl Resources {
             index_data: Vec::new(),
             size: 0,
             offset: 0,
-            z_index: 0,
+            // Nothing may be merged across the marker.
+            z_index: i16::MIN,
             z_end: info.z_index,
-            done: true,
             first_index: 0,
             index_count: 0,
         });

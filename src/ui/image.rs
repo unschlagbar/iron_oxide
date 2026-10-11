@@ -22,7 +22,7 @@ impl Widget for Image {
     }
 
     fn build_size(&mut self, _: &mut [UiElement], context: &mut BuildContext) {
-        context.place(context.available_space);
+        context.place(context.available_space, Vec2::zero());
         context.apply_size(context.available_space);
     }
 

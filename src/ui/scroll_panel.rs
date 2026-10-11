@@ -47,6 +47,7 @@ impl Widget for ScrollPanel {
             child.flags.set(ElementFlags::Invisible, !visible);
         }
 
+        context.place(context.element_size, Vec2::zero());
         context.apply_pos(pos);
     }
 
@@ -56,7 +57,8 @@ impl Widget for ScrollPanel {
         let size = Vec2::new(
             UiUnit::Fill(1.0).size_x(context, 0.0),
             UiUnit::Fill(1.0).size_y(context, 0.0),
-        );
+        )
+        .floor();
 
         let mut child_ctx = context.child(
             size - padding,
@@ -86,6 +88,7 @@ impl Widget for ScrollPanel {
         let min = (size.y - self.size.y).min(0.0);
         self.scroll_offset.y = self.scroll_offset.y.clamp(min, 0.0);
 
+        context.place(size, Vec2::zero());
         context.apply_size(size);
     }
 

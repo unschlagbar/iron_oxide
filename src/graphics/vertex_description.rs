@@ -9,4 +9,9 @@ pub trait VertexDescription: Sized + Copy + 'static {
     fn to_add(&self) -> *const () {
         ptr::from_ref(self).cast()
     }
+
+    /// `Resources::add` drops instances that would draw nothing.
+    fn is_visible(&self) -> bool {
+        true
+    }
 }

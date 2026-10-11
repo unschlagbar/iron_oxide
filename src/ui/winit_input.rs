@@ -107,11 +107,15 @@ impl Ui {
             window.request_redraw();
         }
 
+        self.apply_cursor(window);
+        result
+    }
+
+    /// Hover can also change during `update`, so call this after drawing too.
+    pub fn apply_cursor(&mut self, window: &Window) {
         if self.cursor_icon != self.current_cursor_icon {
             window.set_cursor(self.cursor_icon);
             self.current_cursor_icon = self.cursor_icon;
         }
-
-        result
     }
 }
