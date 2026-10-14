@@ -80,7 +80,7 @@ impl Widget for Absolute {
             size.y = child_ctx.final_size().y + padding.y;
         }
 
-        context.place(size, Vec2::zero());
+        // Out of flow: takes no space from its siblings.
         context.apply_size(size);
     }
 

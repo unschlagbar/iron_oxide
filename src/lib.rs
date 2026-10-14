@@ -8,6 +8,8 @@ pub mod primitives;
 pub mod rand;
 pub mod security;
 pub mod serial;
+#[cfg(feature = "storage")]
+pub mod storage;
 
 #[cfg(feature = "vulkan")]
 pub mod graphics;

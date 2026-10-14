@@ -197,7 +197,7 @@ impl Align {
         match self {
             Self::Center => (space - size) * 0.5 + offset,
             Self::Top => Vec2::new((space.x - size.x) * 0.5 + offset.x, offset.y),
-            Self::TopRight => Vec2::new(space.x - size.x - offset.x, offset.x),
+            Self::TopRight => Vec2::new(space.x - size.x - offset.x, offset.y),
             Self::Right => Vec2::new(
                 space.x - size.x - offset.x,
                 (space.y - size.y) * 0.5 + offset.y,

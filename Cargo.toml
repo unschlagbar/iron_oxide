@@ -43,3 +43,5 @@ x11 = ["winit/x11"]
 # targets that only ever talk to localhost.
 net = ["zip", "base64", "sha1_smol", "tls"]
 tls = ["dep:ring"]
+# Crash-safe files for app data.
+storage = ["crc32fast"]

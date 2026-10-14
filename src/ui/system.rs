@@ -331,6 +331,13 @@ impl Ui {
         self.selection.focused = Some(Select::new(element))
     }
 
+    /// Ends the focus like a click outside would.
+    pub fn clear_focus(&mut self) {
+        if let Some(mut focused) = self.selection.focused.take() {
+            focused.as_mut().interaction(self, UiEvent::End);
+        }
+    }
+
     pub fn handle_input(&mut self, cursor_pos: Vec2<i16>, event: UiEvent) -> InputResult {
         let ui = unsafe { &mut *ptr::from_mut(self) };
         self.cursor_pos = cursor_pos;
