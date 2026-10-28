@@ -1,11 +1,6 @@
-//! Just enough X.509 to pull the fields the handshake needs.
+//! Just enough X.509 for pinning and for [`super::verify`]'s chain check.
 //!
-//! This parses DER far enough to reach the public key, the validity window,
-//! and the subject alternative names. It is **not** a chain validator: it
-//! does not walk issuers, check basic constraints, key usage, name
-//! constraints, or revocation. [`super::verify`] decides trust, and the
-//! shipped verifiers only accept certificates they were told about by their
-//! exact bytes, which is what makes that omission safe here.
+//! This only parses; trust is decided in [`super::verify`].
 //!
 //! DER parsers are a well-known source of memory-safety and confusion bugs.
 //! This one only ever takes subslices of the input, never copies by length
@@ -87,7 +82,18 @@ pub enum KeyAlgorithm {
     Ed25519,
 }
 
-/// A parsed end-entity certificate.
+/// The algorithm an issuer signed a certificate with.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SignatureAlgorithm {
+    RsaPkcs1Sha256,
+    RsaPkcs1Sha384,
+    RsaPkcs1Sha512,
+    EcdsaSha256,
+    EcdsaSha384,
+    Ed25519,
+}
+
+/// A parsed certificate.
 #[derive(Debug, Clone)]
 pub struct Certificate {
     /// The original DER, kept because pinning compares these bytes and
@@ -101,6 +107,35 @@ pub struct Certificate {
     pub not_after: i64,
     /// dNSName entries from the subjectAltName extension.
     pub dns_names: Vec<String>,
+    /// The DER-encoded TBSCertificate, which is what the issuer signed.
+    pub tbs: Vec<u8>,
+    /// `None` for algorithms this module can't verify.
+    pub signature_algorithm: Option<SignatureAlgorithm>,
+    pub signature: Vec<u8>,
+    /// Encoded names, compared byte for byte when linking a chain.
+    pub issuer: Vec<u8>,
+    pub subject: Vec<u8>,
+    pub extensions: Extensions,
+}
+
+/// The extensions a chain check needs.
+#[derive(Debug, Clone, Default)]
+pub struct Extensions {
+    /// basicConstraints cA.
+    pub is_ca: bool,
+    /// basicConstraints pathLenConstraint.
+    pub path_len: Option<u32>,
+    /// First byte of keyUsage, bit 0x04 is keyCertSign.
+    pub key_usage: Option<u8>,
+    /// Whether extendedKeyUsage lists serverAuth; `None` without the extension.
+    pub server_auth: Option<bool>,
+    pub name_constraints: bool,
+    /// A critical extension this parser doesn't understand.
+    pub unknown_critical: bool,
+}
+
+impl Extensions {
+    pub const KEY_CERT_SIGN: u8 = 0x04;
 }
 
 impl Certificate {
@@ -112,7 +147,18 @@ impl Certificate {
 
         // Certificate ::= SEQUENCE { tbsCertificate, signatureAlgorithm,
         //                            signatureValue }
-        let (tbs, _rest) = expect(cert.value, TAG_SEQUENCE, "tbsCertificate")?;
+        let (tbs, rest) = expect(cert.value, TAG_SEQUENCE, "tbsCertificate")?;
+        let tbs_der = &cert.value[..cert.value.len() - rest.len()];
+
+        let (outer_alg, rest) = expect(rest, TAG_SEQUENCE, "signatureAlgorithm")?;
+        let (signature, rest) = expect(rest, TAG_BIT_STRING, "signatureValue")?;
+        if !rest.is_empty() {
+            return Err(TlsError::Decode("der: trailing data in certificate"));
+        }
+        let signature = match signature.value.split_first() {
+            Some((0, bits)) => bits.to_vec(),
+            _ => return Err(TlsError::Decode("der: bad signature bit string")),
+        };
 
         let mut body = tbs.value;
 
@@ -123,19 +169,25 @@ impl Certificate {
         }
 
         let (_serial, body) = expect(body, TAG_INTEGER, "serialNumber")?;
-        let (_sigalg, body) = expect(body, TAG_SEQUENCE, "signature")?;
-        let (_issuer, body) = expect(body, TAG_SEQUENCE, "issuer")?;
+        let (inner_alg, body) = expect(body, TAG_SEQUENCE, "signature")?;
+        let (issuer, body) = expect(body, TAG_SEQUENCE, "issuer")?;
 
         let (validity, body) = expect(body, TAG_SEQUENCE, "validity")?;
         let (not_before, not_after) = parse_validity(validity.value)?;
 
-        let (_subject, body) = expect(body, TAG_SEQUENCE, "subject")?;
+        let (subject, body) = expect(body, TAG_SEQUENCE, "subject")?;
 
         let (spki, body) = expect(body, TAG_SEQUENCE, "subjectPublicKeyInfo")?;
         let (key_algorithm, public_key) = parse_spki(spki.value)?;
 
-        // Remaining optional fields; only extensions [3] interest us.
-        let dns_names = find_dns_names(body)?;
+        let (dns_names, extensions) = parse_extensions(body)?;
+
+        // RFC 5280 requires both copies to match; a mismatch is never verified.
+        let signature_algorithm = if inner_alg.value == outer_alg.value {
+            parse_signature_algorithm(outer_alg.value)
+        } else {
+            None
+        };
 
         Ok(Self {
             der: der.to_vec(),
@@ -144,6 +196,12 @@ impl Certificate {
             not_before,
             not_after,
             dns_names,
+            tbs: tbs_der.to_vec(),
+            signature_algorithm,
+            signature,
+            issuer: issuer.value.to_vec(),
+            subject: subject.value.to_vec(),
+            extensions,
         })
     }
 
@@ -287,10 +345,41 @@ fn parse_spki(input: &[u8]) -> Result<(KeyAlgorithm, Vec<u8>), TlsError> {
     Ok((algorithm, key))
 }
 
-/// Walks the optional trailing fields of a TBSCertificate looking for the
-/// subjectAltName extension.
-fn find_dns_names(mut input: &[u8]) -> Result<Vec<String>, TlsError> {
+fn parse_signature_algorithm(input: &[u8]) -> Option<SignatureAlgorithm> {
+    const RSA_SHA256: &[u8] = &[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b];
+    const RSA_SHA384: &[u8] = &[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0c];
+    const RSA_SHA512: &[u8] = &[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0d];
+    const ECDSA_SHA256: &[u8] = &[0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x03, 0x02];
+    const ECDSA_SHA384: &[u8] = &[0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x03, 0x03];
+    const ED25519: &[u8] = &[0x2b, 0x65, 0x70];
+    const NULL: &[u8] = &[0x05, 0x00];
+
+    let (oid, params) = expect(input, TAG_OID, "signature oid").ok()?;
+    // RSA carries an explicit NULL, ECDSA and Ed25519 carry nothing.
+    let alg = match (oid.value, params) {
+        (RSA_SHA256, NULL) => SignatureAlgorithm::RsaPkcs1Sha256,
+        (RSA_SHA384, NULL) => SignatureAlgorithm::RsaPkcs1Sha384,
+        (RSA_SHA512, NULL) => SignatureAlgorithm::RsaPkcs1Sha512,
+        (ECDSA_SHA256, []) => SignatureAlgorithm::EcdsaSha256,
+        (ECDSA_SHA384, []) => SignatureAlgorithm::EcdsaSha384,
+        (ED25519, []) => SignatureAlgorithm::Ed25519,
+        _ => return None,
+    };
+    Some(alg)
+}
+
+/// Walks the optional trailing fields of a TBSCertificate for its extensions.
+fn parse_extensions(mut input: &[u8]) -> Result<(Vec<String>, Extensions), TlsError> {
     const OID_SUBJECT_ALT_NAME: &[u8] = &[0x55, 0x1d, 0x11];
+    const OID_BASIC_CONSTRAINTS: &[u8] = &[0x55, 0x1d, 0x13];
+    const OID_KEY_USAGE: &[u8] = &[0x55, 0x1d, 0x0f];
+    const OID_EXT_KEY_USAGE: &[u8] = &[0x55, 0x1d, 0x25];
+    const OID_NAME_CONSTRAINTS: &[u8] = &[0x55, 0x1d, 0x1e];
+    const OID_SERVER_AUTH: &[u8] = &[0x2b, 0x06, 0x01, 0x05, 0x05, 0x07, 0x03, 0x01];
+
+    let mut dns_names = Vec::new();
+    let mut ext = Extensions::default();
+    let mut seen: Vec<&[u8]> = Vec::new();
 
     while !input.is_empty() {
         let (tlv, rest) = read_tlv(input)?;
@@ -305,40 +394,86 @@ fn find_dns_names(mut input: &[u8]) -> Result<Vec<String>, TlsError> {
         let mut items = list.value;
 
         while !items.is_empty() {
-            let (ext, rest) = expect(items, TAG_SEQUENCE, "extension")?;
+            let (item, rest) = expect(items, TAG_SEQUENCE, "extension")?;
             items = rest;
 
-            let (oid, after_oid) = expect(ext.value, TAG_OID, "extension oid")?;
-            if oid.value != OID_SUBJECT_ALT_NAME {
-                continue;
+            let (oid, after_oid) = expect(item.value, TAG_OID, "extension oid")?;
+            if seen.contains(&oid.value) {
+                return Err(TlsError::Decode("der: duplicate extension"));
             }
+            seen.push(oid.value);
 
             // An optional critical BOOLEAN may sit before the value.
-            let after_oid = match read_tlv(after_oid) {
-                Ok((t, rest)) if t.tag == 0x01 => rest,
-                _ => after_oid,
+            let (critical, after_oid) = match read_tlv(after_oid) {
+                Ok((t, rest)) if t.tag == 0x01 => (t.value == [0xff], rest),
+                _ => (false, after_oid),
             };
-
             let (value, _) = expect(after_oid, TAG_OCTET_STRING, "extension value")?;
-            let (names, _) = expect(value.value, TAG_SEQUENCE, "GeneralNames")?;
 
-            let mut out = Vec::new();
-            let mut entries = names.value;
-            while !entries.is_empty() {
-                let (entry, rest) = read_tlv(entries)?;
-                entries = rest;
-                // dNSName is context tag 2, IA5String.
-                if entry.tag == 0x82
-                    && let Ok(name) = std::str::from_utf8(entry.value)
-                {
-                    out.push(name.to_string());
+            match oid.value {
+                OID_SUBJECT_ALT_NAME => dns_names = parse_dns_names(value.value)?,
+                OID_BASIC_CONSTRAINTS => {
+                    let (seq, _) = expect(value.value, TAG_SEQUENCE, "BasicConstraints")?;
+                    let mut fields = seq.value;
+                    if let Ok((t, rest)) = read_tlv(fields)
+                        && t.tag == 0x01
+                    {
+                        ext.is_ca = t.value == [0xff];
+                        fields = rest;
+                    }
+                    if !fields.is_empty() {
+                        let (len, _) = expect(fields, TAG_INTEGER, "pathLenConstraint")?;
+                        ext.path_len = Some(parse_small_uint(len.value)?);
+                    }
                 }
+                OID_KEY_USAGE => {
+                    let (bits, _) = expect(value.value, TAG_BIT_STRING, "KeyUsage")?;
+                    ext.key_usage = Some(bits.value.get(1).copied().unwrap_or(0));
+                }
+                OID_EXT_KEY_USAGE => {
+                    let (seq, _) = expect(value.value, TAG_SEQUENCE, "ExtKeyUsage")?;
+                    let mut purposes = seq.value;
+                    let mut server_auth = false;
+                    while !purposes.is_empty() {
+                        let (purpose, rest) = expect(purposes, TAG_OID, "KeyPurposeId")?;
+                        purposes = rest;
+                        server_auth |= purpose.value == OID_SERVER_AUTH;
+                    }
+                    ext.server_auth = Some(server_auth);
+                }
+                OID_NAME_CONSTRAINTS => ext.name_constraints = true,
+                _ => ext.unknown_critical |= critical,
             }
-            return Ok(out);
         }
     }
 
-    Ok(Vec::new())
+    Ok((dns_names, ext))
+}
+
+fn parse_dns_names(input: &[u8]) -> Result<Vec<String>, TlsError> {
+    let (names, _) = expect(input, TAG_SEQUENCE, "GeneralNames")?;
+
+    let mut out = Vec::new();
+    let mut entries = names.value;
+    while !entries.is_empty() {
+        let (entry, rest) = read_tlv(entries)?;
+        entries = rest;
+        // dNSName is context tag 2, IA5String.
+        if entry.tag == 0x82
+            && let Ok(name) = std::str::from_utf8(entry.value)
+        {
+            out.push(name.to_string());
+        }
+    }
+    Ok(out)
+}
+
+/// A non-negative INTEGER that fits in a u32.
+fn parse_small_uint(value: &[u8]) -> Result<u32, TlsError> {
+    if value.is_empty() || value.len() > 4 || value[0] & 0x80 != 0 {
+        return Err(TlsError::Decode("der: bad small integer"));
+    }
+    Ok(value.iter().fold(0, |n, &b| (n << 8) | b as u32))
 }
 
 /// Ignored, but kept so the SET tag constant documents the structures we

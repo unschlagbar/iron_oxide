@@ -24,8 +24,13 @@ pub fn text() -> Option<String> {
 #[cfg(not(target_os = "linux"))]
 pub fn set_text(_text: String) {}
 
+#[cfg(not(target_os = "linux"))]
+pub fn read(_wanted: &[&str]) -> Option<(String, Vec<u8>)> {
+    None
+}
+
 #[cfg(target_os = "linux")]
-pub use linux::{set_text, text};
+pub use linux::{read, set_text, text};
 
 #[cfg(target_os = "linux")]
 mod linux {
@@ -40,8 +45,15 @@ mod linux {
     /// The text on the clipboard, or nothing if it is empty, holds something
     /// that is not text, or there is no compositor to ask.
     pub fn text() -> Option<String> {
+        let (_, bytes) = read(&WANTED)?;
+        String::from_utf8(bytes).ok()
+    }
+
+    /// The clipboard in the first of the `wanted` types it is offered in, and
+    /// which type that was: an image, a file list, anything not text.
+    pub fn read(wanted: &[&str]) -> Option<(String, Vec<u8>)> {
         let mut conn = Conn::connect()?;
-        conn.selection_text()
+        conn.selection(wanted)
     }
 
     /// Puts `text` on the clipboard and keeps it there.
@@ -351,7 +363,7 @@ mod linux {
             }
         }
 
-        fn selection_text(&mut self) -> Option<String> {
+        fn selection(&mut self, wanted: &[&str]) -> Option<(String, Vec<u8>)> {
             let (registry, seat_name, manager_name, rank) = self.globals()?;
             let seat = self.bind(registry, seat_name, "wl_seat")?;
             let manager = self.bind(registry, manager_name, MANAGERS[rank])?;
@@ -396,16 +408,17 @@ mod linux {
             // Nothing on the clipboard at all is a zero id, not a missing event.
             let selection = selection.filter(|id| *id != 0)?;
             let mimes = &offers.iter().find(|(id, _)| *id == selection)?.1;
-            let mime = WANTED
+            let mime = wanted
                 .iter()
                 .find(|want| mimes.iter().any(|have| have == *want))?;
 
-            self.read_offer(selection, mime)
+            let bytes = self.read_offer(selection, mime)?;
+            Some((mime.to_string(), bytes))
         }
 
         /// Hands the offer's owner a pipe to write the selection into, and reads
         /// the other end.
-        fn read_offer(&mut self, offer: u32, mime: &str) -> Option<String> {
+        fn read_offer(&mut self, offer: u32, mime: &str) -> Option<Vec<u8>> {
             let (mut reader, writer) = std::io::pipe().ok()?;
 
             let args = string(mime);
@@ -433,7 +446,7 @@ mod linux {
                 }
             }
 
-            String::from_utf8(bytes).ok()
+            Some(bytes)
         }
     }
 

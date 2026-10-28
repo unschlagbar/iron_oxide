@@ -528,15 +528,11 @@ fn parse_certificate(input: &[u8]) -> Result<Vec<Certificate>, TlsError> {
         let der = entries.vec24()?;
         let _extensions = entries.vec16()?;
 
-        // Only the leaf is parsed. The rest of the chain is not used: this
-        // client pins, and path building is not implemented.
+        // An intermediate that doesn't parse can't vouch for anything, so it's dropped.
         if chain.is_empty() {
             chain.push(Certificate::parse(der)?);
-        } else {
-            chain.push(Certificate {
-                der: der.to_vec(),
-                ..chain[0].clone()
-            });
+        } else if let Ok(cert) = Certificate::parse(der) {
+            chain.push(cert);
         }
     }
 

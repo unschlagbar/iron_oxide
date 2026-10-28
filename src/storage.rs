@@ -73,16 +73,20 @@ impl Log {
 
     /// Writes one record and returns once it is on the disk.
     pub fn append(&mut self, payload: &[u8]) -> Result<()> {
-        let len = u32::try_from(payload.len())
-            .map_err(|_| Error::new(ErrorKind::InvalidInput, "record too large"))?;
-
         let mut buf = Vec::with_capacity(8 + payload.len());
-        buf.extend_from_slice(&len.to_le_bytes());
-        buf.extend_from_slice(&crc32fast::hash(payload).to_le_bytes());
-        buf.extend_from_slice(payload);
-
+        Self::frame(payload, &mut buf)?;
         self.file.write_all(&buf)?;
         self.file.sync_data()
+    }
+
+    /// One record as `append` writes it, onto `out`: for writing a whole log at once.
+    pub fn frame(payload: &[u8], out: &mut Vec<u8>) -> Result<()> {
+        let len = u32::try_from(payload.len())
+            .map_err(|_| Error::new(ErrorKind::InvalidInput, "record too large"))?;
+        out.extend_from_slice(&len.to_le_bytes());
+        out.extend_from_slice(&crc32fast::hash(payload).to_le_bytes());
+        out.extend_from_slice(payload);
+        Ok(())
     }
 }
 

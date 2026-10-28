@@ -5,14 +5,16 @@
 //! *successful* handshake with the wrong party, which looks identical to a
 //! correct one from the outside.
 //!
-//! So the options are deliberately narrow. There is no "verify against the
-//! system root store" mode, because that needs full chain validation — path
-//! building, basic constraints, key usage, name constraints, revocation —
-//! and this crate does not implement it. Pretending otherwise would be the
-//! dangerous kind of wrong.
+//! So the options are deliberately narrow. [`Verifier::Roots`] validates a
+//! chain up to roots the caller names, but it is not a system root store:
+//! it rejects name constraints and unknown critical extensions instead of
+//! implementing them, and does no revocation checks.
 
-use super::cert::Certificate;
+use super::cert::{Certificate, KeyAlgorithm, SignatureAlgorithm};
 use super::TlsError;
+
+/// Most intermediates a path may hold; public chains use one or two.
+const MAX_INTERMEDIATES: usize = 6;
 
 /// How a peer's certificate chain is judged.
 #[derive(Debug, Clone)]
@@ -34,6 +36,12 @@ pub enum Verifier {
     /// pinning the full DER does not.
     PinnedPublicKey(Vec<Vec<u8>>),
 
+    /// Trust any chain that leads from the leaf to one of these roots.
+    ///
+    /// Survives certificate renewal, which a pin does not. Build it with
+    /// [`Verifier::roots`] so a bad root fails at startup, not at connect.
+    Roots(Vec<Certificate>),
+
     /// Accept any certificate at all.
     ///
     /// This disables authentication completely: the connection is still
@@ -46,6 +54,15 @@ pub enum Verifier {
 }
 
 impl Verifier {
+    /// Parses DER root certificates into a [`Verifier::Roots`].
+    pub fn roots(ders: &[Vec<u8>]) -> Result<Self, TlsError> {
+        let roots = ders
+            .iter()
+            .map(|der| Certificate::parse(der))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self::Roots(roots))
+    }
+
     /// Checks the chain the server presented.
     ///
     /// `chain` is in the order the peer sent it, so the leaf is first.
@@ -88,6 +105,21 @@ impl Verifier {
                     ));
                 }
             }
+
+            Self::Roots(roots) => {
+                if roots.is_empty() {
+                    return Err(TlsError::BadCertificate(
+                        "no trust anchors configured: set TlsConfig::verifier",
+                    ));
+                }
+                check_leaf(leaf)?;
+                let pool = &chain[1..chain.len().min(1 + 8)];
+                if !find_path(leaf, 0, pool, 0, roots, now) {
+                    return Err(TlsError::BadCertificate(
+                        "server certificate does not chain to a trusted root",
+                    ));
+                }
+            }
         }
 
         // Expiry and hostname are checked even for a pinned certificate. A
@@ -107,6 +139,85 @@ impl Verifier {
 
         Ok(())
     }
+}
+
+fn check_leaf(leaf: &Certificate) -> Result<(), TlsError> {
+    let ext = &leaf.extensions;
+    if ext.is_ca {
+        return Err(TlsError::BadCertificate("server certificate is a CA"));
+    }
+    if ext.server_auth == Some(false) {
+        return Err(TlsError::BadCertificate("server certificate is not for server auth"));
+    }
+    if ext.unknown_critical {
+        return Err(TlsError::BadCertificate("server certificate has an unknown critical extension"));
+    }
+    Ok(())
+}
+
+/// Searches for an issuer of `cert`, first among the roots, then through
+/// unused certificates of `pool`; `below` counts intermediates under `cert`'s issuer.
+fn find_path(
+    cert: &Certificate,
+    below: u32,
+    pool: &[Certificate],
+    used: u32,
+    roots: &[Certificate],
+    now: i64,
+) -> bool {
+    // A root is trusted by being configured, so only its key and name matter.
+    if roots
+        .iter()
+        .any(|root| root.subject == cert.issuer && is_signed_by(cert, root))
+    {
+        return true;
+    }
+    if below as usize >= MAX_INTERMEDIATES {
+        return false;
+    }
+
+    pool.iter().enumerate().any(|(i, ca)| {
+        used & (1 << i) == 0
+            && ca.subject == cert.issuer
+            && can_issue(ca, below, now)
+            && is_signed_by(cert, ca)
+            && find_path(ca, below + 1, pool, used | (1 << i), roots, now)
+    })
+}
+
+fn can_issue(ca: &Certificate, below: u32, now: i64) -> bool {
+    let ext = &ca.extensions;
+    ext.is_ca
+        && ext.path_len.is_none_or(|max| below <= max)
+        && ext.key_usage.is_none_or(|bits| bits & super::cert::Extensions::KEY_CERT_SIGN != 0)
+        && ext.server_auth != Some(false)
+        && !ext.name_constraints
+        && !ext.unknown_critical
+        && ca.is_valid_at(now)
+}
+
+fn is_signed_by(cert: &Certificate, issuer: &Certificate) -> bool {
+    use ring::signature as sig;
+    use KeyAlgorithm as K;
+    use SignatureAlgorithm as S;
+
+    let Some(alg) = cert.signature_algorithm else {
+        return false;
+    };
+    let algorithm: &dyn sig::VerificationAlgorithm = match (alg, issuer.key_algorithm) {
+        (S::RsaPkcs1Sha256, K::Rsa) => &sig::RSA_PKCS1_2048_8192_SHA256,
+        (S::RsaPkcs1Sha384, K::Rsa) => &sig::RSA_PKCS1_2048_8192_SHA384,
+        (S::RsaPkcs1Sha512, K::Rsa) => &sig::RSA_PKCS1_2048_8192_SHA512,
+        (S::EcdsaSha256, K::EcdsaP256) => &sig::ECDSA_P256_SHA256_ASN1,
+        (S::EcdsaSha256, K::EcdsaP384) => &sig::ECDSA_P384_SHA256_ASN1,
+        (S::EcdsaSha384, K::EcdsaP256) => &sig::ECDSA_P256_SHA384_ASN1,
+        (S::EcdsaSha384, K::EcdsaP384) => &sig::ECDSA_P384_SHA384_ASN1,
+        (S::Ed25519, K::Ed25519) => &sig::ED25519,
+        _ => return false,
+    };
+    sig::UnparsedPublicKey::new(algorithm, &issuer.public_key)
+        .verify(&cert.tbs, &cert.signature)
+        .is_ok()
 }
 
 /// Compares two byte strings without an early exit on the first difference.

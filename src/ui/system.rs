@@ -89,7 +89,15 @@ impl Ui {
         element.z_index = z_index;
         element.parent = None;
 
+        let ptr = self.elements.as_ptr();
         let mut element = UiRef::new(self.elements.push_mut(element));
+        // A realloc moves every root element, so their childs' parent pointers must follow.
+        if ptr != self.elements.as_ptr() {
+            let elements = unsafe { &mut *(self.elements.as_mut_slice() as *mut [UiElement]) };
+            for moved in elements {
+                moved.update_ptrs(self);
+            }
+        }
         unsafe { element.as_mut().init(self) };
 
         if ticking {

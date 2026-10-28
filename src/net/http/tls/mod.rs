@@ -14,9 +14,8 @@
 //!
 //! [`TlsConfig::verifier`] decides what counts as a valid peer. The default
 //! is [`Verifier::Pinned`] with an empty set, which rejects everything: this
-//! client ships no root store, so it cannot verify a public CA chain and
-//! will not pretend otherwise. Point it at the specific certificate you
-//! expect, or supply roots yourself.
+//! client ships no root store. Point it at the specific certificate you
+//! expect, or name the roots to chain up to with [`TlsConfig::roots`].
 
 use std::io::{self, Read, Write};
 
@@ -117,6 +116,14 @@ impl TlsConfig {
             verifier: Verifier::Pinned(certs),
             ..Self::default()
         }
+    }
+
+    /// Trusts chains that end at one of the root certificates in `pem`.
+    pub fn roots(pem: &[u8]) -> Result<Self, TlsError> {
+        Ok(Self {
+            verifier: Verifier::roots(&pem::certificates(pem)?)?,
+            ..Self::default()
+        })
     }
 }
 

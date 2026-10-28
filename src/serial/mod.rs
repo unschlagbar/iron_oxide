@@ -1,5 +1,7 @@
 use std::io::{Cursor, Result, Write};
 
+/// JSON values, parsing and writing.
+pub mod json;
 /// A module for reading data of a given length.
 mod len_read;
 /// A module for reading prefixed data.

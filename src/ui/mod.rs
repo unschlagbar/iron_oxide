@@ -44,6 +44,7 @@ pub use style::Shadow;
 pub use style::UiRect;
 pub use system::DirtyFlags;
 pub use system::InputResult;
+pub use system::KeyModifiers;
 pub use system::Ui;
 pub use ui_ref::UiRef;
 pub use units::Align;
