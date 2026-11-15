@@ -10,8 +10,8 @@
 //! it rejects name constraints and unknown critical extensions instead of
 //! implementing them, and does no revocation checks.
 
-use super::cert::{Certificate, KeyAlgorithm, SignatureAlgorithm};
 use super::TlsError;
+use super::cert::{Certificate, KeyAlgorithm, SignatureAlgorithm};
 
 /// Most intermediates a path may hold; public chains use one or two.
 const MAX_INTERMEDIATES: usize = 6;
@@ -67,12 +67,7 @@ impl Verifier {
     ///
     /// `chain` is in the order the peer sent it, so the leaf is first.
     /// `hostname` is the name the client asked for.
-    pub fn verify(
-        &self,
-        chain: &[Certificate],
-        hostname: &str,
-        now: i64,
-    ) -> Result<(), TlsError> {
+    pub fn verify(&self, chain: &[Certificate], hostname: &str, now: i64) -> Result<(), TlsError> {
         let leaf = chain
             .first()
             .ok_or(TlsError::BadCertificate("server sent an empty chain"))?;
@@ -147,10 +142,14 @@ fn check_leaf(leaf: &Certificate) -> Result<(), TlsError> {
         return Err(TlsError::BadCertificate("server certificate is a CA"));
     }
     if ext.server_auth == Some(false) {
-        return Err(TlsError::BadCertificate("server certificate is not for server auth"));
+        return Err(TlsError::BadCertificate(
+            "server certificate is not for server auth",
+        ));
     }
     if ext.unknown_critical {
-        return Err(TlsError::BadCertificate("server certificate has an unknown critical extension"));
+        return Err(TlsError::BadCertificate(
+            "server certificate has an unknown critical extension",
+        ));
     }
     Ok(())
 }
@@ -189,7 +188,9 @@ fn can_issue(ca: &Certificate, below: u32, now: i64) -> bool {
     let ext = &ca.extensions;
     ext.is_ca
         && ext.path_len.is_none_or(|max| below <= max)
-        && ext.key_usage.is_none_or(|bits| bits & super::cert::Extensions::KEY_CERT_SIGN != 0)
+        && ext
+            .key_usage
+            .is_none_or(|bits| bits & super::cert::Extensions::KEY_CERT_SIGN != 0)
         && ext.server_auth != Some(false)
         && !ext.name_constraints
         && !ext.unknown_critical
@@ -197,9 +198,9 @@ fn can_issue(ca: &Certificate, below: u32, now: i64) -> bool {
 }
 
 fn is_signed_by(cert: &Certificate, issuer: &Certificate) -> bool {
-    use ring::signature as sig;
     use KeyAlgorithm as K;
     use SignatureAlgorithm as S;
+    use ring::signature as sig;
 
     let Some(alg) = cert.signature_algorithm else {
         return false;

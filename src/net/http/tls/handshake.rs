@@ -26,10 +26,10 @@ use ring::rand::{SecureRandom, SystemRandom};
 
 use super::cert::Certificate;
 use super::codec::{Reader, Writer};
-use super::key_schedule::{finished_mac, KeySchedule};
+use super::key_schedule::{KeySchedule, finished_mac};
 use super::msgs::{
-    alert, ext, sig, CipherSuite, ContentType, HandshakeType, GROUP_X25519,
-    SERVER_CERT_VERIFY_CONTEXT, VERSION_TLS12, VERSION_TLS13,
+    CipherSuite, ContentType, GROUP_X25519, HandshakeType, SERVER_CERT_VERIFY_CONTEXT,
+    VERSION_TLS12, VERSION_TLS13, alert, ext, sig,
 };
 use super::record::{RecordCrypto, RecordLayer};
 use super::verify::now_unix;
@@ -284,9 +284,7 @@ impl<'a, S: Read + Write> Handshake<'a, S> {
 
             match self.layer.read_record()? {
                 Some((ContentType::Handshake, data)) => self.reader.feed(&data),
-                Some((ContentType::ApplicationData, _)) => {
-                    return Err(TlsError::UnexpectedMessage)
-                }
+                Some((ContentType::ApplicationData, _)) => return Err(TlsError::UnexpectedMessage),
                 Some(_) | None => continue,
             }
         }
@@ -324,8 +322,9 @@ impl<'a, S: Read + Write> Handshake<'a, S> {
             ));
         }
 
-        let suite = CipherSuite::from_u16(suite)
-            .ok_or(TlsError::Unsupported("server chose a cipher suite we did not offer"))?;
+        let suite = CipherSuite::from_u16(suite).ok_or(TlsError::Unsupported(
+            "server chose a cipher suite we did not offer",
+        ))?;
 
         let (version, server_public) = parse_server_hello_extensions(extensions)?;
         if version != VERSION_TLS13 {
@@ -575,7 +574,11 @@ fn verify_certificate_verify(
         sig::RSA_PKCS1_SHA256 => &ring::signature::RSA_PKCS1_2048_8192_SHA256,
         sig::RSA_PKCS1_SHA384 => &ring::signature::RSA_PKCS1_2048_8192_SHA384,
         sig::RSA_PKCS1_SHA512 => &ring::signature::RSA_PKCS1_2048_8192_SHA512,
-        _ => return Err(TlsError::Unsupported("server used an unoffered signature scheme")),
+        _ => {
+            return Err(TlsError::Unsupported(
+                "server used an unoffered signature scheme",
+            ));
+        }
     };
 
     ring::signature::UnparsedPublicKey::new(algorithm, &leaf.public_key)

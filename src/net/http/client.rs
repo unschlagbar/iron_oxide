@@ -90,7 +90,10 @@ impl ClientRequest {
     }
 
     /// Sets a form-encoded body from key/value pairs.
-    pub fn form<K: AsRef<str>, V: AsRef<str>>(self, pairs: impl IntoIterator<Item = (K, V)>) -> Self {
+    pub fn form<K: AsRef<str>, V: AsRef<str>>(
+        self,
+        pairs: impl IntoIterator<Item = (K, V)>,
+    ) -> Self {
         let mut encoded = String::new();
         for (k, v) in pairs {
             if !encoded.is_empty() {
@@ -238,7 +241,10 @@ fn connect_tcp(url: &Url, config: &ClientConfig) -> std::io::Result<TcpStream> {
     }
 
     Err(last_err.unwrap_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::NotFound, "host resolved to no addresses")
+        std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "host resolved to no addresses",
+        )
     }))
 }
 
@@ -273,15 +279,30 @@ impl Client {
         self.send(ClientRequest::parse(Method::Delete, url)?)
     }
 
-    pub fn post(&self, url: &str, content_type: &str, body: impl Into<Vec<u8>>) -> HttpResult<ClientResponse> {
+    pub fn post(
+        &self,
+        url: &str,
+        content_type: &str,
+        body: impl Into<Vec<u8>>,
+    ) -> HttpResult<ClientResponse> {
         self.send(ClientRequest::parse(Method::Post, url)?.body(content_type, body))
     }
 
-    pub fn put(&self, url: &str, content_type: &str, body: impl Into<Vec<u8>>) -> HttpResult<ClientResponse> {
+    pub fn put(
+        &self,
+        url: &str,
+        content_type: &str,
+        body: impl Into<Vec<u8>>,
+    ) -> HttpResult<ClientResponse> {
         self.send(ClientRequest::parse(Method::Put, url)?.body(content_type, body))
     }
 
-    pub fn patch(&self, url: &str, content_type: &str, body: impl Into<Vec<u8>>) -> HttpResult<ClientResponse> {
+    pub fn patch(
+        &self,
+        url: &str,
+        content_type: &str,
+        body: impl Into<Vec<u8>>,
+    ) -> HttpResult<ClientResponse> {
         self.send(ClientRequest::parse(Method::Patch, url)?.body(content_type, body))
     }
 

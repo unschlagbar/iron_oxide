@@ -55,7 +55,11 @@ fn read_tlv(input: &[u8]) -> Result<(Tlv<'_>, &[u8]), TlsError> {
 }
 
 /// Reads a TLV and requires a specific tag.
-fn expect<'a>(input: &'a [u8], tag: u8, what: &'static str) -> Result<(Tlv<'a>, &'a [u8]), TlsError> {
+fn expect<'a>(
+    input: &'a [u8],
+    tag: u8,
+    what: &'static str,
+) -> Result<(Tlv<'a>, &'a [u8]), TlsError> {
     let (tlv, rest) = read_tlv(input)?;
     if tlv.tag != tag {
         let _ = what;
@@ -265,14 +269,18 @@ fn parse_time(tlv: &Tlv<'_>) -> Result<i64, TlsError> {
             if s.len() < 13 {
                 return Err(TlsError::Decode("der: short utctime"));
             }
-            let yy: i64 = s[0..2].parse().map_err(|_| TlsError::Decode("der: bad year"))?;
+            let yy: i64 = s[0..2]
+                .parse()
+                .map_err(|_| TlsError::Decode("der: bad year"))?;
             (if yy >= 50 { 1900 + yy } else { 2000 + yy }, &s[2..])
         }
         TAG_GENERALIZED_TIME => {
             if s.len() < 15 {
                 return Err(TlsError::Decode("der: short generalizedtime"));
             }
-            let y: i64 = s[0..4].parse().map_err(|_| TlsError::Decode("der: bad year"))?;
+            let y: i64 = s[0..4]
+                .parse()
+                .map_err(|_| TlsError::Decode("der: bad year"))?;
             (y, &s[4..])
         }
         _ => return Err(TlsError::Decode("der: not a time")),

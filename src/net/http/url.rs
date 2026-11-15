@@ -47,7 +47,9 @@ impl Url {
         } else if let Some(rest) = raw.strip_prefix("https://") {
             (Scheme::Https, rest)
         } else {
-            return Err(HttpError::Malformed("url must start with http:// or https://"));
+            return Err(HttpError::Malformed(
+                "url must start with http:// or https://",
+            ));
         };
 
         // The fragment never goes on the wire.

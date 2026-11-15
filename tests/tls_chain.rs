@@ -11,7 +11,8 @@ use std::process::{Child, Command, Stdio};
 use iron_oxide::net::http::tls::{TlsConfig, TlsError, TlsStream, Verifier};
 
 const CA: &str = "basicConstraints=critical,CA:TRUE\nkeyUsage=critical,keyCertSign,cRLSign\n";
-const INTER: &str = "basicConstraints=critical,CA:TRUE,pathlen:0\nkeyUsage=critical,keyCertSign,cRLSign\n";
+const INTER: &str =
+    "basicConstraints=critical,CA:TRUE,pathlen:0\nkeyUsage=critical,keyCertSign,cRLSign\n";
 const LEAF: &str = "basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature\n\
                     extendedKeyUsage=serverAuth\nsubjectAltName=DNS:localhost\n";
 
@@ -60,10 +61,35 @@ fn issue(dir: &Path, name: &str, issuer: Option<&str>, ext: &str, extra: &[&str]
         format!("{name}.ext"),
     );
     std::fs::write(dir.join(&extfile), ext).unwrap();
-    openssl(dir, &["genpkey", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-256", "-out", &key]);
-    openssl(dir, &["req", "-new", "-key", &key, "-subj", &format!("/CN={name}"), "-out", &csr]);
+    openssl(
+        dir,
+        &[
+            "genpkey",
+            "-algorithm",
+            "EC",
+            "-pkeyopt",
+            "ec_paramgen_curve:P-256",
+            "-out",
+            &key,
+        ],
+    );
+    openssl(
+        dir,
+        &[
+            "req",
+            "-new",
+            "-key",
+            &key,
+            "-subj",
+            &format!("/CN={name}"),
+            "-out",
+            &csr,
+        ],
+    );
 
-    let mut args = vec!["x509", "-req", "-in", &csr, "-extfile", &extfile, "-out", &pem];
+    let mut args = vec![
+        "x509", "-req", "-in", &csr, "-extfile", &extfile, "-out", &pem,
+    ];
     let (ca, ca_key);
     match issuer {
         Some(issuer) => {
@@ -82,7 +108,18 @@ fn issue(dir: &Path, name: &str, issuer: Option<&str>, ext: &str, extra: &[&str]
 
 fn der(dir: &Path, name: &str) -> Vec<u8> {
     let out = format!("{name}.der");
-    openssl(dir, &["x509", "-in", &format!("{name}.pem"), "-outform", "DER", "-out", &out]);
+    openssl(
+        dir,
+        &[
+            "x509",
+            "-in",
+            &format!("{name}.pem"),
+            "-outform",
+            "DER",
+            "-out",
+            &out,
+        ],
+    );
     std::fs::read(dir.join(out)).unwrap()
 }
 
@@ -98,7 +135,12 @@ fn serve(dir: &Path, leaf: &str, chain: &[&str], port: u16) -> Server {
     let mut cmd = Command::new("openssl");
     cmd.current_dir(dir)
         .args(["s_server", "-accept", &port.to_string()])
-        .args(["-cert", &format!("{leaf}.pem"), "-key", &format!("{leaf}.key")])
+        .args([
+            "-cert",
+            &format!("{leaf}.pem"),
+            "-key",
+            &format!("{leaf}.key"),
+        ])
         .args(["-tls1_3", "-www", "-quiet"]);
     if !chain.is_empty() {
         cmd.arg("-cert_chain").arg(&bundle);
@@ -192,7 +234,13 @@ fn rejects_an_intermediate_that_is_not_a_ca() {
     }
     let dir = scratch("notca");
     issue(&dir, "root", None, CA, &[]);
-    issue(&dir, "inter", Some("root"), "basicConstraints=critical,CA:FALSE\n", &[]);
+    issue(
+        &dir,
+        "inter",
+        Some("root"),
+        "basicConstraints=critical,CA:FALSE\n",
+        &[],
+    );
     issue(&dir, "leaf", Some("inter"), LEAF, &[]);
     let _server = serve(&dir, "leaf", &["inter"], 14514);
     assert_rejected(connect(14514, "localhost", vec![der(&dir, "root")]));
@@ -217,7 +265,12 @@ fn rejects_an_expired_intermediate() {
     }
     let dir = scratch("expired");
     issue(&dir, "root", None, CA, &[]);
-    let old = ["-not_before", "20200101000000Z", "-not_after", "20210101000000Z"];
+    let old = [
+        "-not_before",
+        "20200101000000Z",
+        "-not_after",
+        "20210101000000Z",
+    ];
     issue(&dir, "inter", Some("root"), CA, &old);
     issue(&dir, "leaf", Some("inter"), LEAF, &[]);
     let _server = serve(&dir, "leaf", &["inter"], 14516);
@@ -230,7 +283,13 @@ fn rejects_a_leaf_that_is_a_ca() {
         return;
     }
     let dir = standard("leafca");
-    issue(&dir, "caleaf", Some("inter"), &LEAF.replace("CA:FALSE", "CA:TRUE"), &[]);
+    issue(
+        &dir,
+        "caleaf",
+        Some("inter"),
+        &LEAF.replace("CA:FALSE", "CA:TRUE"),
+        &[],
+    );
     let _server = serve(&dir, "caleaf", &["inter"], 14517);
     assert_rejected(connect(14517, "localhost", vec![der(&dir, "root")]));
 }

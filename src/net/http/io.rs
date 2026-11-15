@@ -191,7 +191,19 @@ pub fn is_token_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric()
         || matches!(
             b,
-            b'!' | b'#' | b'$' | b'%' | b'&' | b'\'' | b'*' | b'+' | b'-' | b'.' | b'^' | b'_'
-                | b'`' | b'|' | b'~'
+            b'!' | b'#'
+                | b'$'
+                | b'%'
+                | b'&'
+                | b'\''
+                | b'*'
+                | b'+'
+                | b'-'
+                | b'.'
+                | b'^'
+                | b'_'
+                | b'`'
+                | b'|'
+                | b'~'
         )
 }

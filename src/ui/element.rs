@@ -17,6 +17,8 @@ use crate::{
 /// A node in the UI tree. Owns its children and the boxed widget that drives behavior.
 pub struct UiElement {
     pub(crate) id: usize,
+    #[cfg(ui_ref_check)]
+    pub(crate) uid: u64,
     pub name: &'static str,
     pub flags: ElementFlags,
     pub size: Vec2<i16>,
@@ -245,6 +247,8 @@ impl UiElement {
         let ptr = childs.as_ptr();
 
         let child = childs.push_mut(child);
+        #[cfg(ui_ref_check)]
+        super::ref_check::register(child);
         if !child.id_ptr.is_null() {
             unsafe { *child.id_ptr = Some(UiRef::new(child)) };
         }
@@ -287,6 +291,8 @@ impl UiElement {
 
     /// Removes all pointers that point to the element to prevent invalid dereferencing
     pub(crate) fn remove_residue(&self, ui: &mut Ui) {
+        #[cfg(ui_ref_check)]
+        super::ref_check::unregister(self.uid);
         ui.remove_tick(self.id);
         if ui.selection.check_removed(self.id) {
             ui.cursor_icon = CursorIcon::Default;
@@ -298,6 +304,8 @@ impl UiElement {
     }
 
     pub(crate) fn update_ptrs(&mut self, ui: &mut Ui) {
+        #[cfg(ui_ref_check)]
+        super::ref_check::register(self);
         ui.update_tick_ptrs(UiRef::new(self));
         ui.selection.update_ptr(UiRef::new(self));
 
@@ -313,6 +321,8 @@ impl UiElement {
         let parent = Some(UiRef::new(self));
         let z_index = self.z_index + 10;
         for child in &mut self.childs {
+            #[cfg(ui_ref_check)]
+            super::ref_check::register(child);
             if !child.id_ptr.is_null() {
                 unsafe { *child.id_ptr = Some(UiRef::new(child)) };
             }
@@ -374,6 +384,8 @@ impl UiElement {
     ) -> Self {
         Self {
             id: usize::MAX,
+            #[cfg(ui_ref_check)]
+            uid: super::ref_check::next_uid(),
             name,
             flags,
             size: Vec2::default(),

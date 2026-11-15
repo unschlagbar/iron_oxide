@@ -45,9 +45,7 @@ fn start_server(dir: &std::path::Path, cn: &str, port: u16) -> Option<TestServer
     let der = dir.join(format!("{cn}-cert.der"));
 
     let ok = Command::new("openssl")
-        .args([
-            "req", "-x509", "-newkey", "rsa:2048", "-keyout",
-        ])
+        .args(["req", "-x509", "-newkey", "rsa:2048", "-keyout"])
         .arg(&key)
         .arg("-out")
         .arg(&cert)
@@ -175,14 +173,11 @@ fn rejects_a_certificate_that_does_not_match_the_pin() {
         "localhost",
         Verifier::Pinned(vec![other.cert_der.clone()]),
     )
-        .err()
+    .err()
     .expect("a mismatched pin must fail");
 
     assert!(
-        matches!(
-            err,
-            iron_oxide::net::http::tls::TlsError::BadCertificate(_)
-        ),
+        matches!(err, iron_oxide::net::http::tls::TlsError::BadCertificate(_)),
         "got {err:?}"
     );
 }
@@ -204,14 +199,11 @@ fn rejects_a_hostname_the_certificate_does_not_cover() {
         "localhost",
         Verifier::Pinned(vec![server.cert_der.clone()]),
     )
-        .err()
+    .err()
     .expect("a hostname mismatch must fail");
 
     assert!(
-        matches!(
-            err,
-            iron_oxide::net::http::tls::TlsError::BadCertificate(_)
-        ),
+        matches!(err, iron_oxide::net::http::tls::TlsError::BadCertificate(_)),
         "got {err:?}"
     );
 }
@@ -233,10 +225,7 @@ fn empty_pin_set_refuses_everything() {
         .expect("an empty pin set must fail");
 
     assert!(
-        matches!(
-            err,
-            iron_oxide::net::http::tls::TlsError::BadCertificate(_)
-        ),
+        matches!(err, iron_oxide::net::http::tls::TlsError::BadCertificate(_)),
         "got {err:?}"
     );
 }

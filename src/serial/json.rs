@@ -404,7 +404,9 @@ impl Parser<'_> {
             .ok_or(self.error("truncated \\u escape"))?;
         let mut n = 0;
         for &b in hex {
-            let digit = (b as char).to_digit(16).ok_or(self.error("bad \\u escape"))?;
+            let digit = (b as char)
+                .to_digit(16)
+                .ok_or(self.error("bad \\u escape"))?;
             n = n * 16 + digit;
         }
         self.pos += 4;
@@ -528,8 +530,21 @@ mod tests {
     #[test]
     fn rejects_malformed_input() {
         for bad in [
-            "", "[1,]", "{\"a\" 1}", "01", "1.", "-", "1e", "\"abc", "\"\\x\"", "\"\u{1}\"",
-            "tru", "[1] 2", "\"\\ud800\"", "\"\\udc00\"", "{1:2}",
+            "",
+            "[1,]",
+            "{\"a\" 1}",
+            "01",
+            "1.",
+            "-",
+            "1e",
+            "\"abc",
+            "\"\\x\"",
+            "\"\u{1}\"",
+            "tru",
+            "[1] 2",
+            "\"\\ud800\"",
+            "\"\\udc00\"",
+            "{1:2}",
         ] {
             assert!(Json::parse(bad).is_err(), "accepted {bad:?}");
         }

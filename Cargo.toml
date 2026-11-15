@@ -45,3 +45,6 @@ net = ["zip", "base64", "sha1_smol", "tls"]
 tls = ["dep:ring"]
 # Crash-safe files for app data.
 storage = ["crc32fast"]
+# Panics on access through a UiRef whose element moved or was removed.
+# Always on with debug assertions; this forces it on in release builds.
+ui-ref-check = []

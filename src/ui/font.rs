@@ -57,6 +57,22 @@ pub struct Font {
 }
 
 impl Font {
+    #[cfg(test)]
+    pub(crate) fn empty() -> Self {
+        Self {
+            name: String::new(),
+            direct: [MISSING; 256],
+            codepoints: Vec::new(),
+            glyphs: Vec::new(),
+            kerning: Vec::new(),
+            line_height: 1.0,
+            ascender: -1.0,
+            descender: 0.0,
+            distance_range: 1.0,
+            bitmap: false,
+        }
+    }
+
     pub fn get_glyph(&self, char: char) -> &RawGlyph {
         let c = char as u32;
         if (c as usize) < 256 {

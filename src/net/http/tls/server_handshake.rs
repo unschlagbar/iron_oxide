@@ -45,11 +45,9 @@ impl SigningKey {
         }
 
         let rng = SystemRandom::new();
-        if let Ok(ec) = EcdsaKeyPair::from_pkcs8(
-            &ring::signature::ECDSA_P256_SHA256_ASN1_SIGNING,
-            der,
-            &rng,
-        ) {
+        if let Ok(ec) =
+            EcdsaKeyPair::from_pkcs8(&ring::signature::ECDSA_P256_SHA256_ASN1_SIGNING, der, &rng)
+        {
             return Ok(Self::EcdsaP256(Box::new(ec)));
         }
 
@@ -352,8 +350,7 @@ fn parse_client_hello(input: &[u8]) -> Result<ClientHello, TlsError> {
         suites,
         // Without an X25519 share there is nothing to agree on. A real
         // server would answer HelloRetryRequest; we only offer one group.
-        key_share: key_share
-            .ok_or(TlsError::Unsupported("client sent no X25519 key share"))?,
+        key_share: key_share.ok_or(TlsError::Unsupported("client sent no X25519 key share"))?,
         alpn,
     })
 }

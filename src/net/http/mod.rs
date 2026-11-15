@@ -26,8 +26,8 @@ mod url;
 pub mod ws;
 
 pub use client::{Client, ClientConfig, ClientRequest, Connection};
-pub use conn::{Conn, ConnReader, ConnWriter};
 pub use client_response::ClientResponse;
+pub use conn::{Conn, ConnReader, ConnWriter};
 pub use error::{HttpError, HttpResult};
 pub use files::StaticFiles;
 pub use headers::Headers;
@@ -183,7 +183,9 @@ mod tests {
             "example.com"
         );
         assert_eq!(
-            Url::parse("http://example.com:8080/").unwrap().host_header(),
+            Url::parse("http://example.com:8080/")
+                .unwrap()
+                .host_header(),
             "example.com:8080"
         );
     }
@@ -209,10 +211,7 @@ mod tests {
         assert_eq!(base.join("/c").unwrap().path, "/c");
         assert_eq!(base.join("c").unwrap().path, "/a/c");
         assert_eq!(base.join("../c").unwrap().path, "/c");
-        assert_eq!(
-            base.join("http://other.com/d").unwrap().host,
-            "other.com"
-        );
+        assert_eq!(base.join("http://other.com/d").unwrap().host, "other.com");
         // The query does not carry over to a new target.
         assert_eq!(base.join("/c").unwrap().query, None);
     }
@@ -225,10 +224,7 @@ mod tests {
         #[cfg(feature = "tls")]
         {
             let config = TlsConfig::default();
-            let err = config
-                .verifier
-                .verify(&[], "example.com", 0)
-                .unwrap_err();
+            let err = config.verifier.verify(&[], "example.com", 0).unwrap_err();
             assert!(
                 matches!(err, tls::TlsError::BadCertificate(_)),
                 "got {err:?}"
@@ -350,7 +346,10 @@ mod tests {
             .unwrap()
             .error_for_status()
             .unwrap_err();
-        assert!(matches!(err, HttpError::Status { code: 404, .. }), "got {err:?}");
+        assert!(
+            matches!(err, HttpError::Status { code: 404, .. }),
+            "got {err:?}"
+        );
     }
 
     #[test]

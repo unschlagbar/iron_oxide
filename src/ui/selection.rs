@@ -54,7 +54,7 @@ impl Selection {
         let was_hover;
 
         if let Some(hovered) = &self.hovered
-            && hovered.as_ref().id == id
+            && hovered.id == id
         {
             self.hovered = None;
             was_hover = true;
@@ -63,13 +63,13 @@ impl Selection {
         }
 
         if let Some(focused) = &self.focused
-            && focused.as_ref().id == id
+            && focused.id == id
         {
             self.focused = None;
         }
 
         if let Some(captured) = &self.captured
-            && captured.as_ref().id == id
+            && captured.id == id
         {
             self.captured = None;
         }
@@ -85,7 +85,7 @@ pub struct Select {
 }
 
 impl Select {
-    pub(crate) const fn new(element: UiRef) -> Self {
+    pub(crate) fn new(element: UiRef) -> Self {
         Self {
             id: element.as_ref().id,
             ptr: element,
@@ -98,11 +98,11 @@ impl Select {
         }
     }
 
-    pub(crate) const fn as_mut<'b>(&mut self) -> &'b mut UiElement {
+    pub(crate) fn as_mut<'b>(&mut self) -> &'b mut UiElement {
         unsafe { self.ptr.as_mut() }
     }
 
-    pub(crate) const fn as_ref(&self) -> &UiElement {
+    pub(crate) fn as_ref(&self) -> &UiElement {
         self.ptr.as_ref()
     }
 

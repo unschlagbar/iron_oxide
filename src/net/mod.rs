@@ -5,8 +5,8 @@ mod http_request;
 mod https;
 mod web_socket;
 
-pub use http::{Method, Request, Response, Server, ServerConfig, StaticFiles, Status};
 pub use http::{Client, ClientConfig, ClientRequest, ClientResponse, Url};
+pub use http::{Method, Request, Response, Server, ServerConfig, StaticFiles, Status};
 
 // The old API is kept for now so existing code keeps building.
 #[deprecated(note = "use http::Request")]

@@ -617,7 +617,14 @@ impl Widget for TextInput {
         // the text that outlives the click, so the selection has to stay
         // readable on top of it.
         for hl in &self.highlights {
-            self.fill_range(hl.range.clone(), hl.color, element, line_height, resources, info);
+            self.fill_range(
+                hl.range.clone(),
+                hl.color,
+                element,
+                line_height,
+                resources,
+                info,
+            );
         }
 
         if let Some(selection) = &self.selection {

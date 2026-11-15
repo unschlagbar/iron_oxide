@@ -55,6 +55,9 @@ impl Status {
 
     /// Per RFC 9110 these statuses must never carry a body.
     pub fn allows_body(&self) -> bool {
-        !matches!(self, Self::NoContent | Self::NotModified | Self::SwitchingProtocols)
+        !matches!(
+            self,
+            Self::NoContent | Self::NotModified | Self::SwitchingProtocols
+        )
     }
 }

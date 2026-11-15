@@ -140,7 +140,11 @@ fn read_status_line(reader: &mut impl BufRead, limits: &Limits) -> HttpResult<(u
     }
 
     // The reason phrase is optional and purely informational.
-    Ok((code, parts.next().unwrap_or("").trim().to_string(), version_minor))
+    Ok((
+        code,
+        parts.next().unwrap_or("").trim().to_string(),
+        version_minor,
+    ))
 }
 
 /// Applies RFC 9112 message framing for responses.

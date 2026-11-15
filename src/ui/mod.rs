@@ -3,6 +3,8 @@ mod callback;
 mod element;
 mod events;
 mod font;
+#[cfg(ui_ref_check)]
+mod ref_check;
 mod selection;
 mod style;
 mod system;

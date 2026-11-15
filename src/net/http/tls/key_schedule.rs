@@ -11,11 +11,11 @@
 //! and `Prk` cannot be read back out. HKDF is just HMAC underneath, so both
 //! Extract and Expand are written directly against `ring::hmac`.
 
-use ring::digest::{digest, SHA256};
+use ring::digest::{SHA256, digest};
 use ring::hmac;
 
-use super::msgs::CipherSuite;
 use super::TlsError;
+use super::msgs::CipherSuite;
 
 /// SHA-256 is the only hash these suites use, so every secret is 32 bytes.
 const HASH_LEN: usize = 32;

@@ -222,8 +222,8 @@ impl WsReader {
             return Err(WsError::Protocol("reserved bits set"));
         }
 
-        let opcode = Opcode::from_bits(head[0] & 0x0F)
-            .ok_or(WsError::Protocol("unknown opcode"))?;
+        let opcode =
+            Opcode::from_bits(head[0] & 0x0F).ok_or(WsError::Protocol("unknown opcode"))?;
 
         let masked = head[1] & 0b1000_0000 != 0;
         // Every client-to-server frame must be masked.

@@ -90,7 +90,10 @@ impl Ui {
         element.parent = None;
 
         let ptr = self.elements.as_ptr();
-        let mut element = UiRef::new(self.elements.push_mut(element));
+        let pushed = self.elements.push_mut(element);
+        #[cfg(ui_ref_check)]
+        super::ref_check::register(pushed);
+        let mut element = UiRef::new(pushed);
         // A realloc moves every root element, so their childs' parent pointers must follow.
         if ptr != self.elements.as_ptr() {
             let elements = unsafe { &mut *(self.elements.as_mut_slice() as *mut [UiElement]) };

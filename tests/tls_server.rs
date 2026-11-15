@@ -219,8 +219,8 @@ fn hijacked_tls_connection_reads_and_writes_concurrently() {
     };
 
     use iron_oxide::net::http::{Action, Conn, Request};
-    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     let tls = ServerTlsConfig::from_pem(&cert_pem, &key_pem).unwrap();
     let server = Server::bind("127.0.0.1:0").unwrap().with_tls(tls);
@@ -272,7 +272,9 @@ fn hijacked_tls_connection_reads_and_writes_concurrently() {
     tls.flush().unwrap();
 
     let mut buf = [0u8; 64];
-    let n = tls.read(&mut buf).expect("server should push while reading");
+    let n = tls
+        .read(&mut buf)
+        .expect("server should push while reading");
 
     assert!(
         String::from_utf8_lossy(&buf[..n]).contains("pushed"),

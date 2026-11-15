@@ -176,29 +176,29 @@ impl<'a> BuildContext<'a> {
             FlexAxis::Horizontal => match self.flex_start {
                 FlexAlign::Start => {
                     let x = self.child_start_pos.x + self.used_main;
-                    let y = self.child_start_pos.y
-                        + flex_align.get_pos(self.available_space.y, size.y);
+                    let y =
+                        self.child_start_pos.y + flex_align.get_pos(self.available_space.y, size.y);
                     Vec2::new(x, y)
                 }
                 FlexAlign::End => {
                     let x =
                         self.child_start_pos.x + self.available_space.x - self.used_main - size.y;
-                    let y = self.child_start_pos.y
-                        + flex_align.get_pos(self.available_space.y, size.y);
+                    let y =
+                        self.child_start_pos.y + flex_align.get_pos(self.available_space.y, size.y);
                     Vec2::new(x, y)
                 }
                 _ => unreachable!(),
             },
             FlexAxis::Vertical => match self.flex_start {
                 FlexAlign::Start => {
-                    let x = self.child_start_pos.x
-                        + flex_align.get_pos(self.available_space.x, size.x);
+                    let x =
+                        self.child_start_pos.x + flex_align.get_pos(self.available_space.x, size.x);
                     let y = self.child_start_pos.y + self.used_main;
                     Vec2::new(x, y)
                 }
                 FlexAlign::End => {
-                    let x = self.child_start_pos.x
-                        + flex_align.get_pos(self.available_space.x, size.x);
+                    let x =
+                        self.child_start_pos.x + flex_align.get_pos(self.available_space.x, size.x);
                     let y = self.child_start_pos.y + self.used_main + size.y;
                     Vec2::new(x, y)
                 }

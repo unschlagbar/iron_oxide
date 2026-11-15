@@ -23,7 +23,10 @@ pub fn extract(input: &[u8], label: &str) -> Result<Vec<Vec<u8>>, TlsError> {
             return Err(TlsError::Decode("pem block is not terminated"));
         };
 
-        let body: String = after[..stop].chars().filter(|c| !c.is_whitespace()).collect();
+        let body: String = after[..stop]
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect();
         out.push(base64_decode(&body)?);
 
         rest = &after[stop + end.len()..];
@@ -77,7 +80,9 @@ fn base64_decode(s: &str) -> Result<Vec<u8>, TlsError> {
     }
 
     let bytes = s.as_bytes();
-    let body = bytes.strip_suffix(b"==").or_else(|| bytes.strip_suffix(b"="));
+    let body = bytes
+        .strip_suffix(b"==")
+        .or_else(|| bytes.strip_suffix(b"="));
     let (body, padding) = match body {
         Some(b) if bytes.ends_with(b"==") => (b, 2),
         Some(b) => (b, 1),

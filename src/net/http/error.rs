@@ -19,7 +19,10 @@ pub enum HttpError {
     UnsupportedVersion,
     /// Client side: the peer answered with a status the caller treats as an
     /// error. Never produced by the server.
-    Status { code: u16, reason: String },
+    Status {
+        code: u16,
+        reason: String,
+    },
     /// Client side: too many redirects were followed.
     TooManyRedirects,
     Io(std::io::Error),

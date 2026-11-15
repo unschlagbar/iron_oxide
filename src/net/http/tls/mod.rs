@@ -165,7 +165,10 @@ impl std::fmt::Debug for ServerTlsConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // The key is deliberately not printed.
         f.debug_struct("ServerTlsConfig")
-            .field("chain", &format_args!("{} certificate(s)", self.chain.len()))
+            .field(
+                "chain",
+                &format_args!("{} certificate(s)", self.chain.len()),
+            )
             .field("alpn", &self.alpn)
             .finish()
     }
