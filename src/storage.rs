@@ -90,6 +90,19 @@ impl Log {
     }
 }
 
+/// Where the last complete, intact record of log bytes `data` ends, not past `max`.
+pub fn intact_len(data: &[u8], max: usize) -> usize {
+    let mut pos = 0;
+    while let Some(record) = frame(&data[pos..]) {
+        let end = pos + 8 + record.len();
+        if end > max {
+            break;
+        }
+        pos = end;
+    }
+    pos
+}
+
 /// The payload of the first frame in `data`, if it is complete and intact.
 fn frame(data: &[u8]) -> Option<&[u8]> {
     let len = u32::from_le_bytes(data.get(0..4)?.try_into().ok()?) as usize;
@@ -131,6 +144,18 @@ mod tests {
         let (_, records) = Log::open(&path).unwrap();
         assert_eq!(records.len(), 3);
         assert_eq!(records[2], b"third");
+    }
+
+    #[test]
+    fn intact_len_stops_at_torn_records_and_max() {
+        let mut data = Vec::new();
+        Log::frame(b"one", &mut data).unwrap();
+        Log::frame(b"two", &mut data).unwrap();
+        let whole = data.len();
+        data.extend_from_slice(&[9, 0, 0, 0, 1]);
+        assert_eq!(intact_len(&data, usize::MAX), whole);
+        assert_eq!(intact_len(&data, whole - 1), 11);
+        assert_eq!(intact_len(&data, 10), 0);
     }
 
     #[test]
