@@ -9,7 +9,7 @@ use winit::{event::KeyEvent, window::CursorIcon};
 
 use super::{BuildContext, Text, Ui, UiEvent, system::InputResult};
 use crate::{
-    graphics::Resources,
+    graphics::{Resources, formats::RGBA},
     primitives::Vec2,
     ui::{Font, TextInput, UiRef, build_context::BuildPass, widget::Widget},
 };
@@ -450,6 +450,8 @@ pub struct DrawInfo<'a> {
     pub z_start: i16,
     pub z_end: i16,
     pub font: &'a Font,
+    /// The opaque fill the element sits on, or ZERO when unknown.
+    pub bg: RGBA,
 }
 
 impl<'a> DrawInfo<'a> {
@@ -461,7 +463,19 @@ impl<'a> DrawInfo<'a> {
             z_start: self.z_start,
             z_end: self.z_end,
             font: self.font,
+            bg: self.bg,
         }
+    }
+
+    /// The fill to draw; one equal to the opaque fill below is skipped so it can't cover borders.
+    pub fn fill(&mut self, color: RGBA, shadow: bool) -> RGBA {
+        let skip = color.a == 255 && color == self.bg && !shadow;
+        match color.a {
+            255 => self.bg = color,
+            0 => (),
+            _ => self.bg = RGBA::ZERO,
+        }
+        if skip { RGBA::ZERO } else { color }
     }
 
     pub fn clip(&mut self, offset: Vec2<f32>, extent: Vec2<f32>) {

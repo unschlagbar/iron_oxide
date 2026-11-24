@@ -98,15 +98,19 @@ impl Widget for Absolute {
             resources.add(MatType::Shadow, to_add, info);
         }
 
+        // Floats over unrelated content, so it always draws its own fill.
+        info.bg = RGBA::ZERO;
         let to_add = UiInstance {
-            color: self.color,
+            color: info.fill(self.color, true),
             border_color: self.border_color,
             border: self.border,
             pos: element.pos.into_i16(),
             size: element.size,
             corner,
         };
-        resources.add(MatType::Basic, to_add, info);
+        if to_add.shows() {
+            resources.add(MatType::Basic, to_add, info);
+        }
     }
 }
 

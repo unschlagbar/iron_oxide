@@ -44,10 +44,12 @@ impl Log {
     /// which only a crash during `append` leaves, is cut off.
     pub fn open(path: &Path) -> Result<(Self, Vec<Vec<u8>>)> {
         let created = !path.exists();
+        // Not append: Windows refuses `set_len` on an append-only handle.
         let mut file = OpenOptions::new()
             .read(true)
-            .append(true)
+            .write(true)
             .create(true)
+            .truncate(false)
             .open(path)?;
         if created {
             sync_dir(path)?;

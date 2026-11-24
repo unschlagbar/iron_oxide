@@ -122,14 +122,16 @@ impl Widget for Button {
         }
 
         let to_add = UiInstance {
-            color: self.color,
+            color: info.fill(self.color, self.shadow.color != RGBA::ZERO),
             border_color: self.border_color,
             border: self.border,
             pos: element.pos.into_i16(),
             size: element.size,
             corner,
         };
-        resources.add(MatType::Basic, to_add, info);
+        if to_add.shows() {
+            resources.add(MatType::Basic, to_add, info);
+        }
     }
 
     fn interaction(&mut self, element: UiRef, ui: &mut Ui, event: UiEvent) -> InputResult {

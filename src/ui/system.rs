@@ -10,7 +10,7 @@ use winit::window::CursorIcon;
 
 use super::{BuildContext, Font, UiElement, UiEvent};
 use crate::{
-    graphics::{Resources, VkBase},
+    graphics::{Resources, VkBase, formats::RGBA},
     primitives::Vec2,
     ui::{
         Absolute, DrawInfo, QueuedEvent, Ticking, UiRef,
@@ -277,6 +277,7 @@ impl Ui {
             z_start: 0,
             z_end: i16::MAX,
             font: &self.font,
+            bg: RGBA::ZERO,
         };
 
         for raw_e in &mut self.elements {

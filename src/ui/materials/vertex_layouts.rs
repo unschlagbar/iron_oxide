@@ -17,6 +17,13 @@ pub struct UiInstance {
     pub corner: u16,
 }
 
+impl UiInstance {
+    /// False for a pure layout box: no fill and no visible border.
+    pub const fn shows(&self) -> bool {
+        self.color.a != 0 || (self.border_color.a != 0 && u32::from_ne_bytes(self.border) != 0)
+    }
+}
+
 impl VertexDescription for UiInstance {
     const GET_BINDING_DESCRIPTION: &[VertexInputBindingDescription] =
         &[VertexInputBindingDescription {

@@ -73,6 +73,18 @@ impl Font {
         }
     }
 
+    /// The glyph for `char`, or `None` when the atlas doesn't hold it.
+    pub fn glyph(&self, char: char) -> Option<&RawGlyph> {
+        let c = char as u32;
+        if (c as usize) < 256 {
+            let glyph = &self.direct[c as usize];
+            (glyph.advance != 0.0 || char == ' ').then_some(glyph)
+        } else {
+            let i = self.codepoints.binary_search(&c).ok()?;
+            Some(&self.glyphs[i])
+        }
+    }
+
     pub fn get_glyph(&self, char: char) -> &RawGlyph {
         let c = char as u32;
         if (c as usize) < 256 {

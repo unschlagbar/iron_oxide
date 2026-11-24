@@ -3,7 +3,7 @@ use std::{ops::Range, rc::Rc};
 use crate::ui::Align;
 use crate::{
     primitives::Vec2,
-    ui::{BuildContext, Font},
+    ui::{BuildContext, Font, font::RawGlyph},
 };
 
 pub enum TextDirtyFlags {
@@ -152,13 +152,20 @@ impl TextLayout {
         // moved without reconstructing it from glyph bounds.
         let mut split_x = 0.0;
         let mut line = self.lines.push_mut(TextLine::default());
+        // The line ends in an ellipsis; the rest of it is not laid out.
+        let mut cut = false;
 
         for (index, mut char) in text.chars().enumerate() {
             let whitespace = char.is_whitespace();
             let mut overflowed = false;
 
+            if cut && !(char == '\n' && self.white_space.newlines()) {
+                continue;
+            }
+
             if char == '\n' {
                 if self.white_space.newlines() {
+                    cut = false;
                     line = self.lines.push_mut(TextLine {
                         start: self.glyphs.len(),
                         end: self.glyphs.len(),
@@ -268,30 +275,43 @@ impl TextLayout {
             }
 
             if overflowed {
-                match self.overflow {
-                    TextOverflow::Allow => (),
-                    TextOverflow::Clip => (),
-                    TextOverflow::Ellipsis => (),
+                if let TextOverflow::Ellipsis = self.overflow {
+                    // "…" where the atlas has it, else three dots.
+                    let (dot, dot_char, count) = match font.glyph('…') {
+                        Some(g) => (g, '…', 1),
+                        None => (font.get_glyph('.'), '.', 3),
+                    };
+                    let dot_advance = dot.advance * font_size;
+                    let room = container_size.x - dot_advance * count as f32;
+                    // Drops glyphs from the line's end until the dots fit, spaces with them.
+                    let mut pen = cursor.x;
+                    while line.end > line.start {
+                        let last = &self.glyphs[line.end - 1];
+                        if pen <= room && !last.char.is_whitespace() {
+                            break;
+                        }
+                        let kern = match line.end - 1 > line.start {
+                            true => font.kerning(self.glyphs[line.end - 2].char, last.char),
+                            false => 0.0,
+                        };
+                        pen = last.pos.x - (font.get_glyph(last.char).left + kern) * font_size;
+                        self.glyphs.pop();
+                        line.end -= 1;
+                    }
+                    for _ in 0..count {
+                        let at = Vec2::new(pen, cursor.y);
+                        push_glyph(&mut self.glyphs, dot, dot_char, index, at, font_size);
+                        pen += dot_advance;
+                    }
+                    line.end = self.glyphs.len();
+                    line.width = pen;
+                    cursor.x = pen;
+                    cut = true;
+                    continue;
                 }
             } else {
-                let right = glyph.right * font_size;
-                let left = glyph.left * font_size;
-                // this just happend to be the exact number to add to make both '_' and '-' the right size with my tested font_sizes
-                let top = (glyph.top * font_size + 0.4).floor();
-                let bottom = (glyph.bottom * font_size).floor();
-
-                let size = Vec2::new(right - left, (bottom - top).max(2.0));
-                let pos = Vec2::new(left + cursor.x + kern, top + cursor.y.floor() + 0.5);
-
-                self.glyphs.push(Glyph {
-                    char,
-                    index: index as u32,
-                    pos,
-                    size,
-                    uv_start: glyph.atlas_start,
-                    uv_end: glyph.atlas_end,
-                });
-
+                let at = Vec2::new(cursor.x + kern, cursor.y);
+                push_glyph(&mut self.glyphs, glyph, char, index, at, font_size);
                 line.end = self.glyphs.len();
             }
 
@@ -394,6 +414,31 @@ impl TextLine {
     pub fn range(&self) -> Range<usize> {
         self.start..self.end
     }
+}
+
+/// Adds the glyph for `char` with its pen at `at`, in pixels of `font_size`.
+fn push_glyph(
+    glyphs: &mut Vec<Glyph>,
+    glyph: &RawGlyph,
+    char: char,
+    index: usize,
+    at: Vec2<f32>,
+    font_size: f32,
+) {
+    let right = glyph.right * font_size;
+    let left = glyph.left * font_size;
+    // this just happend to be the exact number to add to make both '_' and '-' the right size with my tested font_sizes
+    let top = (glyph.top * font_size + 0.4).floor();
+    let bottom = (glyph.bottom * font_size).floor();
+
+    glyphs.push(Glyph {
+        char,
+        index: index as u32,
+        pos: Vec2::new(left + at.x, top + at.y.floor() + 0.5),
+        size: Vec2::new(right - left, (bottom - top).max(2.0)),
+        uv_start: glyph.atlas_start,
+        uv_end: glyph.atlas_end,
+    });
 }
 
 #[derive(Debug)]
